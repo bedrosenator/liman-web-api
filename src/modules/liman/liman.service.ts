@@ -27,6 +27,17 @@ interface RawProductRow extends mysql.RowDataPacket {
   has_photo5: number;
 }
 
+/**
+ * Основной Data Access Layer сервис для работы с учетной базой данных Limansoft (MariaDB).
+ *
+ * Предоставляет методы для:
+ * - Чтения иерархии категорий из таблицы `name`
+ * - Постраничной выборки каталога товаров из `name2` с джойнами к остаткам `name2ost` и фото `namedesc`
+ * - Выборки детальной карточки одного товара с дополнительными штрихкодами из `strihcod`
+ * - Чтения бинарных BLOB-изображений товаров из `namedesc` с автоматическим определением MIME-типа по magic bytes
+ * - Атомарного списания / обновления остатков в `name2ost`
+ * - Мониторинга журнала изменений `dmonitor`
+ */
 @Injectable()
 export class LimanService {
   private readonly logger = new Logger(LimanService.name);
@@ -36,7 +47,14 @@ export class LimanService {
   ) {}
 
   /**
-   * Получить список категорий тенанта
+   * Получить плоский список категорий магазина из таблицы `name`.
+   * Поля:
+   * - `group`: строковый код группы
+   * - `name_g`: наименование категории
+   * - `parent`: код родительской категории (null для корневых)
+   *
+   * @param tenant Модель клиента
+   * @returns Массив DTO категорий LimanCategoryDto
    */
   async getCategories(tenant: Tenant): Promise<LimanCategoryDto[]> {
     const pool = this.connectionManager.getPool(tenant);
@@ -52,7 +70,12 @@ export class LimanService {
   }
 
   /**
-   * Получить количество товаров
+   * Получить общее количество активных товаров с учетом фильтров (поиск, категория, наличие).
+   * Исключает удаленные товары (`del = 't'`) и пустые записи.
+   *
+   * @param tenant Модель клиента
+   * @param options Параметры фильтрации
+   * @returns Общее число товаров (number)
    */
   async getProductCount(
     tenant: Tenant,
@@ -286,7 +309,19 @@ export class LimanService {
   }
 
   /**
-   * Получить сырой бинарный BLOB изображения из namedesc
+   * Получить сырой бинарный BLOB изображения из таблицы `namedesc`.
+   *
+   * Фотографии хранятся в полях:
+   * - photo1 (в коде/БД колонка называется `photo`)
+   * - photo2 ... photo5
+   *
+   * Метод извлекает буфер и определяет MIME-тип (image/png, image/jpeg, image/gif, image/webp)
+   * по сигнатуре первых байтов (Magic Bytes), что позволяет браузерам корректно отображать медиа.
+   *
+   * @param tenant Модель клиента
+   * @param tcod Артикул товара (tcod)
+   * @param photoIndex Порядковый номер фотографии (1..5)
+   * @returns Буфер данных и mimeType, либо null если фото отсутствует
    */
   async getProductImage(
     tenant: Tenant,
@@ -310,13 +345,16 @@ export class LimanService {
       ? rows[0].photoData
       : Buffer.from(rows[0].photoData);
 
-    // Определение формата по magic bytes
+    // Определение формата изображения по сигнатуре (Magic Bytes)
     let mimeType = 'image/jpeg';
     if (buffer.length > 4) {
+      // PNG: 89 50 4E 47
       if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) {
         mimeType = 'image/png';
+      // GIF: 47 49 46
       } else if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46) {
         mimeType = 'image/gif';
+      // WebP (RIFF): 52 49 46 46
       } else if (buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46) {
         mimeType = 'image/webp';
       }
@@ -326,7 +364,18 @@ export class LimanService {
   }
 
   /**
-   * Обновить остаток товара в таблице name2ost
+   * Атомарно обновить остаток товара в таблице `name2ost`.
+   *
+   * Логика работы:
+   * 1. Считывает текущее значение остатка из настроенной колонки (по умолчанию `skl_k`).
+   * 2. Если записи для `tcod` еще нет — выполняет INSERT.
+   * 3. Если запись существует — выполняет UPDATE.
+   * 4. Возвращает объект с новым и предыдущим остатком для аудита и вебхуков.
+   *
+   * @param tenant Модель клиента
+   * @param tcod Код товара (tcod)
+   * @param newStock Новое количество на складе
+   * @returns Результат обновления с предыдущим и новым остатком
    */
   async updateStock(
     tenant: Tenant,

@@ -5,6 +5,14 @@ import { Tenant } from '../tenant/tenant.entity';
 
 const WOO_CHUNK_SIZE = 50; // WooCommerce batch max 100, используем 50 для стабильности
 
+/**
+ * Сервис синхронизации каталога, цен и остатков между базой данных Limansoft и WooCommerce.
+ *
+ * Обеспечивает:
+ * 1. Трансляцию моделей данных Limansoft (tcod, skl_k, namedesc) в спецификацию WooCommerce REST API.
+ * 2. Полную выгрузку товаров пакетами по 50 позиций (`syncFullCatalog`).
+ * 3. Быстрое дельта-обновление цен и остатков без повторной загрузки картинок (`syncStockAndPrices`).
+ */
 @Injectable()
 export class WoocommerceSyncService {
   private readonly logger = new Logger(WoocommerceSyncService.name);
@@ -15,7 +23,20 @@ export class WoocommerceSyncService {
   ) {}
 
   /**
-   * Конвертирует LimanProduct -> WooCommerce Product format
+   * Преобразовать товар из формата Limansoft в объект WooCommerce Product.
+   *
+   * Маппинг:
+   * - `sku` <= `product.tcod` (строковый код)
+   * - `name` <= `product.name`
+   * - `regular_price` <= `product.price`
+   * - `stock_quantity` <= `product.stock`
+   * - `manage_stock` <= `true`
+   * - `images` <= массив ссылок Media API
+   * - `_barcode` <= `product.barcode` в meta_data
+   *
+   * @param product Товар из базы Limansoft
+   * @param baseUrl Базовый URL сервиса для ссылок на картинки
+   * @returns Объект WooProduct
    */
   private mapProductToWoo(
     product: Awaited<ReturnType<LimanService['getProductByTcod']>>,

@@ -12,6 +12,14 @@ import { Tenant } from './tenant.entity';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
 
+/**
+ * Сервис управления магазинами/клиентами (Tenants) в мастер-базе данных SQLite.
+ *
+ * Отвечает за:
+ * 1. Автоматический сидинг тестового тенанта `columb` при первом запуске (`onModuleInit`).
+ * 2. CRUD-операции над профилями клиентов и параметрами подключения к их MariaDB.
+ * 3. Генерацию и безопасную ротацию персональных API-ключей клиентов (`rotateApiKey`).
+ */
 @Injectable()
 export class TenantService implements OnModuleInit {
   private readonly logger = new Logger(TenantService.name);
@@ -21,6 +29,9 @@ export class TenantService implements OnModuleInit {
     private readonly tenantRepository: Repository<Tenant>,
   ) {}
 
+  /**
+   * Хук инициализации модуля: проверяет наличие дефолтного клиента `columb`
+   */
   async onModuleInit() {
     await this.seedDefaultTenant();
   }

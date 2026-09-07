@@ -3,12 +3,24 @@ import type { Response } from 'express';
 import { LimanService } from '../liman/liman.service';
 import { Tenant } from '../tenant/tenant.entity';
 
+/**
+ * Потоковый сервис генерации YML (Yandex Market Language) XML фида для Prom.ua.
+ *
+ * Архитектурные особенности:
+ * 1. Потоковая запись (Streaming): данные отправляются чанками по 200 товаров напрямую в `res.write()`,
+ *    что позволяет генерировать фид на 10 000+ товаров без накопления гигабайтов XML в оперативной памяти (O(1) RAM).
+ * 2. CDATA-секции: описания товаров экранируются с сохранением HTML-разметки для Prom.ua.
+ * 3. Полная иерархия: категории выгружаются с сохранением атрибутов `parentId` из таблицы `name`.
+ */
 @Injectable()
 export class PromFeedService {
   private readonly logger = new Logger(PromFeedService.name);
 
   constructor(private readonly limanService: LimanService) {}
 
+  /**
+   * Безопасное экранирование специальных XML-символов
+   */
   private escapeXml(str: string): string {
     return str
       .replace(/&/g, '&amp;')
@@ -19,7 +31,10 @@ export class PromFeedService {
   }
 
   /**
-   * Потоковая отдача YML XML фида для Prom.ua
+   * Потоковая генерация и отдача YML XML фида в HTTP-ответ для маркетплейса Prom.ua
+   * @param tenant Модель клиента
+   * @param baseUrl Базовый URL сервиса для ссылок на фото товаров
+   * @param res Исходящий поток Express Response
    */
   async streamYmlFeed(tenant: Tenant, baseUrl: string, res: Response): Promise<void> {
     this.logger.log(`📡 Начало потоковой генерации Prom YML фида для "${tenant.id}"...`);

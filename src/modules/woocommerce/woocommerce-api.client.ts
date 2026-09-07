@@ -42,22 +42,39 @@ export interface WooOrder {
   };
 }
 
+/**
+ * Клиент REST API WooCommerce (v3).
+ *
+ * Особенности и архитектурные решения:
+ * 1. Авторизация:
+ *    - Для HTTPS: используется стандартная HTTP Basic Auth (`consumer_key` / `consumer_secret`).
+ *    - Для HTTP: WooCommerce по умолчанию отклоняет Basic Auth как небезопасный. Поэтому используется
+ *      query-string авторизация через интерцептор axios (`?consumer_key=...&consumer_secret=...`).
+ * 2. Увеличенный таймаут: 120 секунд для предотвращения обрывов при пакетной загрузке тяжелых медиа.
+ * 3. Smart Batch Upsert: автоматическое сопоставление SKU -> WooCommerce ID для разделения товаров
+ *    на пакеты создания (`create`) и обновления (`update`), что полностью исключает ошибки дублирования SKU.
+ */
 @Injectable()
 export class WoocommerceApiClient {
   private readonly logger = new Logger(WoocommerceApiClient.name);
 
+  /**
+   * Фабрика инстанса Axios для конкретного тенанта с настройкой авторизации и базового URL
+   * @param tenant Модель клиента
+   * @returns AxiosInstance, настроенный на endpoint /wp-json/wc/v3
+   */
   private createClient(tenant: Tenant): AxiosInstance {
     if (!tenant.woocommerceUrl || !tenant.woocommerceConsumerKey || !tenant.woocommerceConsumerSecret) {
       throw new NotFoundException(
-        `Тенант "${tenant.id}" не має налаштувань WooCommerce. Вкажіть woocommerceUrl, woocommerceConsumerKey та woocommerceConsumerSecret.`,
+        `Тенант "${tenant.id}" не имеет настроек WooCommerce. Укажите woocommerceUrl, woocommerceConsumerKey и woocommerceConsumerSecret.`,
       );
     }
 
     const isHttps = tenant.woocommerceUrl.startsWith('https');
 
-    // WooCommerce відхиляє Basic Auth по HTTP (небезпечно).
-    // Для HTTP використовуємо query-string авторизацію (consumer_key + consumer_secret у params).
-    // Для HTTPS — стандартний Basic Auth.
+    // WooCommerce отклоняет Basic Auth по HTTP (небезопасно).
+    // Для HTTP используем query-string авторизацию (consumer_key + consumer_secret в params).
+    // Для HTTPS — стандартный Basic Auth.
     const client = axios.create({
       baseURL: `${tenant.woocommerceUrl}/wp-json/wc/v3`,
       timeout: 120000,
@@ -72,7 +89,7 @@ export class WoocommerceApiClient {
         : {}),
     });
 
-    // Для HTTP — автоматично додаємо consumer_key і consumer_secret до кожного запиту
+    // Для HTTP — автоматически добавляем consumer_key и consumer_secret к каждому запросу
     if (!isHttps) {
       client.interceptors.request.use((config) => {
         config.params = {

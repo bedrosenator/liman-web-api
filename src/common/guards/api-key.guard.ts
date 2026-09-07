@@ -13,6 +13,15 @@ import type { Request } from 'express';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { Tenant } from '../../modules/tenant/tenant.entity';
 
+/**
+ * Глобальный Guard для авторизации запросов по HTTP-заголовку `x-api-key`.
+ *
+ * Поддерживает 3 режима работы:
+ * 1. Публичные маршруты: методы/контроллеры с декоратором `@Public()` пропускаются без проверки.
+ * 2. Master API Key: глобальный ключ администратора из конфигурации (`apiKey`), дающий полный доступ ко всем тенантам.
+ * 3. Tenant API Key: индивидуальный ключ магазина из SQLite таблицы `tenants`.
+ *    При успешной проверке объект тенанта сохраняется в `request.tenant`.
+ */
 @Injectable()
 export class ApiKeyGuard implements CanActivate {
   private readonly logger = new Logger(ApiKeyGuard.name);
@@ -24,8 +33,13 @@ export class ApiKeyGuard implements CanActivate {
     private readonly tenantRepository: Repository<Tenant>,
   ) {}
 
+  /**
+   * Проверка прав доступа входящего HTTP-запроса
+   * @param context Контекст выполнения NestJS
+   * @returns true если запрос авторизован, иначе выбрасывает UnauthorizedException
+   */
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    // Пропускаем публичные маршруты (@Public())
+    // 1. Пропускаем публичные маршруты, помеченные декоратором @Public()
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),

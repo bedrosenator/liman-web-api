@@ -6,11 +6,25 @@ import {
 import mysql from 'mysql2/promise';
 import { Tenant } from '../tenant/tenant.entity';
 
+/**
+ * Менеджер пулов соединений с базами данных MariaDB клиентов (Tenants).
+ *
+ * Отвечает за:
+ * 1. Динамическое создание пулов соединений `mysql2/promise` по требованию (On-Demand).
+ * 2. Кэширование пулов в памяти (`Map<tenantId, mysql.Pool>`) для повторного использования.
+ * 3. Проверку жизнеспособности соединения (`testConnection` с замером пинга).
+ * 4. Корректное закрытие пулов при остановке сервиса (`onApplicationShutdown`).
+ */
 @Injectable()
 export class TenantConnectionManager implements OnApplicationShutdown {
   private readonly logger = new Logger(TenantConnectionManager.name);
   private readonly pools = new Map<string, mysql.Pool>();
 
+  /**
+   * Получить существующий или создать новый пул соединений к MariaDB клиента
+   * @param tenant Модель клиента с реквизитами подключения к MariaDB
+   * @returns Пул соединений mysql.Pool
+   */
   getPool(tenant: Tenant): mysql.Pool {
     const existing = this.pools.get(tenant.id);
     if (existing) {
@@ -21,6 +35,7 @@ export class TenantConnectionManager implements OnApplicationShutdown {
       `🔌 Создаем пул соединений к MariaDB для тенанта "${tenant.id}" (${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName})...`,
     );
 
+    // Конфигурация пула с KeepAlive и таймзоной UTC
     const pool = mysql.createPool({
       host: tenant.dbHost,
       port: tenant.dbPort,

@@ -13,6 +13,17 @@ import { LimanService } from '../liman/liman.service';
 import { TenantService } from '../tenant/tenant.service';
 import { Public } from '../../common/decorators/public.decorator';
 
+/**
+ * Контроллер потоковой отдачи изображений товаров из бинарного хранилища Limansoft.
+ *
+ * Преобразует LONGBLOB данные из таблицы `namedesc` в стандартные HTTP URL,
+ * необходимые для импорта в WooCommerce, Prom.ua, Rozetka и Хорошоп.
+ *
+ * Особенности:
+ * 1. `@Public()` — доступен без API-ключа (чтобы внешние маркетплейсы и CDN могли скачивать фото).
+ * 2. `ETag` + `HTTP 304 Not Modified` — предотвращает повторную передачу неизмененных картинок.
+ * 3. SVG-плейсхолдер — при отсутствии фото отдает легкий векторный заглушечный баннер вместо ошибки 404.
+ */
 @ApiTags('Media')
 @Controller('media/:tenantId/products/:tcod')
 export class MediaController {
@@ -21,6 +32,15 @@ export class MediaController {
     private readonly tenantService: TenantService,
   ) {}
 
+  /**
+   * Стриминг фотографии товара по артикулу (tcod) и порядковому номеру
+   *
+   * @param tenantId Идентификатор магазина/клиента
+   * @param tcod Числовой артикул товара в Limansoft
+   * @param photoIndex Номер фотографии (1..5)
+   * @param req Входящий запрос (для проверки заголовка If-None-Match)
+   * @param res Исходящий HTTP-ответ
+   */
   @Get(':photoIndex.jpg')
   @Public()
   @ApiOperation({

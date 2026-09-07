@@ -6,6 +6,15 @@ import { LimanService } from '../liman/liman.service';
 import { TenantService } from '../tenant/tenant.service';
 import { PromApiClient, PromProductPriceStockUpdate } from '../prom/prom-api.client';
 
+/**
+ * Воркер фоновой очереди BullMQ для асинхронной синхронизации складских остатков и цен.
+ *
+ * Преимущества архитектуры через очереди:
+ * 1. Изоляция от HTTP: клиент не ждет завершения долгой синхронизации (10 000+ товаров) и не сталкивается с 504 Gateway Timeout.
+ * 2. Прогресс в реальном времени: каждые 100 товаров воркер обновляет `job.updateProgress(percent)`,
+ *    что позволяет фронтенду или API отслеживать процесс от 0 до 100%.
+ * 3. Авто-повторы: при сбоях сети Redis/BullMQ автоматически перезапустит задачу с задержкой.
+ */
 @Processor(QUEUE_NAMES.SYNC_STOCK)
 export class StockSyncProcessor extends WorkerHost {
   private readonly logger = new Logger(StockSyncProcessor.name);
@@ -18,6 +27,11 @@ export class StockSyncProcessor extends WorkerHost {
     super();
   }
 
+  /**
+   * Точка входа для выполнения фоновой задачи синхронизации
+   * @param job Объект задачи BullMQ с данными тенанта и целевой платформы
+   * @returns Отчет о выполнении с числом обработанных товаров и временем работы
+   */
   async process(job: Job<SyncStockJobData>): Promise<{
     processed: number;
     success: boolean;
