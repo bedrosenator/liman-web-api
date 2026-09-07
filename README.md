@@ -255,13 +255,14 @@ GET /api/v1/media/:tenantId/products/:tcod/:photoIndex.jpg
 ### 🛍️ 7. Horoshop (Хорошоп / Cartum)
 | Метод | Путь | Описание |
 |---|---|---|
-| `GET` | `/api/v1/horoshop/:tenantId/ping` | Проверка подключения к API Хорошоп (`/api/auth/`) |
+| `GET` | `/api/v1/horoshop/:tenantId/ping` | Проверка подключения к API Хорошоп (`/api/auth/`, поддержка MOCK-режима) |
 | `GET` | `/api/v1/horoshop/:tenantId/feed.xml` | Потоковый XML/YML фид для авто-импорта каталога в Хорошоп |
 | `POST` | `/api/v1/horoshop/:tenantId/sync/prices-stocks` | Пакетное обновление цен и остатков через Horoshop API (`/catalog/import/`) |
 | `GET` | `/api/v1/horoshop/:tenantId/orders` | Получение списка заказов из Хорошоп (`/api/orders/get/`) |
-| `POST` | `/api/v1/horoshop/:tenantId/webhook/order` | Вебхук оформления заказа в Хорошоп (списание остатка) |
+| `POST` | `/api/v1/horoshop/:tenantId/sync/orders` | Опрос новых заказов и списание остатков (Polling с дедупликацией) |
+| `POST` | `/api/v1/horoshop/:tenantId/webhook/order` | Вебхук оформления заказа в Хорошоп (списание остатка с защитой от дублей) |
 
-### ⚡ 7. Очереди и задачи (BullMQ)
+### ⚡ 8. Очереди и задачи (BullMQ)
 | Метод | Путь | Описание |
 |---|---|---|
 | `POST` | `/api/v1/sync/:tenantId/stock` | Постановка задачи синхронизации в очередь |

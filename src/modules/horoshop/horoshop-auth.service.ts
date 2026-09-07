@@ -45,6 +45,18 @@ export class HoroshopAuthService {
    */
   private async authenticate(tenant: Tenant): Promise<string> {
     const rawDomain = tenant.horoshopDomain!.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+
+    // Тестовый / MOCK режим
+    if (rawDomain === 'mock' || rawDomain === 'test' || rawDomain.includes('mock')) {
+      this.logger.log(`🧪 [${tenant.id}] Тестовый MOCK-режим: авторизация Хорошоп эмулирована успешно`);
+      const mockToken = `mock_horoshop_jwt_token_${tenant.id}`;
+      this.tokenCache.set(tenant.id, {
+        token: mockToken,
+        expiresAt: Date.now() + 24 * 60 * 60 * 1000,
+      });
+      return mockToken;
+    }
+
     const url = `https://${rawDomain}/api/auth/`;
 
     this.logger.log(`🔑 [${tenant.id}] Запрос токена Хорошоп: ${url} (login: ${tenant.horoshopLogin})`);

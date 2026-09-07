@@ -97,4 +97,115 @@ export class HoroshopSyncService {
       durationMs,
     };
   }
+
+  // Кэш обработанных заказов (ключ: "tenantId:orderId") для предотвращения повторных списаний
+  private readonly processedOrderIds = new Set<string>();
+
+  /**
+   * Проверить и пометить заказ как обработанный
+   * @returns true если заказ новый, false если уже был обработан
+   */
+  markOrderProcessed(tenantId: string, orderId: string | number): boolean {
+    const key = `${tenantId}:${orderId}`;
+    if (this.processedOrderIds.has(key)) {
+      return false;
+    }
+    this.processedOrderIds.add(key);
+    return true;
+  }
+
+  /**
+   * Опрос новых заказов из Хорошоп (Polling) с автоматическим списанием складских остатков
+   * Используется клиентами, у которых на тарифе Хорошоп нет вебхуков.
+   */
+  async syncOrders(
+    tenant: Tenant,
+    options: { status?: string; dateFrom?: string; limit?: number } = {},
+  ): Promise<{
+    totalFetched: number;
+    processedOrders: number;
+    skippedOrders: number;
+    itemsDeducted: Array<{
+      orderId: string | number;
+      tcod: number;
+      qty: number;
+      oldStock: number;
+      newStock: number;
+    }>;
+  }> {
+    const statusFilter = options.status || 'new';
+    this.logger.log(`📥 [${tenant.id}] Опрос заказов Хорошоп (статус: ${statusFilter})...`);
+
+    const ordersResponse = await this.horoshopClient.getOrders(tenant, {
+      status: statusFilter,
+      date_from: options.dateFrom,
+      limit: options.limit || 50,
+    });
+
+    const ordersList: any[] =
+      ordersResponse?.response?.orders || ordersResponse?.orders || [];
+
+    let processedOrders = 0;
+    let skippedOrders = 0;
+    const itemsDeducted: Array<{
+      orderId: string | number;
+      tcod: number;
+      qty: number;
+      oldStock: number;
+      newStock: number;
+    }> = [];
+
+    for (const order of ordersList) {
+      const orderId = order.id || order.order_id;
+      if (!orderId) continue;
+
+      if (!this.markOrderProcessed(tenant.id, orderId)) {
+        this.logger.log(`⏭️ [${tenant.id}] Заказ №${orderId} уже был списан ранее. Пропускаем.`);
+        skippedOrders++;
+        continue;
+      }
+
+      const products: any[] = order.products || order.items || [];
+      for (const item of products) {
+        const articleStr = item.article || item.vendorCode || item.sku;
+        const tcod = parseInt(String(articleStr || ''), 10);
+        const qty = Number(item.quantity || item.amount || 1);
+
+        if (!isNaN(tcod) && tcod > 0 && qty > 0) {
+          try {
+            const current = await this.limanService.getProductByTcod(tenant, tcod);
+            const newStock = Math.max(0, current.stock - qty);
+            const updated = await this.limanService.updateStock(tenant, tcod, newStock);
+
+            itemsDeducted.push({
+              orderId,
+              tcod,
+              qty,
+              oldStock: updated.oldStock,
+              newStock: updated.newStock,
+            });
+          } catch (err: any) {
+            this.logger.error(
+              `❌ [${tenant.id}] Ошибка списания остатка для заказа №${orderId} (tcod=${tcod}):`,
+              err.message,
+            );
+          }
+        }
+      }
+
+      processedOrders++;
+    }
+
+    this.logger.log(
+      `✅ [${tenant.id}] Опрос заказов завершен: получено ${ordersList.length}, ` +
+        `обработано ${processedOrders}, пропущено (дубли) ${skippedOrders}, списано позиций ${itemsDeducted.length}`,
+    );
+
+    return {
+      totalFetched: ordersList.length,
+      processedOrders,
+      skippedOrders,
+      itemsDeducted,
+    };
+  }
 }

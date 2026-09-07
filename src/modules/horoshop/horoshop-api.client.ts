@@ -81,6 +81,14 @@ export class HoroshopApiClient {
   }
 
   /**
+   * Проверка, включен ли тестовый/mock режим
+   */
+  private isMockMode(tenant: Tenant): boolean {
+    const d = (tenant.horoshopDomain || '').toLowerCase();
+    return d === 'mock' || d === 'test' || d.includes('mock');
+  }
+
+  /**
    * Проверка связи с Хорошоп (получение токена)
    */
   async ping(tenant: Tenant): Promise<{
@@ -95,6 +103,15 @@ export class HoroshopApiClient {
         connected: false,
         domain: 'Не настроен',
         authStatus: 'Отсутствует horoshopDomain',
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    if (this.isMockMode(tenant)) {
+      return {
+        connected: true,
+        domain: `${domain} (Тестовый Sandbox MOCK)`,
+        authStatus: 'Тестовый режим (MOCK): авторизация эмулирована успешно',
         timestamp: new Date().toISOString(),
       };
     }
@@ -129,6 +146,23 @@ export class HoroshopApiClient {
     total: number;
     response: any;
   }> {
+    if (this.isMockMode(tenant)) {
+      this.logger.log(
+        `🧪 [${tenant.id}] MOCK: симуляция отправки ${items.length} позиций в Horoshop API (/catalog/import/)`,
+      );
+      return {
+        success: true,
+        total: items.length,
+        response: {
+          status: 'OK',
+          response: {
+            updated: items.length,
+            message: 'MOCK: товары, цены и остатки успешно обновлены',
+          },
+        },
+      };
+    }
+
     const payload = {
       products: items.map((item) => ({
         article: String(item.article),
@@ -155,6 +189,55 @@ export class HoroshopApiClient {
     tenant: Tenant,
     filter: { date_from?: string; status?: string; limit?: number } = {},
   ): Promise<any> {
+    if (this.isMockMode(tenant)) {
+      this.logger.log(`🧪 [${tenant.id}] MOCK: симуляция получения заказов из Хорошоп`);
+      return {
+        status: 'OK',
+        response: {
+          orders: [
+            {
+              id: 10421,
+              status: 'new',
+              created: new Date().toISOString(),
+              total: 332.86,
+              currency: 'UAH',
+              delivery: { title: 'Нова Пошта' },
+              products: [
+                {
+                  article: '16',
+                  quantity: 1,
+                  price: 142.86,
+                  title: 'Bond Street Blue Selection',
+                },
+                {
+                  article: '251',
+                  quantity: 2,
+                  price: 47.0,
+                  title: 'Burn 0.25 Original',
+                },
+              ],
+            },
+            {
+              id: 10422,
+              status: 'processing',
+              created: new Date().toISOString(),
+              total: 142.86,
+              currency: 'UAH',
+              delivery: { title: 'Самовивіз' },
+              products: [
+                {
+                  article: '16',
+                  quantity: 1,
+                  price: 142.86,
+                  title: 'Bond Street Blue Selection',
+                },
+              ],
+            },
+          ],
+        },
+      };
+    }
+
     return this.request(tenant, 'orders/get/', filter);
   }
 }

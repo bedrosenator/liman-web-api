@@ -112,6 +112,39 @@ export class HoroshopSyncController {
   }
 
   /**
+   * Опрос новых заказов из Хорошоп (Polling) с автоматическим списанием остатков в Limansoft
+   */
+  @Post('sync/orders')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Опрос новых заказов Хорошоп и списание остатков (Polling для тарифов без вебхуков)',
+    description:
+      'Запрашивает новые заказы через /api/orders/get/ Хорошоп. Для каждого нового заказа с дедупликацией ' +
+      'уменьшает остаток товаров в базе данных Limansoft (name2ost). Заказы, списанные ранее, повторно не списываются.',
+  })
+  @ApiParam({ name: 'tenantId', example: 'columb' })
+  @ApiQuery({ name: 'status', required: false, example: 'new' })
+  @ApiQuery({ name: 'date_from', required: false, example: '2026-09-01' })
+  async syncOrders(
+    @Param('tenantId') tenantId: string,
+    @Query('status') status?: string,
+    @Query('date_from') dateFrom?: string,
+  ) {
+    const tenant = await this.tenantService.findOne(tenantId);
+    const result = await this.syncService.syncOrders(tenant, {
+      status,
+      dateFrom,
+    });
+
+    return {
+      success: true,
+      tenantId,
+      ...result,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  /**
    * Вебхук входящего заказа из Хорошоп (авто-списание остатков)
    */
   @Post('webhook/order')
@@ -151,6 +184,18 @@ export class HoroshopSyncController {
 
     const orderId = payload?.order_id || payload?.id || 'N/A';
     this.logger.log(`🛒 [${tenantId}] Вебхук заказа Хорошоп №${orderId}`);
+
+    // Проверяем дедупликацию, если ID известен
+    if (orderId !== 'N/A' && !this.syncService.markOrderProcessed(tenantId, orderId)) {
+      this.logger.log(`⏭️ [${tenantId}] Вебхук: заказ №${orderId} уже был списан ранее.`);
+      return {
+        success: true,
+        orderId,
+        message: 'Заказ уже был обработан ранее, повторное списание пропущено',
+        processedItems: [],
+        timestamp: new Date().toISOString(),
+      };
+    }
 
     const results: Array<{
       tcod: number;
