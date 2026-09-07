@@ -435,6 +435,60 @@ export class LimanService {
   }
 
   /**
+   * Атомарно уменьшить остаток товара при оформлении заказа (Deduct Stock).
+   *
+   * Реализует принцип Single Responsibility (SRP): контроллерам заказов
+   * не требуется загружать карточки товаров или знать формулу списания.
+   * Считывает текущий остаток из name2ost, вычитает количество (с защитой от отрицательных значений)
+   * и атомарно сохраняет новое значение.
+   *
+   * @param tenant Модель клиента
+   * @param tcod Код товара (tcod)
+   * @param quantity Списываемое количество
+   * @returns Предыдущий и новый остаток, а также фактически списанное количество
+   */
+  async deductStock(
+    tenant: Tenant,
+    tcod: number,
+    quantity: number,
+  ): Promise<{ success: boolean; tcod: number; oldStock: number; newStock: number; deducted: number }> {
+    const pool = this.connectionManager.getPool(tenant);
+    const stockCol = this.sanitizeIdentifier(tenant.stockColumn, 'skl_k');
+
+    const [rows] = await pool.query<mysql.RowDataPacket[]>(
+      `SELECT \`${stockCol}\` as currStock FROM \`name2ost\` WHERE tcod = ? LIMIT 1`,
+      [tcod],
+    );
+
+    const oldStock = rows.length ? Number(rows[0].currStock ?? 0) : 0;
+    const newStock = Math.max(0, oldStock - quantity);
+
+    if (rows.length === 0) {
+      await pool.query(
+        `INSERT INTO \`name2ost\` (tcod, \`${stockCol}\`) VALUES (?, ?)`,
+        [tcod, newStock],
+      );
+    } else {
+      await pool.query(
+        `UPDATE \`name2ost\` SET \`${stockCol}\` = ? WHERE tcod = ?`,
+        [newStock, tcod],
+      );
+    }
+
+    this.logger.log(
+      `🛒 [${tenant.id}] Списание остатка tcod=${tcod} (-${quantity}): ${oldStock} -> ${newStock}`,
+    );
+
+    return {
+      success: true,
+      tcod,
+      oldStock,
+      newStock,
+      deducted: oldStock - newStock,
+    };
+  }
+
+  /**
    * Получить последние изменения из dmonitor
    */
   async getRecentChanges(

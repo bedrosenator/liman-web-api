@@ -18,18 +18,18 @@ import {
 } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { RozetkaApiClient } from './rozetka-api.client';
-import { RozetzkasSyncService } from './rozetka-sync.service';
+import { RozetkaSyncService } from './rozetka-sync.service';
 import { LimanService } from '../liman/liman.service';
 import { TenantService } from '../tenant/tenant.service';
 
 @ApiTags('Rozetka')
 @Controller('rozetka/:tenantId')
-export class RozetzkasSyncController {
-  private readonly logger = new Logger(RozetzkasSyncController.name);
+export class RozetkaSyncController {
+  private readonly logger = new Logger(RozetkaSyncController.name);
 
   constructor(
     private readonly rozetkaClient: RozetkaApiClient,
-    private readonly syncService: RozetzkasSyncService,
+    private readonly syncService: RozetkaSyncService,
     private readonly limanService: LimanService,
     private readonly tenantService: TenantService,
   ) {}
@@ -143,19 +143,16 @@ export class RozetzkasSyncController {
 
       if (!isNaN(tcod) && tcod > 0 && qty > 0) {
         try {
-          const current = await this.limanService.getProductByTcod(tenant, tcod);
-          const newStock = Math.max(0, current.stock - qty);
-          const updated = await this.limanService.updateStock(tenant, tcod, newStock);
-
+          const deduction = await this.limanService.deductStock(tenant, tcod, qty);
           results.push({
             tcod,
             requestedQty: qty,
-            oldStock: updated.oldStock,
-            newStock: updated.newStock,
+            oldStock: deduction.oldStock,
+            newStock: deduction.newStock,
           });
         } catch (err) {
           this.logger.error(
-            `❌ [${tenantId}] Не удалось обновить остаток tcod=${tcod}:`,
+            `❌ [${tenantId}] Не удалось списать остаток tcod=${tcod}:`,
             err,
           );
         }

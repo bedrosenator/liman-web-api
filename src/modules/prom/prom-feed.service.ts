@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { Response } from 'express';
 import { LimanService } from '../liman/liman.service';
 import { Tenant } from '../tenant/tenant.entity';
+import { escapeXml, wrapCdata, formatYmlDate } from '../../common/utils/xml.utils';
 
 /**
  * Потоковый сервис генерации YML (Yandex Market Language) XML фида для Prom.ua.
@@ -19,18 +20,6 @@ export class PromFeedService {
   constructor(private readonly limanService: LimanService) {}
 
   /**
-   * Безопасное экранирование специальных XML-символов
-   */
-  private escapeXml(str: string): string {
-    return str
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&apos;');
-  }
-
-  /**
    * Потоковая генерация и отдача YML XML фида в HTTP-ответ для маркетплейса Prom.ua
    * @param tenant Модель клиента
    * @param baseUrl Базовый URL сервиса для ссылок на фото товаров
@@ -38,7 +27,7 @@ export class PromFeedService {
    */
   async streamYmlFeed(tenant: Tenant, baseUrl: string, res: Response): Promise<void> {
     this.logger.log(`📡 Начало потоковой генерации Prom YML фида для "${tenant.id}"...`);
-    const dateStr = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    const dateStr = formatYmlDate();
 
     res.setHeader('Content-Type', 'application/xml; charset=utf-8');
     res.setHeader('Content-Disposition', `inline; filename="prom_feed_${tenant.id}.xml"`);
@@ -48,8 +37,8 @@ export class PromFeedService {
     res.write('<!DOCTYPE yml_catalog SYSTEM "shops.dtd">\n');
     res.write(`<yml_catalog date="${dateStr}">\n`);
     res.write('  <shop>\n');
-    res.write(`    <name>${this.escapeXml(tenant.name)}</name>\n`);
-    res.write(`    <company>${this.escapeXml(tenant.name)}</company>\n`);
+    res.write(`    <name>${escapeXml(tenant.name)}</name>\n`);
+    res.write(`    <company>${escapeXml(tenant.name)}</company>\n`);
     res.write(`    <url>${baseUrl}</url>\n`);
     res.write('    <currencies>\n');
     res.write('      <currency id="UAH" rate="1"/>\n');
@@ -59,8 +48,8 @@ export class PromFeedService {
     const categories = await this.limanService.getCategories(tenant);
     res.write('    <categories>\n');
     for (const cat of categories) {
-      const parentAttr = cat.parent ? ` parentId="${this.escapeXml(cat.parent)}"` : '';
-      res.write(`      <category id="${this.escapeXml(cat.group)}"${parentAttr}>${this.escapeXml(cat.name)}</category>\n`);
+      const parentAttr = cat.parent ? ` parentId="${escapeXml(cat.parent)}"` : '';
+      res.write(`      <category id="${escapeXml(cat.group)}"${parentAttr}>${escapeXml(cat.name)}</category>\n`);
     }
     res.write('    </categories>\n');
 
@@ -86,27 +75,27 @@ export class PromFeedService {
       for (const item of items) {
         const availableAttr = item.isAvailable ? 'true' : 'false';
         res.write(`      <offer id="${item.tcod}" available="${availableAttr}">\n`);
-        res.write(`        <name>${this.escapeXml(item.name)}</name>\n`);
+        res.write(`        <name>${escapeXml(item.name)}</name>\n`);
         res.write(`        <price>${item.price.toFixed(2)}</price>\n`);
         res.write(`        <currencyId>UAH</currencyId>\n`);
         if (item.categoryGroup) {
-          res.write(`        <categoryId>${this.escapeXml(item.categoryGroup)}</categoryId>\n`);
+          res.write(`        <categoryId>${escapeXml(item.categoryGroup)}</categoryId>\n`);
         }
         if (item.barcode) {
-          res.write(`        <barcode>${this.escapeXml(item.barcode)}</barcode>\n`);
+          res.write(`        <barcode>${escapeXml(item.barcode)}</barcode>\n`);
         }
         res.write(`        <quantity_in_stock>${item.stock}</quantity_in_stock>\n`);
 
         // Картинки
         if (item.imageUrls && item.imageUrls.length > 0) {
           for (const imgUrl of item.imageUrls) {
-            res.write(`        <picture>${this.escapeXml(imgUrl)}</picture>\n`);
+            res.write(`        <picture>${escapeXml(imgUrl)}</picture>\n`);
           }
         }
 
         // Описание
         if (item.description) {
-          res.write(`        <description><![CDATA[${item.description}]]></description>\n`);
+          res.write(`        <description>${wrapCdata(item.description)}</description>\n`);
         }
 
         res.write('      </offer>\n');

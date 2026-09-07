@@ -61,17 +61,15 @@ export class PromWebhookController {
 
         if (!isNaN(tcod) && qty > 0) {
           try {
-            const current = await this.limanService.getProductByTcod(tenant, tcod);
-            const newStock = Math.max(0, current.stock - qty);
-            const updated = await this.limanService.updateStock(tenant, tcod, newStock);
+            const deduction = await this.limanService.deductStock(tenant, tcod, qty);
             results.push({
               tcod,
               requestedQty: qty,
-              oldStock: updated.oldStock,
-              newStock: updated.newStock,
+              oldStock: deduction.oldStock,
+              newStock: deduction.newStock,
             });
           } catch (err) {
-            this.logger.error(`Не удалось обновить остаток для tcod=${tcod}:`, err);
+            this.logger.error(`Не удалось списать остаток для tcod=${tcod}:`, err);
           }
         }
       }

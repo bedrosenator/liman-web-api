@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { Response } from 'express';
 import { LimanService } from '../liman/liman.service';
 import { Tenant } from '../tenant/tenant.entity';
+import { escapeXml, wrapCdata, formatYmlDate } from '../../common/utils/xml.utils';
 
 /**
  * Сервис генерации XML-фида для Rozetka Marketplace
@@ -19,15 +20,6 @@ export class RozetkaFeedService {
 
   constructor(private readonly limanService: LimanService) {}
 
-  private escapeXml(str: string): string {
-    return str
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&apos;');
-  }
-
   /**
    * Потоковая отдача XML-фида для Rozetka
    * GET /api/v1/rozetka/:tenantId/feed.xml
@@ -37,8 +29,8 @@ export class RozetkaFeedService {
       `📡 [${tenant.id}] Начало генерации Rozetka XML фида...`,
     );
 
-    const dateStr = new Date().toISOString().slice(0, 19).replace('T', ' ');
-    const shopName = this.escapeXml(tenant.name);
+    const dateStr = formatYmlDate();
+    const shopName = escapeXml(tenant.name);
 
     res.setHeader('Content-Type', 'application/xml; charset=utf-8');
     res.setHeader(
@@ -63,10 +55,10 @@ export class RozetkaFeedService {
     res.write('    <categories>\n');
     for (const cat of categories) {
       const parentAttr = cat.parent
-        ? ` parentId="${this.escapeXml(cat.parent)}"`
+        ? ` parentId="${escapeXml(cat.parent)}"`
         : '';
       res.write(
-        `      <category id="${this.escapeXml(cat.group)}"${parentAttr}>${this.escapeXml(cat.name)}</category>\n`,
+        `      <category id="${escapeXml(cat.group)}"${parentAttr}>${escapeXml(cat.name)}</category>\n`,
       );
     }
     res.write('    </categories>\n');
@@ -95,7 +87,7 @@ export class RozetkaFeedService {
         const available = item.isAvailable ? 'true' : 'false';
 
         res.write(`      <offer id="${item.tcod}" available="${available}">\n`);
-        res.write(`        <name>${this.escapeXml(item.name)}</name>\n`);
+        res.write(`        <name>${escapeXml(item.name)}</name>\n`);
 
         // Цена обязательна — Rozetka отклоняет оферы с price=0
         const price = item.price > 0 ? item.price : 0.01;
@@ -104,28 +96,28 @@ export class RozetkaFeedService {
 
         if (item.categoryGroup) {
           res.write(
-            `        <categoryId>${this.escapeXml(item.categoryGroup)}</categoryId>\n`,
+            `        <categoryId>${escapeXml(item.categoryGroup)}</categoryId>\n`,
           );
         }
 
         // Артикул / SKU
         if (item.barcode) {
           res.write(
-            `        <vendorCode>${this.escapeXml(item.barcode)}</vendorCode>\n`,
+            `        <vendorCode>${escapeXml(item.barcode)}</vendorCode>\n`,
           );
         }
 
         // Картинки (Rozetka: до 10 изображений)
         if (item.imageUrls?.length) {
           for (const imgUrl of item.imageUrls.slice(0, 10)) {
-            res.write(`        <picture>${this.escapeXml(imgUrl)}</picture>\n`);
+            res.write(`        <picture>${escapeXml(imgUrl)}</picture>\n`);
           }
         }
 
         // Описание
         if (item.description) {
           res.write(
-            `        <description><![CDATA[${item.description}]]></description>\n`,
+            `        <description>${wrapCdata(item.description)}</description>\n`,
           );
         }
 
@@ -138,7 +130,7 @@ export class RozetkaFeedService {
         );
         if (item.barcode) {
           res.write(
-            `        <param name="Штрихкод">${this.escapeXml(item.barcode)}</param>\n`,
+            `        <param name="Штрихкод">${escapeXml(item.barcode)}</param>\n`,
           );
         }
 

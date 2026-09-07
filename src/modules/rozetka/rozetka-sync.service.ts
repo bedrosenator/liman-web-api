@@ -1,11 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { LimanService } from '../liman/liman.service';
-import { RozetkaApiClient, RozetkaStockItem, RozetzkaPrice } from './rozetka-api.client';
+import { RozetkaApiClient, RozetkaStockItem, RozetkaPrice } from './rozetka-api.client';
 import { Tenant } from '../tenant/tenant.entity';
 
 const BATCH_SIZE = 100; // Rozetka принимает до 500, используем 100 для надёжности
 
-export interface RozetzkasSyncResult {
+export interface RozetkaSyncResult {
   stocksSynced: number;
   pricesSynced: number;
   errors: number;
@@ -16,8 +16,8 @@ export interface RozetzkasSyncResult {
  * Сервис дельта-синхронизации цен и остатков в Rozetka Seller API
  */
 @Injectable()
-export class RozetzkasSyncService {
-  private readonly logger = new Logger(RozetzkasSyncService.name);
+export class RozetkaSyncService {
+  private readonly logger = new Logger(RozetkaSyncService.name);
 
   constructor(
     private readonly limanService: LimanService,
@@ -30,7 +30,7 @@ export class RozetzkasSyncService {
   async syncPricesAndStocks(
     tenant: Tenant,
     baseUrl: string,
-  ): Promise<RozetzkasSyncResult> {
+  ): Promise<RozetkaSyncResult> {
     const startTime = Date.now();
     const totalCount = await this.limanService.getProductCount(tenant);
 
@@ -63,10 +63,10 @@ export class RozetzkasSyncService {
         stock: Math.max(0, Math.floor(p.stock)),
       }));
 
-      const priceItems: RozetzkaPrice[] = items
+      const priceItems: RozetkaPrice[] = items
         .filter((p) => p.price > 0)
         .map((p) => ({
-          item_id: p.tcod,
+          id: p.tcod,
           price: parseFloat(p.price.toFixed(2)),
         }));
 

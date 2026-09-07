@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { Response } from 'express';
 import { LimanService } from '../liman/liman.service';
 import { Tenant } from '../tenant/tenant.entity';
+import { escapeXml, wrapCdata, formatYmlDate } from '../../common/utils/xml.utils';
 
 /**
  * Сервис генерации потокового XML/YML фида для магазина на платформе Хорошоп
@@ -12,15 +13,6 @@ export class HoroshopFeedService {
 
   constructor(private readonly limanService: LimanService) {}
 
-  private escapeXml(str: string): string {
-    return str
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&apos;');
-  }
-
   /**
    * Потоковая отдача XML-фида для Хорошоп
    * GET /api/v1/horoshop/:tenantId/feed.xml
@@ -28,8 +20,8 @@ export class HoroshopFeedService {
   async streamFeed(tenant: Tenant, baseUrl: string, res: Response): Promise<void> {
     this.logger.log(`📡 [${tenant.id}] Начало генерации Хорошоп XML фида...`);
 
-    const dateStr = new Date().toISOString().slice(0, 19).replace('T', ' ');
-    const shopName = this.escapeXml(tenant.name);
+    const dateStr = formatYmlDate();
+    const shopName = escapeXml(tenant.name);
 
     res.setHeader('Content-Type', 'application/xml; charset=utf-8');
     res.setHeader(
@@ -53,14 +45,14 @@ export class HoroshopFeedService {
     const categories = await this.limanService.getCategories(tenant);
     res.write('    <categories>\n');
     for (const cat of categories) {
-      const parentAttr = cat.parent ? ` parentId="${this.escapeXml(cat.parent)}"` : '';
+      const parentAttr = cat.parent ? ` parentId="${escapeXml(cat.parent)}"` : '';
       res.write(
-        `      <category id="${this.escapeXml(cat.group)}"${parentAttr}>${this.escapeXml(cat.name)}</category>\n`,
+        `      <category id="${escapeXml(cat.group)}"${parentAttr}>${escapeXml(cat.name)}</category>\n`,
       );
     }
     res.write('    </categories>\n');
 
-    // ---- Offers ----
+    // ---- Offers (товары чанками по 200) ----
     res.write('    <offers>\n');
 
     const chunkSize = 200;
@@ -86,25 +78,25 @@ export class HoroshopFeedService {
         const price = product.price > 0 ? product.price : 0.01;
 
         res.write(`      <offer id="${product.tcod}" available="${available}">\n`);
-        res.write(`        <name>${this.escapeXml(product.name)}</name>\n`);
+        res.write(`        <name>${escapeXml(product.name)}</name>\n`);
         res.write(`        <price>${price.toFixed(2)}</price>\n`);
         res.write('        <currencyId>UAH</currencyId>\n');
 
         if (product.categoryGroup) {
-          res.write(`        <categoryId>${this.escapeXml(product.categoryGroup)}</categoryId>\n`);
+          res.write(`        <categoryId>${escapeXml(product.categoryGroup)}</categoryId>\n`);
         }
 
-        res.write(`        <picture>${this.escapeXml(photoUrl)}</picture>\n`);
+        res.write(`        <picture>${escapeXml(photoUrl)}</picture>\n`);
         res.write(`        <vendorCode>${product.tcod}</vendorCode>\n`);
         res.write(`        <article>${product.tcod}</article>\n`);
         res.write(`        <stock_quantity>${Math.max(0, Math.floor(product.stock))}</stock_quantity>\n`);
 
         if (product.barcode) {
-          res.write(`        <barcode>${this.escapeXml(product.barcode)}</barcode>\n`);
+          res.write(`        <barcode>${escapeXml(product.barcode)}</barcode>\n`);
         }
 
         const desc = product.description || product.name;
-        res.write(`        <description><![CDATA[${desc}]]></description>\n`);
+        res.write(`        <description>${wrapCdata(desc)}</description>\n`);
         res.write('      </offer>\n');
 
         totalExported++;

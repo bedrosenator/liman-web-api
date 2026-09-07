@@ -16,8 +16,8 @@ export interface RozetkaStockUpdate {
   stock: number;
 }
 
-export interface RozetzkaPrice {
-  item_id: number | string;
+export interface RozetkaPrice {
+  id: number; // tcod
   price: number;
   old_price?: number;
 }
@@ -123,7 +123,7 @@ export class RozetkaApiClient {
    */
   async updatePrices(
     tenant: Tenant,
-    items: RozetzkaPrice[],
+    items: RozetkaPrice[],
   ): Promise<RozetkaUpdateResult> {
     if (!items.length) return { success: true, updated: 0 };
 
