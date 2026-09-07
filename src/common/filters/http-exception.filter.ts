@@ -22,12 +22,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
 
+    const isProd = process.env.NODE_ENV === 'production';
     const message =
       exception instanceof HttpException
         ? exception.getResponse()
-        : exception instanceof Error
-          ? exception.message
-          : 'Internal server error';
+        : isProd
+          ? 'Внутренняя ошибка сервера. Обратитесь к администратору.'
+          : exception instanceof Error
+            ? exception.message
+            : 'Internal server error';
 
     this.logger.error(
       `[${request.method}] ${request.url} - Status: ${status}`,

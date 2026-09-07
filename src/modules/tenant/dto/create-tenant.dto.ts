@@ -7,6 +7,7 @@ import {
   IsBoolean,
   Min,
   Max,
+  Matches,
 } from 'class-validator';
 
 export class CreateTenantDto {
@@ -94,6 +95,7 @@ export class CreateTenantDto {
   })
   @IsString()
   @IsOptional()
+  @Matches(/^[a-zA-Z0-9_]{1,32}$/, { message: 'priceColumn must be a valid alphanumeric SQL identifier (1-32 chars)' })
   priceColumn?: string;
 
   @ApiPropertyOptional({
@@ -103,6 +105,7 @@ export class CreateTenantDto {
   })
   @IsString()
   @IsOptional()
+  @Matches(/^[a-zA-Z0-9_]{1,32}$/, { message: 'stockColumn must be a valid alphanumeric SQL identifier (1-32 chars)' })
   stockColumn?: string;
 
   @ApiPropertyOptional({

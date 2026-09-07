@@ -9,6 +9,7 @@ import {
 import { ApiTags, ApiOperation, ApiParam, ApiBody } from '@nestjs/swagger';
 import { LimanService } from './liman.service';
 import { TenantService } from '../tenant/tenant.service';
+import { UpdateStockDto } from './dto/update-stock.dto';
 
 @ApiTags('Liman Stock')
 @Controller('liman/:tenantId/stock')
@@ -41,21 +42,12 @@ export class LimanStockController {
   @ApiOperation({ summary: 'Обновить остаток товара в таблице name2ost' })
   @ApiParam({ name: 'tenantId', example: 'columb' })
   @ApiParam({ name: 'tcod', example: 251 })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        stock: { type: 'number', example: 25.5 },
-      },
-      required: ['stock'],
-    },
-  })
   async updateStock(
     @Param('tenantId') tenantId: string,
     @Param('tcod', ParseIntPipe) tcod: number,
-    @Body('stock') stock: number,
+    @Body() updateStockDto: UpdateStockDto,
   ) {
     const tenant = await this.tenantService.findOne(tenantId);
-    return this.limanService.updateStock(tenant, tcod, Number(stock));
+    return this.limanService.updateStock(tenant, tcod, updateStockDto.stock);
   }
 }

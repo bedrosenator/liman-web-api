@@ -2,6 +2,7 @@ import { Controller, Post, Param, Body, Logger } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiBody } from '@nestjs/swagger';
 import { LimanService } from '../liman/liman.service';
 import { TenantService } from '../tenant/tenant.service';
+import { Public } from '../../common/decorators/public.decorator';
 
 @ApiTags('Prom.ua')
 @Controller('prom/:tenantId/webhook')
@@ -14,6 +15,7 @@ export class PromWebhookController {
   ) {}
 
   @Post('order')
+  @Public()
   @ApiOperation({
     summary: 'Вебхук приема заказов из Prom.ua (автоматическое списание остатка)',
     description:

@@ -55,20 +55,47 @@ export class ApiKeyGuard implements CanActivate {
       );
     }
 
-    // Режим 1: Master API Key — даёт доступ ко всем эндпоинтам
+    // Режим 1: Master API Key — даёт полный доступ ко всем эндпоинтам и тенантам
     const masterKey = this.configService.get<string>('apiKey');
     if (masterKey && apiKey === masterKey) {
       (request as any).isMasterKey = true;
       return true;
     }
 
-    // Режим 2: Tenant API Key — per-tenant ключ
+    // Режим 2: Tenant API Key — индивидуальный ключ тенанта
     const tenant = await this.tenantRepository.findOne({
       where: { apiKey, isActive: true },
     });
 
     if (tenant) {
       (request as any).tenant = tenant;
+
+      // Защита от IDOR: если в маршруте указан :tenantId, проверяем соответствие ключа
+      const requestedTenantId = request.params?.tenantId;
+      if (requestedTenantId && requestedTenantId !== tenant.id) {
+        this.logger.warn(
+          `⛔ [IDOR Предотвращен] Тенант "${tenant.id}" попытался получить доступ к ресурсам "${requestedTenantId}"`,
+        );
+        throw new UnauthorizedException(
+          `Доступ запрещен: ваш API-ключ принадлежит тенанту "${tenant.id}", а не "${requestedTenantId}"`,
+        );
+      }
+
+      // Ограничение доступа к эндпоинтам управления тенантами (/api/v1/tenants):
+      // Обычный ключ тенанта НЕ может просматривать всех клиентов, создавать или удалять тенантов
+      const path = request.path || request.url;
+      if (path.includes('/api/v1/tenants')) {
+        // Разрешаем тенанту только чтение или обновление своего собственного профиля (/tenants/:id где id === tenant.id)
+        const targetId = request.params?.id;
+        const isSelfProfile = targetId === tenant.id && (request.method === 'GET' || request.method === 'PATCH');
+        if (!isSelfProfile) {
+          this.logger.warn(
+            `⛔ [Privilege Escalation Предотвращен] Тенант "${tenant.id}" попытался выполнить ${request.method} ${path}`,
+          );
+          throw new UnauthorizedException('Управление списком тенантов доступно только по Master API Key');
+        }
+      }
+
       return true;
     }
 

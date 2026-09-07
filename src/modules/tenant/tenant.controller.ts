@@ -25,8 +25,9 @@ export class TenantController {
     description: 'Список тенантов',
     type: [Tenant],
   })
-  findAll() {
-    return this.tenantService.findAll();
+  async findAll() {
+    const tenants = await this.tenantService.findAll();
+    return tenants.map((t) => this.tenantService.sanitizeTenant(t));
   }
 
   @Get(':id')
@@ -34,27 +35,30 @@ export class TenantController {
   @ApiParam({ name: 'id', example: 'columb' })
   @ApiResponse({ status: 200, type: Tenant })
   @ApiResponse({ status: 404, description: 'Тенант не найден' })
-  findOne(@Param('id') id: string) {
-    return this.tenantService.findOne(id);
+  async findOne(@Param('id') id: string) {
+    const tenant = await this.tenantService.findOne(id);
+    return this.tenantService.sanitizeTenant(tenant);
   }
 
   @Post()
   @ApiOperation({ summary: 'Создать нового клиента / магазин' })
   @ApiResponse({ status: 201, type: Tenant })
   @ApiResponse({ status: 409, description: 'Тенант с таким ID уже существует' })
-  create(@Body() createTenantDto: CreateTenantDto) {
-    return this.tenantService.create(createTenantDto);
+  async create(@Body() createTenantDto: CreateTenantDto) {
+    const tenant = await this.tenantService.create(createTenantDto);
+    return this.tenantService.sanitizeTenant(tenant);
   }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Обновить настройки клиента' })
   @ApiParam({ name: 'id', example: 'columb' })
   @ApiResponse({ status: 200, type: Tenant })
-  update(
+  async update(
     @Param('id') id: string,
     @Body() updateTenantDto: UpdateTenantDto,
   ) {
-    return this.tenantService.update(id, updateTenantDto);
+    const tenant = await this.tenantService.update(id, updateTenantDto);
+    return this.tenantService.sanitizeTenant(tenant);
   }
 
   @Post(':id/rotate-key')

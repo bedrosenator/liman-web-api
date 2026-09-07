@@ -100,9 +100,38 @@ export class TenantService implements OnModuleInit {
     return { id, apiKey: newKey };
   }
 
+  /**
+   * Скрывает чувствительные данные (пароли к MariaDB, секретные ключи внешних API)
+   * перед отправкой сущности тенанта в HTTP-ответы REST API.
+   */
+  sanitizeTenant(tenant: Tenant): Tenant {
+    const sanitized = { ...tenant };
+    if (sanitized.dbPassword) {
+      sanitized.dbPassword = '********';
+    }
+    if (sanitized.woocommerceConsumerSecret) {
+      sanitized.woocommerceConsumerSecret = '********';
+    }
+    if (sanitized.rozetkaClientSecret) {
+      sanitized.rozetkaClientSecret = '********';
+    }
+    if (sanitized.horoshopPassword) {
+      sanitized.horoshopPassword = '********';
+    }
+    return sanitized;
+  }
+
   async update(id: string, updateTenantDto: UpdateTenantDto): Promise<Tenant> {
     const tenant = await this.findOne(id);
-    Object.assign(tenant, updateTenantDto);
+    const updates = { ...updateTenantDto };
+
+    // Предотвращаем затирание реальных секретов маской '********'
+    if (updates.dbPassword === '********') delete updates.dbPassword;
+    if (updates.woocommerceConsumerSecret === '********') delete updates.woocommerceConsumerSecret;
+    if (updates.rozetkaClientSecret === '********') delete updates.rozetkaClientSecret;
+    if (updates.horoshopPassword === '********') delete updates.horoshopPassword;
+
+    Object.assign(tenant, updates);
     return this.tenantRepository.save(tenant);
   }
 

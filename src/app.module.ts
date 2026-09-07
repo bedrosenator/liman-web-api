@@ -15,6 +15,7 @@ import { WoocommerceModule } from './modules/woocommerce/woocommerce.module';
 import { RozetkaModule } from './modules/rozetka/rozetka.module';
 import { HoroshopModule } from './modules/horoshop/horoshop.module';
 import { ApiKeyGuard } from './common/guards/api-key.guard';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 
 @Module({
   imports: [
@@ -22,6 +23,13 @@ import { ApiKeyGuard } from './common/guards/api-key.guard';
       isGlobal: true,
       load: [configuration],
     }),
+    ThrottlerModule.forRoot([
+      {
+        name: 'default',
+        ttl: 60000, // Окно лимитирования: 60 секунд
+        limit: 120, // Максимум 120 запросов в минуту с одного IP
+      },
+    ]),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -46,6 +54,10 @@ import { ApiKeyGuard } from './common/guards/api-key.guard';
   controllers: [AppController],
   providers: [
     AppService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
     {
       provide: APP_GUARD,
       useClass: ApiKeyGuard,

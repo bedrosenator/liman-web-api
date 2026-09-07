@@ -70,6 +70,22 @@ export class LimanService {
   }
 
   /**
+   * Защита от SQL-инъекций через динамические имена колонок (Identifier Whitelist/Sanitization)
+   */
+  private sanitizeIdentifier(name: string | undefined | null, fallback: string): string {
+    if (!name || typeof name !== 'string') return fallback;
+    const clean = name.trim();
+    // Разрешаем только латинские буквы, цифры и знак подчеркивания длиной от 1 до 32 символов
+    if (!/^[a-zA-Z0-9_]{1,32}$/.test(clean)) {
+      this.logger.warn(
+        `🚨 [SQL Injection Defense] Подозрительное имя колонки "${clean}" заменено на безопасный дефолт "${fallback}"`,
+      );
+      return fallback;
+    }
+    return clean;
+  }
+
+  /**
    * Получить общее количество активных товаров с учетом фильтров (поиск, категория, наличие).
    * Исключает удаленные товары (`del = 't'`) и пустые записи.
    *
@@ -82,7 +98,7 @@ export class LimanService {
     options?: { search?: string; categoryGroup?: string; onlyInStock?: boolean },
   ): Promise<number> {
     const pool = this.connectionManager.getPool(tenant);
-    const stockCol = tenant.stockColumn || 'skl_k';
+    const stockCol = this.sanitizeIdentifier(tenant.stockColumn, 'skl_k');
     const params: (string | number)[] = [];
     const whereClauses: string[] = [
       '(n2.del IS NULL OR n2.del != \'t\')',
@@ -136,8 +152,8 @@ export class LimanService {
     const limit = Math.min(500, Math.max(1, options.limit ?? 50));
     const offset = (page - 1) * limit;
 
-    const priceCol = tenant.priceColumn || 'cena2';
-    const stockCol = tenant.stockColumn || 'skl_k';
+    const priceCol = this.sanitizeIdentifier(tenant.priceColumn, 'cena2');
+    const stockCol = this.sanitizeIdentifier(tenant.stockColumn, 'skl_k');
 
     const whereClauses: string[] = [
       '(n2.del IS NULL OR n2.del != \'t\')',
@@ -239,8 +255,8 @@ export class LimanService {
    */
   async getProductByTcod(tenant: Tenant, tcod: number, baseUrl?: string): Promise<LimanProductDto> {
     const pool = this.connectionManager.getPool(tenant);
-    const priceCol = tenant.priceColumn || 'cena2';
-    const stockCol = tenant.stockColumn || 'skl_k';
+    const priceCol = this.sanitizeIdentifier(tenant.priceColumn, 'cena2');
+    const stockCol = this.sanitizeIdentifier(tenant.stockColumn, 'skl_k');
 
     const [rows] = await pool.query<RawProductRow[]>(
       `SELECT 
@@ -383,7 +399,7 @@ export class LimanService {
     newStock: number,
   ): Promise<{ success: boolean; tcod: number; oldStock: number; newStock: number }> {
     const pool = this.connectionManager.getPool(tenant);
-    const stockCol = tenant.stockColumn || 'skl_k';
+    const stockCol = this.sanitizeIdentifier(tenant.stockColumn, 'skl_k');
 
     // 1. Получить текущий остаток
     const [currRows] = await pool.query<mysql.RowDataPacket[]>(
