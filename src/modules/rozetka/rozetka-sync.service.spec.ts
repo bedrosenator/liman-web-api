@@ -17,80 +17,127 @@ describe('RozetkaSyncService', () => {
     limanService = {
       getProductCount: jest.fn(),
       getProducts: jest.fn(),
+      deductStock: jest.fn(),
     } as any;
 
     rozetkaClient = {
-      updateStocks: jest.fn(),
-      updatePrices: jest.fn(),
+      massUpdateItems: jest.fn(),
+      searchOrders: jest.fn(),
+      getOrderDetails: jest.fn(),
     } as any;
 
     service = new RozetkaSyncService(limanService, rozetkaClient);
   });
 
-  it('should return 0 when catalog is empty', async () => {
-    limanService.getProductCount.mockResolvedValue(0);
-    limanService.getProducts.mockResolvedValue({ items: [], total: 0, page: 1, limit: 100 });
+  describe('syncPricesAndStocks', () => {
+    it('should return 0 when catalog is empty', async () => {
+      limanService.getProductCount.mockResolvedValue(0);
+      limanService.getProducts.mockResolvedValue({ items: [], total: 0, page: 1, limit: 100 });
 
-    const result = await service.syncPricesAndStocks(mockTenant, 'http://localhost:3000');
-    expect(result.stocksSynced).toBe(0);
-    expect(result.pricesSynced).toBe(0);
-    expect(result.errors).toBe(0);
-    expect(rozetkaClient.updateStocks).not.toHaveBeenCalled();
-    expect(rozetkaClient.updatePrices).not.toHaveBeenCalled();
-  });
-
-  it('should batch sync stock and prices successfully', async () => {
-    limanService.getProductCount.mockResolvedValue(2);
-    limanService.getProducts.mockResolvedValueOnce({
-      items: [
-        { tcod: 101, name: 'Product 1', price: 150.5, stock: 10, isAvailable: true },
-        { tcod: 102, name: 'Product 2', price: 200, stock: 0, isAvailable: false },
-      ] as any,
-      total: 2,
-      page: 1,
-      limit: 100,
+      const result = await service.syncPricesAndStocks(mockTenant, 'http://localhost:3000');
+      expect(result.itemsSynced).toBe(0);
+      expect(result.errors).toBe(0);
+      expect(rozetkaClient.massUpdateItems).not.toHaveBeenCalled();
     });
 
-    rozetkaClient.updateStocks.mockResolvedValue({ success: true, updated: 2 });
-    rozetkaClient.updatePrices.mockResolvedValue({ success: true, updated: 2 });
+    it('should batch mass-update stock and prices in a single call', async () => {
+      limanService.getProductCount.mockResolvedValue(2);
+      limanService.getProducts.mockResolvedValueOnce({
+        items: [
+          { tcod: 101, name: 'Product 1', price: 150.5, stock: 10, isAvailable: true },
+          { tcod: 102, name: 'Product 2', price: 200, stock: 0, isAvailable: false },
+        ] as any,
+        total: 2,
+        page: 1,
+        limit: 100,
+      });
 
-    const result = await service.syncPricesAndStocks(mockTenant, 'http://localhost:3000');
+      rozetkaClient.massUpdateItems.mockResolvedValue({
+        success: true,
+        updated: 2,
+        errorsCount: 0,
+      });
 
-    expect(result.stocksSynced).toBe(2);
-    expect(result.pricesSynced).toBe(2);
-    expect(result.errors).toBe(0);
-    expect(rozetkaClient.updateStocks).toHaveBeenCalledWith(
-      mockTenant,
-      [
-        { item_id: 101, stock: 10 },
-        { item_id: 102, stock: 0 },
-      ],
-    );
-    expect(rozetkaClient.updatePrices).toHaveBeenCalledWith(
-      mockTenant,
-      [
-        { id: 101, price: 150.5 },
-        { id: 102, price: 200 },
-      ],
-    );
-  });
+      const result = await service.syncPricesAndStocks(mockTenant, 'http://localhost:3000');
 
-  it('should count errors gracefully when API client fails', async () => {
-    limanService.getProductCount.mockResolvedValue(1);
-    limanService.getProducts.mockResolvedValueOnce({
-      items: [{ tcod: 101, name: 'Product 1', price: 100, stock: 5, isAvailable: true }] as any,
-      total: 1,
-      page: 1,
-      limit: 100,
+      expect(result.itemsSynced).toBe(2);
+      expect(result.errors).toBe(0);
+      expect(rozetkaClient.massUpdateItems).toHaveBeenCalledWith(mockTenant, {
+        isIgnoreCheck: false,
+        items: [
+          { item_id: 101, price: 150.5, stock_quantity: 10 },
+          { item_id: 102, price: 200, stock_quantity: 0 },
+        ],
+      });
     });
 
-    rozetkaClient.updateStocks.mockRejectedValue(new Error('Network error'));
-    rozetkaClient.updatePrices.mockResolvedValue({ success: true, updated: 1 });
+    it('should count errors gracefully when API client fails', async () => {
+      limanService.getProductCount.mockResolvedValue(1);
+      limanService.getProducts.mockResolvedValueOnce({
+        items: [{ tcod: 101, name: 'Product 1', price: 100, stock: 5, isAvailable: true }] as any,
+        total: 1,
+        page: 1,
+        limit: 100,
+      });
 
-    const result = await service.syncPricesAndStocks(mockTenant, 'http://localhost:3000');
+      rozetkaClient.massUpdateItems.mockRejectedValue(new Error('Network error'));
 
-    expect(result.stocksSynced).toBe(0);
-    expect(result.pricesSynced).toBe(1);
-    expect(result.errors).toBe(1); // 1 stock item failed
+      const result = await service.syncPricesAndStocks(mockTenant, 'http://localhost:3000');
+
+      expect(result.itemsSynced).toBe(0);
+      expect(result.errors).toBe(1);
+    });
+  });
+
+  describe('syncOrders', () => {
+    it('should return empty stats if no new orders found', async () => {
+      rozetkaClient.searchOrders.mockResolvedValue([]);
+
+      const result = await service.syncOrders(mockTenant);
+      expect(result.ordersProcessed).toBe(0);
+      expect(result.itemsDeducted).toBe(0);
+      expect(result.errors).toBe(0);
+      expect(rozetkaClient.getOrderDetails).not.toHaveBeenCalled();
+    });
+
+    it('should process new orders and deduct stock in Limansoft', async () => {
+      rozetkaClient.searchOrders.mockResolvedValue([
+        { id: 987654, status: 1, status_group: 1, amount: '300.00', cost: '300.00', created: '2026-09-07' },
+      ]);
+
+      rozetkaClient.getOrderDetails.mockResolvedValue({
+        id: 987654,
+        status: 1,
+        status_group: 1,
+        amount: '300.00',
+        cost: '300.00',
+        created: '2026-09-07',
+        purchases: [
+          {
+            id: 1,
+            item_id: 101,
+            item_name: 'Product 1',
+            quantity: 2,
+            price: 150,
+            cost: 300,
+            item: { id: 101, price_offer_id: '101' },
+          },
+        ],
+      });
+
+      limanService.deductStock.mockResolvedValue({
+        tcod: 101,
+        deducted: 2,
+        oldStock: 10,
+        newStock: 8,
+      });
+
+      const result = await service.syncOrders(mockTenant);
+
+      expect(result.ordersProcessed).toBe(1);
+      expect(result.itemsDeducted).toBe(2);
+      expect(result.errors).toBe(0);
+      expect(limanService.deductStock).toHaveBeenCalledWith(mockTenant, 101, 2);
+    });
   });
 });

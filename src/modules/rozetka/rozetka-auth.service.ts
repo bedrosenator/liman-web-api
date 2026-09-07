@@ -14,7 +14,7 @@ interface RozetkaTokenCache {
 @Injectable()
 export class RozetkaAuthService {
   private readonly logger = new Logger(RozetkaAuthService.name);
-  private readonly AUTH_URL = 'https://api.seller.rozetka.com.ua/sites';
+  private readonly AUTH_URL = 'https://api-seller.rozetka.com.ua/sites';
   private readonly TOKEN_BUFFER_MS = 60_000; // обновлять за 1 минуту до истечения
 
   // Кеш токенов по tenantId
@@ -42,12 +42,31 @@ export class RozetkaAuthService {
   private async fetchNewToken(tenant: Tenant): Promise<string> {
     this.logger.log(`🔑 [${tenant.id}] Запрашиваем новый Rozetka JWT token...`);
 
+    const secret = tenant.rozetkaClientSecret;
+    const clientId = tenant.rozetkaClientId;
+    if (!clientId || !secret) {
+      throw new Error(
+        `[${tenant.id}] Rozetka credentials не настроены (rozetkaClientId / rozetkaClientSecret)`,
+      );
+    }
+
+    // В соответствии с документацией Rozetka Seller API:
+    // пароль в POST /sites должен передаваться закодированным в base64
+    const isAlreadyBase64 =
+      /^[A-Za-z0-9+/]+={0,2}$/.test(secret) &&
+      secret.length % 4 === 0 &&
+      secret.length >= 8;
+
+    const base64Password = isAlreadyBase64
+      ? secret
+      : Buffer.from(secret, 'utf8').toString('base64');
+
     try {
       const response = await axios.post(
         this.AUTH_URL,
         {
-          username: tenant.rozetkaClientId,
-          password: tenant.rozetkaClientSecret,
+          username: clientId,
+          password: base64Password,
         },
         {
           timeout: 15_000,

@@ -35,13 +35,13 @@ export class RozetkaSyncController {
   ) {}
 
   /**
-   * Проверка подключения к Rozetka Seller API
+   * Проверка подключения к Rozetka Seller API (GET /goods/counts)
    */
   @Get('ping')
   @ApiOperation({
     summary: 'Проверить подключение к Rozetka Seller API',
     description:
-      'Авторизуется в Rozetka Seller API и возвращает список зарегистрированных магазинов. ' +
+      'Авторизуется в Rozetka Seller API (POST /sites с base64-паролем) и запрашивает счётчики товаров (GET /goods/counts). ' +
       'Требует настройки rozetkaClientId и rozetkaClientSecret в тенанте.',
   })
   @ApiParam({ name: 'tenantId', example: 'columb' })
@@ -53,15 +53,15 @@ export class RozetkaSyncController {
   }
 
   /**
-   * Ручной запуск синхронизации цен и остатков → Rozetka Seller API
+   * Ручной запуск синхронизации цен и остатков → Rozetka Seller API (PUT /items/mass-update)
    */
   @Post('sync/prices-stocks')
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({
     summary: 'Синхронизировать цены и остатки в Rozetka Seller API',
     description:
-      'Считывает все товары из Limansoft и отправляет обновления цен и остатков в Rozetka Seller API ' +
-      'батчами по 100 товаров. Требует настройки Rozetka credentials в тенанте.',
+      'Считывает товары из базы Limansoft и обновляет цены и остатки в Rozetka Seller API ' +
+      'батчами по 100 товаров через официальный endpoint PUT /items/mass-update.',
   })
   @ApiParam({ name: 'tenantId', example: 'columb' })
   @ApiResponse({ status: 202, description: 'Синхронизация завершена, результат в теле ответа' })
@@ -82,13 +82,36 @@ export class RozetkaSyncController {
   }
 
   /**
-   * Webhook приёма заказов от Rozetka
+   * Запуск синхронизации новых заказов Rozetka (GET /orders/search?status=1)
+   */
+  @Post('sync/orders')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Синхронизировать новые заказы из Rozetka Seller API',
+    description:
+      'Запрашивает новые заказы (status=1) через GET /orders/search, получает детали заказа через GET /orders/{id}, ' +
+      'и списывает остатки купленных товаров в базе Limansoft (name2ost).',
+  })
+  @ApiParam({ name: 'tenantId', example: 'columb' })
+  @ApiResponse({ status: 200, description: 'Результат обработки заказов' })
+  async syncOrders(@Param('tenantId') tenantId: string) {
+    const tenant = await this.tenantService.findOne(tenantId);
+    const result = await this.syncService.syncOrders(tenant);
+    return {
+      success: true,
+      tenantId,
+      ...result,
+    };
+  }
+
+  /**
+   * Webhook приёма заказов от Rozetka (или эмуляции заказов)
    */
   @Post('webhook/order')
   @ApiOperation({
     summary: 'Webhook новых заказов от Rozetka (автоматическое списание остатка)',
     description:
-      'Принимает уведомления о заказах от Rozetka Seller API. ' +
+      'Принимает уведомления о заказах Rozetka. ' +
       'Для каждой позиции заказа уменьшает остаток в name2ost в базе Limansoft.',
   })
   @ApiParam({ name: 'tenantId', example: 'columb' })
@@ -118,7 +141,12 @@ export class RozetkaSyncController {
   })
   async handleOrderWebhook(
     @Param('tenantId') tenantId: string,
-    @Body() payload: any,
+    @Body()
+    payload: {
+      order_id?: number;
+      items?: Array<{ article?: string; quantity?: number; title?: string; price?: number }>;
+      products?: Array<{ article?: string; quantity?: number }>;
+    },
   ) {
     const tenant = await this.tenantService.findOne(tenantId);
 
@@ -133,8 +161,7 @@ export class RozetkaSyncController {
       newStock: number;
     }> = [];
 
-    const lineItems: Array<{ article?: string; quantity?: number }> =
-      payload?.items ?? payload?.products ?? [];
+    const lineItems = payload?.items ?? payload?.products ?? [];
 
     for (const item of lineItems) {
       // article = tcod в нашем фиде
