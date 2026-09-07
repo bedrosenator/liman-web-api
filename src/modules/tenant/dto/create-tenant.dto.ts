@@ -244,11 +244,5 @@ export class CreateTenantDto {
   @IsNumber()
   @IsOptional()
   horoshopSyncIntervalMinutes?: number;
-
-  @ApiPropertyOptional({
-    description: 'Метка времени последней успешной синхронизации',
-  })
-  @IsOptional()
-  lastSyncAt?: Date;
 }
 

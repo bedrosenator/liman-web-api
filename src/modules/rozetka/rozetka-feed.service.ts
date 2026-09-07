@@ -84,14 +84,17 @@ export class RozetkaFeedService {
       }
 
       for (const item of items) {
+        // Rozetka отклоняет оферы с price <= 0
+        if (!item.price || item.price <= 0) {
+          continue;
+        }
+
         const available = item.isAvailable ? 'true' : 'false';
+        const stockQty = Math.max(0, Math.floor(item.stock));
 
         res.write(`      <offer id="${item.tcod}" available="${available}">\n`);
         res.write(`        <name>${escapeXml(item.name)}</name>\n`);
-
-        // Цена обязательна — Rozetka отклоняет оферы с price=0
-        const price = item.price > 0 ? item.price : 0.01;
-        res.write(`        <price>${price.toFixed(2)}</price>\n`);
+        res.write(`        <price>${item.price.toFixed(2)}</price>\n`);
         res.write(`        <currencyId>UAH</currencyId>\n`);
 
         if (item.categoryGroup) {
@@ -100,6 +103,9 @@ export class RozetkaFeedService {
           );
         }
 
+        // Производитель (обязательный тег для Rozetka)
+        res.write(`        <vendor>${shopName}</vendor>\n`);
+
         // Артикул / SKU
         if (item.barcode) {
           res.write(
@@ -107,11 +113,19 @@ export class RozetkaFeedService {
           );
         }
 
-        // Картинки (Rozetka: до 10 изображений)
+        // Остаток на складе (обязательный тег для Rozetka)
+        res.write(`        <stock_quantity>${stockQty}</stock_quantity>\n`);
+
+        // Картинки (обязательный тег для Rozetka, до 10 изображений)
         if (item.imageUrls?.length) {
           for (const imgUrl of item.imageUrls.slice(0, 10)) {
             res.write(`        <picture>${escapeXml(imgUrl)}</picture>\n`);
           }
+        } else {
+          // Если фото нет в базе, отдаем ссылку на медиа-эндпоинт
+          res.write(
+            `        <picture>${baseUrl}/api/v1/media/${tenant.id}/products/${item.tcod}/1.jpg</picture>\n`,
+          );
         }
 
         // Описание
@@ -121,12 +135,12 @@ export class RozetkaFeedService {
           );
         }
 
-        // Параметры
+        // Дополнительные параметры
         res.write(
           `        <param name="Наявність">${item.isAvailable ? 'В наявності' : 'Немає в наявності'}</param>\n`,
         );
         res.write(
-          `        <param name="Кількість">${Math.max(0, Math.floor(item.stock))}</param>\n`,
+          `        <param name="Кількість">${stockQty}</param>\n`,
         );
         if (item.barcode) {
           res.write(

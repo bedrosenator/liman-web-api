@@ -10,4 +10,5 @@ export default () => ({
     databasePath: process.env.SQLITE_PATH ?? './data/liman_master.sqlite',
   },
   apiKey: process.env.MASTER_API_KEY ?? 'liman-secret-key-change-in-production',
+  publicBaseUrl: process.env.PUBLIC_BASE_URL ?? undefined,
 });
