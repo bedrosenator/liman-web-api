@@ -82,7 +82,7 @@ export class StockSyncProcessor extends WorkerHost {
     }
 
     // Обновляем время последней синхронизации у тенанта
-    await this.tenantService.update(tenant.id, { lastSyncAt: new Date() } as any);
+    await this.tenantService.update(tenant.id, { lastSyncAt: new Date() });
 
     const durationMs = Date.now() - startTime;
     this.logger.log(

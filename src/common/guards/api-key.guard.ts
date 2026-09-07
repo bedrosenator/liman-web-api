@@ -12,6 +12,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { Request } from 'express';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { Tenant } from '../../modules/tenant/tenant.entity';
+import { AuthenticatedRequest } from '../interfaces/authenticated-request.interface';
 
 /**
  * Глобальный Guard для авторизации запросов по HTTP-заголовку `x-api-key`.
@@ -46,7 +47,7 @@ export class ApiKeyGuard implements CanActivate {
     ]);
     if (isPublic) return true;
 
-    const request = context.switchToHttp().getRequest<Request>();
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const apiKey = request.headers['x-api-key'] as string | undefined;
 
     if (!apiKey) {
@@ -58,7 +59,7 @@ export class ApiKeyGuard implements CanActivate {
     // Режим 1: Master API Key — даёт полный доступ ко всем эндпоинтам и тенантам
     const masterKey = this.configService.get<string>('apiKey');
     if (masterKey && apiKey === masterKey) {
-      (request as any).isMasterKey = true;
+      request.isMasterKey = true;
       return true;
     }
 
@@ -68,7 +69,7 @@ export class ApiKeyGuard implements CanActivate {
     });
 
     if (tenant) {
-      (request as any).tenant = tenant;
+      request.tenant = tenant;
 
       // Защита от IDOR: если в маршруте указан :tenantId, проверяем соответствие ключа
       const requestedTenantId = request.params?.tenantId;

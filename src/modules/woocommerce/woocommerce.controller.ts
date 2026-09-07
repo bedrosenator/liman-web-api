@@ -66,7 +66,7 @@ export class WoocommerceController {
     @Req() req: Request,
   ) {
     const tenant = await this.tenantService.findOne(tenantId);
-    const baseUrl = imageBaseUrl ?? `${(req as any).protocol}://${(req as any).get('host')}`;
+    const baseUrl = imageBaseUrl ?? `${req.protocol}://${req.get('host')}`;
     const limitNum = limit ? parseInt(limit, 10) : undefined;
 
     const result = await this.syncService.syncFullCatalog(tenant, baseUrl, { limit: limitNum });
