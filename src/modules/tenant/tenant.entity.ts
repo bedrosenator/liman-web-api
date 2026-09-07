@@ -53,6 +53,32 @@ export class Tenant {
   @Column({ type: 'integer', default: 15 })
   woocommerceSyncIntervalMinutes!: number;
 
+  // Rozetka Seller API credentials
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  rozetkaClientId?: string | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  rozetkaClientSecret?: string | null;
+
+  @Column({ type: 'boolean', default: false })
+  rozetkaExportEnabled!: boolean;
+
+  // Horoshop (Cartum) API credentials
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  horoshopDomain?: string | null; // e.g. "myshop.horoshop.ua" or "myshop.com.ua"
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  horoshopLogin?: string | null; // API login from Horoshop admin
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  horoshopPassword?: string | null; // API password from Horoshop admin
+
+  @Column({ type: 'boolean', default: false })
+  horoshopExportEnabled!: boolean;
+
+  @Column({ type: 'integer', default: 15 })
+  horoshopSyncIntervalMinutes!: number;
+
   @Column({ type: 'varchar', length: 16, default: 'cena2' })
   priceColumn!: string; // default cena2 (retail price)
 

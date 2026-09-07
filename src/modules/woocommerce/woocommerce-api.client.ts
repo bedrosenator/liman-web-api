@@ -60,7 +60,7 @@ export class WoocommerceApiClient {
     // Для HTTPS — стандартний Basic Auth.
     const client = axios.create({
       baseURL: `${tenant.woocommerceUrl}/wp-json/wc/v3`,
-      timeout: 30000,
+      timeout: 120000,
       headers: { 'Content-Type': 'application/json' },
       ...(isHttps
         ? {
@@ -88,20 +88,85 @@ export class WoocommerceApiClient {
   }
 
   /**
+   * Получить карту всех существующих SKU -> WooCommerce ID
+   */
+  async getSkuToIdMap(tenant: Tenant): Promise<Map<string, number>> {
+    const client = this.createClient(tenant);
+    const skuMap = new Map<string, number>();
+    let page = 1;
+
+    while (true) {
+      try {
+        const response = await client.get('/products', {
+          params: {
+            page,
+            per_page: 100,
+            _fields: 'id,sku',
+          },
+        });
+        const items = response.data as Array<{ id: number; sku: string }>;
+        if (!items || !items.length) break;
+
+        for (const item of items) {
+          if (item.sku && item.sku.trim()) {
+            skuMap.set(item.sku.trim(), item.id);
+          }
+        }
+
+        if (items.length < 100) break;
+        page++;
+      } catch (err) {
+        this.logger.warn(`Не удалось загрузить страницу ${page} для SKU map: ${err}`);
+        break;
+      }
+    }
+
+    this.logger.log(`🔍 [${tenant.id}] Найдено ${skuMap.size} товаров с SKU в WooCommerce`);
+    return skuMap;
+  }
+
+  /**
    * Пакетное создание/обновление товаров
-   * WooCommerce batch: максимум 100 в одном запросе
+   * Автоматически разделяет на create и update на основе skuMap
    */
   async batchUpsertProducts(
     tenant: Tenant,
     products: WooProduct[],
+    skuMap?: Map<string, number>,
   ): Promise<WooBatchUpdateResult> {
     const client = this.createClient(tenant);
+    const toCreate: WooProduct[] = [];
+    const toUpdate: WooProduct[] = [];
+
+    for (const p of products) {
+      const existingId = p.id ?? (p.sku && skuMap ? skuMap.get(p.sku) : undefined);
+      if (existingId) {
+        toUpdate.push({ ...p, id: existingId });
+      } else {
+        toCreate.push(p);
+      }
+    }
+
     try {
-      this.logger.log(`📤 [${tenant.id}] WooCommerce batch upsert: ${products.length} товаров`);
+      this.logger.log(
+        `📤 [${tenant.id}] WooCommerce batch: ${toCreate.length} на создание, ${toUpdate.length} на обновление`,
+      );
       const response = await client.post('/products/batch', {
-        update: products,
+        create: toCreate,
+        update: toUpdate,
       });
-      return response.data as WooBatchUpdateResult;
+      const data = response.data as WooBatchUpdateResult;
+
+      // Регистрируем созданные товары в карте
+      if (skuMap && data.create) {
+        for (const created of data.create) {
+          if (created.sku && created.id) {
+            skuMap.set(created.sku.trim(), created.id);
+          }
+        }
+      }
+
+      return data;
     } catch (error) {
       this.logger.error(
         `❌ WooCommerce batch upsert ошибка [${tenant.id}]:`,

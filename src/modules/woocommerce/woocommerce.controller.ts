@@ -4,12 +4,13 @@ import {
   Get,
   Param,
   Body,
+  Query,
   Req,
   Logger,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiParam, ApiBody, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiParam, ApiBody, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { WoocommerceSyncService } from './woocommerce-sync.service';
 import { WoocommerceApiClient } from './woocommerce-api.client';
@@ -42,22 +43,39 @@ export class WoocommerceController {
   @ApiOperation({
     summary: 'Запустить полную синхронизацию каталога Limansoft → WooCommerce',
     description:
-      'Выгружает все активные товары из Limansoft в WooCommerce пакетами по 50 шт. Поддерживает создание новых и обновление существующих (по SKU = tcod).',
+      'Выгружает все активные товары из Limansoft в WooCommerce пакетами по 50 шт. SKU = tcod.',
   })
   @ApiParam({ name: 'tenantId', example: 'columb' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Ограничить количество выгружаемых товаров (например, 10 или 50 для проверки).',
+    example: 50,
+  })
+  @ApiQuery({
+    name: 'imageBaseUrl',
+    required: false,
+    description: 'Базовый URL для ссылок на изображения (переопределяет авто-определение из request.host). Нужен если WooCommerce в Docker и API на хосте.',
+    example: 'http://172.20.0.1:3000',
+  })
   @ApiResponse({ status: 202, description: 'Синхронизация запущена и завершена' })
-  async syncCatalog(@Param('tenantId') tenantId: string, @Req() req: Request) {
+  async syncCatalog(
+    @Param('tenantId') tenantId: string,
+    @Query('limit') limit: string | undefined,
+    @Query('imageBaseUrl') imageBaseUrl: string | undefined,
+    @Req() req: Request,
+  ) {
     const tenant = await this.tenantService.findOne(tenantId);
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const baseUrl = imageBaseUrl ?? `${(req as any).protocol}://${(req as any).get('host')}`;
+    const limitNum = limit ? parseInt(limit, 10) : undefined;
 
-    // Запускаем синхронизацию синхронно (для небольших каталогов)
-    // Для 10k+ товаров следует использовать BullMQ через /sync/:tenantId/woocommerce
-    const result = await this.syncService.syncFullCatalog(tenant, baseUrl);
+    const result = await this.syncService.syncFullCatalog(tenant, baseUrl, { limit: limitNum });
 
     return {
       success: true,
       tenantId,
       target: tenant.woocommerceUrl,
+      imageBaseUrl: baseUrl,
       ...result,
     };
   }

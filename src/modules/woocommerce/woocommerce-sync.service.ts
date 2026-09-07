@@ -68,14 +68,18 @@ export class WoocommerceSyncService {
   async syncFullCatalog(
     tenant: Tenant,
     baseUrl: string,
-    onProgress?: (current: number, total: number) => void,
+    options?: { limit?: number; onProgress?: (current: number, total: number) => void },
   ): Promise<{ synced: number; errors: number; durationMs: number }> {
     const startTime = Date.now();
-    const total = await this.limanService.getProductCount(tenant);
+    const totalCount = await this.limanService.getProductCount(tenant);
+    const targetTotal = options?.limit ? Math.min(options.limit, totalCount) : totalCount;
 
     this.logger.log(
-      `🔄 [${tenant.id}] Начало синхронизации ${total} товаров в WooCommerce (${tenant.woocommerceUrl})`,
+      `🔄 [${tenant.id}] Начало синхронизации ${targetTotal} из ${totalCount} товаров в WooCommerce (${tenant.woocommerceUrl})`,
     );
+
+    // Загружаем существующие SKU -> WooCommerce ID для предотвращения дубликатов
+    const skuMap = await this.wooClient.getSkuToIdMap(tenant);
 
     let synced = 0;
     let errors = 0;
@@ -83,9 +87,14 @@ export class WoocommerceSyncService {
     let hasMore = true;
 
     while (hasMore) {
+      const remaining = targetTotal - synced;
+      const chunkSize = Math.min(WOO_CHUNK_SIZE, remaining);
+
+      if (chunkSize <= 0) break;
+
       const { items } = await this.limanService.getProducts(tenant, {
         page,
-        limit: WOO_CHUNK_SIZE,
+        limit: chunkSize,
         baseUrl,
       });
 
@@ -97,7 +106,7 @@ export class WoocommerceSyncService {
       const wooProducts = items.map((p) => this.mapProductToWoo(p, baseUrl));
 
       try {
-        await this.wooClient.batchUpsertProducts(tenant, wooProducts);
+        await this.wooClient.batchUpsertProducts(tenant, wooProducts, skuMap);
         synced += items.length;
       } catch (err) {
         this.logger.error(
@@ -107,10 +116,10 @@ export class WoocommerceSyncService {
         errors += items.length;
       }
 
-      onProgress?.(synced, total);
+      options?.onProgress?.(synced, targetTotal);
 
       page++;
-      if (items.length < WOO_CHUNK_SIZE) {
+      if (items.length < chunkSize || synced >= targetTotal) {
         hasMore = false;
       }
     }
@@ -133,10 +142,12 @@ export class WoocommerceSyncService {
     let synced = 0;
     let errors = 0;
     const total = await this.limanService.getProductCount(tenant);
-    const pages = Math.ceil(total / 100);
+    const pages = Math.ceil(total / WOO_CHUNK_SIZE);
+
+    const skuMap = await this.wooClient.getSkuToIdMap(tenant);
 
     for (let page = 1; page <= pages; page++) {
-      const { items } = await this.limanService.getProducts(tenant, { page, limit: 100, baseUrl });
+      const { items } = await this.limanService.getProducts(tenant, { page, limit: WOO_CHUNK_SIZE, baseUrl });
       if (!items.length) break;
 
       const wooUpdates: WooProduct[] = items.map((p) => ({
@@ -148,7 +159,7 @@ export class WoocommerceSyncService {
       }));
 
       try {
-        await this.wooClient.batchUpsertProducts(tenant, wooUpdates);
+        await this.wooClient.batchUpsertProducts(tenant, wooUpdates, skuMap);
         synced += items.length;
       } catch {
         errors += items.length;

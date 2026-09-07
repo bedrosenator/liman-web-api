@@ -5,33 +5,37 @@
 ---
 
 ## 📌 Колонка: Backlog (Бэклог)
-- [ ] **[TASK-11]** Интеграция с Rozetka Marketplace API (Экспорт каталога + XML фид)
-- [ ] **[TASK-12]** Интеграция с WooCommerce REST API (Bi-directional sync)
-- [ ] **[TASK-13]** Интеграция с Хорошоп (Horoshop API)
 - [ ] **[TASK-14]** Двусторонний импорт каталога из внешних магазинов в Limansoft DB (`name`, `name2`, `strihcod`)
 - [ ] **[TASK-15]** Webhook notifications & Telegram alert bot для критических ошибок синхронизации
 
 ---
 
 ## 🎯 Колонка: To Do (Спринт 2: Следующие интеграции)
-- [ ] **[TASK-11]** Интеграция с Rozetka Marketplace API (валидация параметров и фид)
-- [ ] **[TASK-12]** Интеграция с WooCommerce REST API (синхронизация товаров и остатков)
+- [ ] **[TASK-14]** Двусторонний импорт каталога из внешних магазинов в Limansoft DB (`name`, `name2`, `strihcod`)
+- [ ] **[TASK-15]** Webhook notifications & Telegram alert bot для критических ошибок синхронизации
 
 ---
 
 ## ⚙️ Колонка: In Progress (В работе)
-- *(Готово к запуску следующего спринта)*
+- *(Готово к запуску следующей задачи)*
 
 ---
 
 ## 🔍 Колонка: In Review / QA (Тестирование и код-ревью)
 - [x] Верификация Swagger UI: `http://localhost:3000/api/docs`
 - [x] Верификация Prom XML фида: `http://localhost:3000/api/v1/prom/columb/feed.xml`
-- [x] Верификация очереди BullMQ и стриминга BLOB-фото
+- [x] Верификация Rozetka XML фида: `http://localhost:3000/api/v1/rozetka/columb/feed.xml`
+- [x] Верификация Horoshop XML фида: `http://localhost:3000/api/v1/horoshop/columb/feed.xml`
+- [x] Верификация Horoshop Webhook заказа с авто-списанием остатка в MariaDB
+- [x] Верификация WooCommerce REST API (Ping, Batch sync 5768 товаров, Auto-sync toggle)
+- [x] WordPress плагин `limansoft-sync-woocommerce.zip` готов к установке
 
 ---
 
-## ✅ Колонка: Done (Выполнено в Спринте 1)
+## ✅ Колонка: Done (Выполнено)
+- [x] **[TASK-13]** Интеграция с Хорошоп (Horoshop / Cartum API: потоковый XML фид `/horoshop/:tenantId/feed.xml`, API клиент с JWT/session auth, синхронизация цен/остатков, webhook заказов с автосписанием)
+- [x] **[TASK-11]** Интеграция с Rozetka Marketplace API (XML фид `/rozetka/:tenantId/feed.xml`, Seller API клиент с JWT-авторизацией, обновление остатков/цен, webhook заказов с автосписанием)
+- [x] **[TASK-12]** Интеграция с WooCommerce REST API (Batch upsert с автоматическим определением create/update по SKU, delta sync, webhook заказов, отдельный WP плагин с UI и настраиваемым cron-расписанием)
 - [x] **[TASK-01]** Инициализация NestJS 11, TypeScript, Swagger OpenAPI (`/api/docs`), модульная Clean Architecture
 - [x] **[TASK-02]** Инфраструктура: Docker Compose с Redis для очередей BullMQ, проверено подключение
 - [x] **[TASK-03]** Модуль мультиарендности (`TenantModule`) + локальная SQLite БД клиентов с авто-сидингом тенанта `columb`

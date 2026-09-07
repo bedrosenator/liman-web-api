@@ -51,6 +51,9 @@ async function bootstrap() {
     .addTag('Liman Stock', 'Просмотр и синхронизация складских остатков')
     .addTag('Media', 'Потоковая отдача фото товаров из BLOB namedesc в HTTP URL')
     .addTag('Prom.ua', 'Интеграция с Prom.ua (YML XML фиды, REST API, Webhooks)')
+    .addTag('WooCommerce', 'Интеграция с WooCommerce (REST API, батчевая синхронизация, вебхуки заказов)')
+    .addTag('Rozetka', 'Интеграция с Rozetka (XML/YML фиды, Seller API, дельта-синхронизация цен и остатков, вебхуки)')
+    .addTag('Horoshop', 'Интеграция с Хорошоп (YML/XML фиды, REST API обновление цен и остатков, вебхуки заказов)')
     .addTag('Sync Jobs', 'Управление фоновыми задачами и мониторинг очередей BullMQ')
     .build();
 

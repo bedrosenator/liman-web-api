@@ -12,6 +12,8 @@ import { MediaModule } from './modules/media/media.module';
 import { PromModule } from './modules/prom/prom.module';
 import { AppQueueModule } from './modules/queue/queue.module';
 import { WoocommerceModule } from './modules/woocommerce/woocommerce.module';
+import { RozetkaModule } from './modules/rozetka/rozetka.module';
+import { HoroshopModule } from './modules/horoshop/horoshop.module';
 import { ApiKeyGuard } from './common/guards/api-key.guard';
 
 @Module({
@@ -38,6 +40,8 @@ import { ApiKeyGuard } from './common/guards/api-key.guard';
     PromModule,
     AppQueueModule,
     WoocommerceModule,
+    RozetkaModule,
+    HoroshopModule,
   ],
   controllers: [AppController],
   providers: [

@@ -170,5 +170,76 @@ export class CreateTenantDto {
   @IsNumber()
   @IsOptional()
   woocommerceSyncIntervalMinutes?: number;
+
+  @ApiPropertyOptional({
+    description: 'Дата и время последней успешной синхронизации',
+  })
+  @IsOptional()
+  lastSyncAt?: Date;
+
+  @ApiPropertyOptional({
+    description: 'Rozetka Seller API Client ID (username)',
+    example: 'my-rozetka-user',
+  })
+  @IsString()
+  @IsOptional()
+  rozetkaClientId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Rozetka Seller API Client Secret (password)',
+    example: 'my-rozetka-secret',
+  })
+  @IsString()
+  @IsOptional()
+  rozetkaClientSecret?: string;
+
+  @ApiPropertyOptional({
+    description: 'Включить экспорт в Rozetka',
+    default: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  rozetkaExportEnabled?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Домен магазина Хорошоп (например: myshop.horoshop.ua или myshop.com.ua)',
+    example: 'myshop.horoshop.ua',
+  })
+  @IsString()
+  @IsOptional()
+  horoshopDomain?: string;
+
+  @ApiPropertyOptional({
+    description: 'Логин API-пользователя Хорошоп (создается в админке: Настройки -> Пользователи)',
+    example: 'api_user',
+  })
+  @IsString()
+  @IsOptional()
+  horoshopLogin?: string;
+
+  @ApiPropertyOptional({
+    description: 'Пароль API-пользователя Хорошоп',
+    example: 'api_password_123',
+  })
+  @IsString()
+  @IsOptional()
+  horoshopPassword?: string;
+
+  @ApiPropertyOptional({
+    description: 'Включить интеграцию/экспорт в Хорошоп',
+    default: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  horoshopExportEnabled?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Интервал синхронизации с Хорошоп (в минутах)',
+    example: 15,
+    default: 15,
+  })
+  @IsNumber()
+  @IsOptional()
+  horoshopSyncIntervalMinutes?: number;
 }
 
