@@ -31,7 +31,7 @@ export class LimanCatalogController {
   @ApiParam({ name: 'tenantId', example: 'columb' })
   async ping(@Param('tenantId') tenantId: string) {
     const tenant = await this.tenantService.findOne(tenantId);
-    return this.limanService['connectionManager'].testConnection(tenant);
+    return this.limanService.ping(tenant);
   }
 
   @Get('categories')

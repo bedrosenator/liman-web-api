@@ -47,6 +47,13 @@ export class LimanService {
   ) {}
 
   /**
+   * Проверить доступность MariaDB базы данных тенанта
+   */
+  async ping(tenant: Tenant): Promise<{ success: boolean; message: string; pingMs?: number }> {
+    return this.connectionManager.testConnection(tenant);
+  }
+
+  /**
    * Получить плоский список категорий магазина из таблицы `name`.
    * Поля:
    * - `group`: строковый код группы

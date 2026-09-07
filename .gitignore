@@ -24,3 +24,8 @@ lerna-debug.log*
 # temp directory
 .temp
 .tmp
+coverage
+
+# SQLite data directory
+/data/*.sqlite
+/data/*.sqlite-journal
