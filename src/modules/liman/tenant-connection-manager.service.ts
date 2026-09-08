@@ -2,9 +2,11 @@ import {
   Injectable,
   Logger,
   OnApplicationShutdown,
+  Optional,
 } from '@nestjs/common';
 import mysql from 'mysql2/promise';
 import { Tenant } from '../tenant/tenant.entity';
+import { AlertService } from '../alert/alert.service';
 
 /**
  * Менеджер пулов соединений с базами данных MariaDB клиентов (Tenants).
@@ -19,6 +21,8 @@ import { Tenant } from '../tenant/tenant.entity';
 export class TenantConnectionManager implements OnApplicationShutdown {
   private readonly logger = new Logger(TenantConnectionManager.name);
   private readonly pools = new Map<string, mysql.Pool>();
+
+  constructor(@Optional() private readonly alertService?: AlertService) {}
 
   /**
    * Получить существующий или создать новый пул соединений к MariaDB клиента
@@ -68,13 +72,25 @@ export class TenantConnectionManager implements OnApplicationShutdown {
         pingMs,
       };
     } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Ошибка соединения с БД';
       this.logger.error(
         `❌ Ошибка подключения к MariaDB тенанта "${tenant.id}":`,
         error instanceof Error ? error.message : error,
       );
+
+      // Отправляем алерт о сбое подключения к MariaDB
+      void this.alertService?.sendCritical(
+        'mariadb',
+        `Сбой подключения к MariaDB [${tenant.id}]`,
+        `Не удалось подключиться к базе данных "${tenant.dbName}" на сервере ${tenant.dbHost}:${tenant.dbPort}`,
+        error instanceof Error ? error.stack || error.message : String(error),
+        tenant.id,
+        { host: tenant.dbHost, port: tenant.dbPort, database: tenant.dbName },
+      );
+
       return {
         success: false,
-        message: error instanceof Error ? error.message : 'Ошибка соединения с БД',
+        message: errorMsg,
       };
     }
   }

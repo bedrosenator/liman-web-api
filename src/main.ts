@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { AlertService } from './modules/alert/alert.service';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -43,7 +44,8 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
     }),
   );
-  app.useGlobalFilters(new AllExceptionsFilter());
+  const alertService = app.get(AlertService);
+  app.useGlobalFilters(new AllExceptionsFilter(alertService));
   app.useGlobalInterceptors(new LoggingInterceptor());
 
   // Swagger Documentation Setup

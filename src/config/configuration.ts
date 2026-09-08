@@ -11,4 +11,10 @@ export default () => ({
   },
   apiKey: process.env.MASTER_API_KEY ?? 'liman-secret-key-change-in-production',
   publicBaseUrl: process.env.PUBLIC_BASE_URL ?? undefined,
+  alerts: {
+    telegramBotToken: process.env.TELEGRAM_BOT_TOKEN ?? undefined,
+    telegramChatId: process.env.TELEGRAM_CHAT_ID ?? undefined,
+    webhookUrl: process.env.ALERT_WEBHOOK_URL ?? undefined,
+    throttleMinutes: parseInt(process.env.ALERT_THROTTLE_MINUTES ?? '10', 10),
+  },
 });

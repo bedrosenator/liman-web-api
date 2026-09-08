@@ -1,7 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { LimanService } from '../liman/liman.service';
 import { WoocommerceApiClient, WooProduct } from './woocommerce-api.client';
 import { Tenant } from '../tenant/tenant.entity';
+import { AlertService } from '../alert/alert.service';
 
 const WOO_CHUNK_SIZE = 50; // WooCommerce batch max 100, используем 50 для стабильности
 
@@ -20,6 +21,7 @@ export class WoocommerceSyncService {
   constructor(
     private readonly limanService: LimanService,
     private readonly wooClient: WoocommerceApiClient,
+    @Optional() private readonly alertService?: AlertService,
   ) {}
 
   /**
@@ -135,6 +137,15 @@ export class WoocommerceSyncService {
           err,
         );
         errors += items.length;
+
+        void this.alertService?.sendCritical(
+          'woocommerce',
+          `Сбой синхронизации WooCommerce [${tenant.id}]`,
+          `Ошибка пакетного обновления товаров (стр. ${page}): ${err instanceof Error ? err.message : String(err)}`,
+          err instanceof Error ? err.stack : undefined,
+          tenant.id,
+          { page, chunkSize: wooProducts.length, targetUrl: tenant.woocommerceUrl },
+        );
       }
 
       options?.onProgress?.(synced, targetTotal);

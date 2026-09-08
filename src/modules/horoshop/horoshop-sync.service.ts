@@ -1,8 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { LimanService } from '../liman/liman.service';
 import { Tenant } from '../tenant/tenant.entity';
 import { HoroshopApiClient, HoroshopStockPriceItem } from './horoshop-api.client';
 import { TenantService } from '../tenant/tenant.service';
+import { AlertService } from '../alert/alert.service';
 
 @Injectable()
 export class HoroshopSyncService {
@@ -12,6 +13,7 @@ export class HoroshopSyncService {
     private readonly limanService: LimanService,
     private readonly horoshopClient: HoroshopApiClient,
     private readonly tenantService: TenantService,
+    @Optional() private readonly alertService?: AlertService,
   ) {}
 
   /**
@@ -62,6 +64,15 @@ export class HoroshopSyncService {
         const msg = `Ошибка обновления пакета #${batches + 1}: ${err.message}`;
         this.logger.error(`[${tenant.id}] ${msg}`);
         errors.push(msg);
+
+        void this.alertService?.sendCritical(
+          'horoshop',
+          `Сбой обновления остатков Хорошоп [${tenant.id}]`,
+          `Ошибка при обновлении пакета #${batches + 1} в Хорошоп: ${err.message}`,
+          err.stack,
+          tenant.id,
+          { batchIndex: batches + 1, itemsCount: syncItems.length },
+        );
       }
 
       processed += items.length;
@@ -186,6 +197,15 @@ export class HoroshopSyncService {
             this.logger.error(
               `❌ [${tenant.id}] Ошибка списания остатка для заказа №${orderId} (tcod=${tcod}):`,
               err.message,
+            );
+
+            void this.alertService?.sendCritical(
+              'horoshop',
+              `Ошибка списания остатка Хорошоп [${tenant.id}]`,
+              `Не удалось списать ${qty} шт. для товара tcod=${tcod} по заказу №${orderId}: ${err.message}`,
+              err.stack,
+              tenant.id,
+              { orderId, tcod, qty },
             );
           }
         }

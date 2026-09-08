@@ -6,13 +6,11 @@
 
 ## 📌 Колонка: Backlog (Бэклог)
 - [ ] **[TASK-14]** Двусторонний импорт каталога из внешних магазинов в Limansoft DB (`name`, `name2`, `strihcod`)
-- [ ] **[TASK-15]** Webhook notifications & Telegram alert bot для критических ошибок синхронизации
 
 ---
 
 ## 🎯 Колонка: To Do (Спринт 2: Следующие интеграции)
 - [ ] **[TASK-14]** Двусторонний импорт каталога из внешних магазинов в Limansoft DB (`name`, `name2`, `strihcod`)
-- [ ] **[TASK-15]** Webhook notifications & Telegram alert bot для критических ошибок синхронизации
 
 ---
 
@@ -29,10 +27,12 @@
 - [x] Верификация Horoshop Webhook заказа с авто-списанием остатка в MariaDB
 - [x] Верификация WooCommerce REST API (Ping, Batch sync 5768 товаров, Auto-sync toggle)
 - [x] WordPress плагин `limansoft-sync-woocommerce.zip` готов к установке
+- [x] Верификация Telegram Alert Bot & Webhook с троттлингом: `POST /api/v1/alerts/test`
 
 ---
 
 ## ✅ Колонка: Done (Выполнено)
+- [x] **[TASK-15]** Webhook notifications & Telegram alert bot для критических ошибок синхронизации (Telegram Bot API HTML в группу, Generic Webhook JSON, Anti-spam throttling с TTL, алерты с MariaDB, BullMQ, WooCommerce, Rozetka, Horoshop, AllExceptionsFilter)
 - [x] **[TASK-13]** Интеграция с Хорошоп (Horoshop / Cartum API: потоковый XML фид `/horoshop/:tenantId/feed.xml`, API клиент с JWT/session auth, синхронизация цен/остатков, webhook заказов с автосписанием)
 - [x] **[TASK-11]** Интеграция с Rozetka Marketplace API (XML фид `/rozetka/:tenantId/feed.xml`, Seller API клиент с JWT-авторизацией, обновление остатков/цен, webhook заказов с автосписанием)
 - [x] **[TASK-12]** Интеграция с WooCommerce REST API (Batch upsert с автоматическим определением create/update по SKU, delta sync, webhook заказов, отдельный WP плагин с UI и настраиваемым cron-расписанием)

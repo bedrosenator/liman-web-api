@@ -5,12 +5,16 @@ import {
   HttpException,
   HttpStatus,
   Logger,
+  Optional,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { AlertService } from '../../modules/alert/alert.service';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
+
+  constructor(@Optional() private readonly alertService?: AlertService) {}
 
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
@@ -36,6 +40,26 @@ export class AllExceptionsFilter implements ExceptionFilter {
       `[${request.method}] ${request.url} - Status: ${status}`,
       exception instanceof Error ? exception.stack : JSON.stringify(exception),
     );
+
+    // Если статус ошибки 500+, отправляем алерт администратору
+    if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+      const tenantId =
+        (request.params as any)?.tenantId ||
+        ((request as any).tenant as any)?.id;
+
+      void this.alertService?.sendCritical(
+        'system',
+        `Ошибка HTTP ${status}: [${request.method}] ${request.url}`,
+        typeof message === 'object' ? JSON.stringify(message) : String(message),
+        exception instanceof Error ? exception.stack : JSON.stringify(exception),
+        tenantId,
+        {
+          method: request.method,
+          url: request.url,
+          ip: request.ip,
+        },
+      );
+    }
 
     response.status(status).json({
       success: false,

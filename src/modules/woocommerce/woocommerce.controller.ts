@@ -9,6 +9,7 @@ import {
   Logger,
   HttpCode,
   HttpStatus,
+  Optional,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiBody, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import type { Request } from 'express';
@@ -17,6 +18,7 @@ import { WoocommerceApiClient } from './woocommerce-api.client';
 import { TenantService } from '../tenant/tenant.service';
 import { LimanService } from '../liman/liman.service';
 import { Public } from '../../common/decorators/public.decorator';
+import { AlertService } from '../alert/alert.service';
 
 @ApiTags('WooCommerce')
 @Controller('woocommerce/:tenantId')
@@ -28,6 +30,7 @@ export class WoocommerceController {
     private readonly wooClient: WoocommerceApiClient,
     private readonly tenantService: TenantService,
     private readonly limanService: LimanService,
+    @Optional() private readonly alertService?: AlertService,
   ) {}
 
   @Get('ping')
@@ -169,6 +172,14 @@ export class WoocommerceController {
           });
         } catch (err) {
           this.logger.error(`Не удалось списать остаток для tcod=${tcod}:`, err);
+          void this.alertService?.sendCritical(
+            'woocommerce',
+            `Ошибка списания остатка WooCommerce [${tenantId}]`,
+            `Не удалось списать остаток (${qty} шт.) для товара tcod=${tcod} по заказу #${payload?.id ?? payload?.order_id}: ${err instanceof Error ? err.message : String(err)}`,
+            err instanceof Error ? err.stack : undefined,
+            tenantId,
+            { orderId: payload?.id ?? payload?.order_id, tcod, qty },
+          );
         }
       }
     }

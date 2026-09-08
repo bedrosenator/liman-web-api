@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { LimanService } from '../liman/liman.service';
 import {
   RozetkaApiClient,
@@ -6,6 +6,7 @@ import {
   RozetkaOrder,
 } from './rozetka-api.client';
 import { Tenant } from '../tenant/tenant.entity';
+import { AlertService } from '../alert/alert.service';
 
 const BATCH_SIZE = 100; // Rozetka mass-update принимает до 500 товаров
 
@@ -36,6 +37,7 @@ export class RozetkaSyncService {
   constructor(
     private readonly limanService: LimanService,
     private readonly rozetkaClient: RozetkaApiClient,
+    @Optional() private readonly alertService?: AlertService,
   ) {}
 
   /**
@@ -92,6 +94,15 @@ export class RozetkaSyncService {
       } catch (err) {
         this.logger.error(`❌ [${tenant.id}] Ошибка mass-update (стр. ${page}):`, err);
         errors += massUpdateItems.length;
+
+        void this.alertService?.sendCritical(
+          'rozetka',
+          `Сбой синхронизации цен/остатков Rozetka [${tenant.id}]`,
+          `Ошибка пакетного обновления Rozetka (стр. ${page}): ${err instanceof Error ? err.message : String(err)}`,
+          err instanceof Error ? err.stack : undefined,
+          tenant.id,
+          { page, batchSize: massUpdateItems.length },
+        );
       }
 
       page++;
@@ -176,6 +187,15 @@ export class RozetkaSyncService {
                   deductErr,
                 );
                 result.errors++;
+
+                void this.alertService?.sendCritical(
+                  'rozetka',
+                  `Ошибка списания остатка Rozetka [${tenant.id}]`,
+                  `Не удалось списать ${qty} шт. для товара tcod=${tcod} по заказу №${orderSummary.id}: ${deductErr instanceof Error ? deductErr.message : String(deductErr)}`,
+                  deductErr instanceof Error ? deductErr.stack : undefined,
+                  tenant.id,
+                  { orderId: orderSummary.id, tcod, qty },
+                );
               }
             }
           }
