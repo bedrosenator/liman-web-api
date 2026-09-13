@@ -18,6 +18,7 @@ class LSW_Admin_Page {
         add_action( 'wp_ajax_lsw_save_settings', [ $this, 'ajax_save_settings' ] );
         add_action( 'wp_ajax_lsw_test_connection', [ $this, 'ajax_test_connection' ] );
         add_action( 'wp_ajax_lsw_sync_now', [ $this, 'ajax_sync_now' ] );
+        add_action( 'wp_ajax_lsw_sync_status', [ $this, 'ajax_sync_status' ] );
     }
 
     public static function get_instance(): self {
@@ -142,6 +143,40 @@ class LSW_Admin_Page {
 
         if ( $result['success'] ) {
             wp_send_json_success( $result );
+        } else {
+            wp_send_json_error( $result );
+        }
+    }
+
+    /**
+     * AJAX: проверить статус текущей фоновой синхронизации
+     */
+    public function ajax_sync_status(): void {
+        check_ajax_referer( 'lsw_nonce', 'nonce' );
+
+        if ( ! current_user_can( 'manage_woocommerce' ) ) {
+            wp_send_json_error( __( 'Нет прав', 'limansoft-sync' ), 403 );
+        }
+
+        $result = LSW_Sync_Client::get_instance()->get_sync_status();
+
+        if ( ! empty( $result['success'] ) && ! empty( $result['data'] ) ) {
+            $data = $result['data'];
+            // Если завершилось успешно — сохраняем дату последней синхронизации в опциях
+            if ( isset( $data['status'] ) && 'completed' === $data['status'] ) {
+                $last_sync = [
+                    'time'    => current_time( 'mysql' ),
+                    'success' => true,
+                    'message' => sprintf(
+                        __( 'Оновлено %1$d товарів (помилок: %2$d)', 'limansoft-sync' ),
+                        $data['synced'] ?? 0,
+                        $data['errors'] ?? 0
+                    ),
+                ];
+                update_option( 'limansoft_last_sync', $last_sync );
+            }
+
+            wp_send_json_success( $data );
         } else {
             wp_send_json_error( $result );
         }

@@ -6,6 +6,23 @@ import { AlertService } from '../alert/alert.service';
 
 const WOO_CHUNK_SIZE = 50; // WooCommerce batch max 100, используем 50 для стабильности
 
+export type SyncStatus = 'idle' | 'running' | 'completed' | 'error';
+
+export interface SyncProgressState {
+  tenantId: string;
+  status: SyncStatus;
+  total: number;
+  current: number;
+  percent: number;
+  synced: number;
+  errors: number;
+  startedAt: string | null;
+  finishedAt: string | null;
+  durationMs: number | null;
+  message: string;
+  error?: string;
+}
+
 /**
  * Сервис синхронизации каталога, цен и остатков между базой данных Limansoft и WooCommerce.
  *
@@ -17,12 +34,36 @@ const WOO_CHUNK_SIZE = 50; // WooCommerce batch max 100, используем 50
 @Injectable()
 export class WoocommerceSyncService {
   private readonly logger = new Logger(WoocommerceSyncService.name);
+  private readonly syncStatusMap = new Map<string, SyncProgressState>();
 
   constructor(
     private readonly limanService: LimanService,
     private readonly wooClient: WoocommerceApiClient,
     @Optional() private readonly alertService?: AlertService,
   ) {}
+
+  /**
+   * Получить текущий прогресс и статус синхронизации для тенанта
+   */
+  getSyncStatus(tenantId: string): SyncProgressState {
+    const existing = this.syncStatusMap.get(tenantId);
+    if (existing) {
+      return existing;
+    }
+    return {
+      tenantId,
+      status: 'idle',
+      total: 0,
+      current: 0,
+      percent: 0,
+      synced: 0,
+      errors: 0,
+      startedAt: null,
+      finishedAt: null,
+      durationMs: null,
+      message: 'Синхронізація ще не запускалася',
+    };
+  }
 
   /**
    * Преобразовать товар из формата Limansoft в объект WooCommerce Product.
@@ -97,71 +138,113 @@ export class WoocommerceSyncService {
     const totalCount = await this.limanService.getProductCount(tenant);
     const targetTotal = options?.limit ? Math.min(options.limit, totalCount) : totalCount;
 
+    const state: SyncProgressState = {
+      tenantId: tenant.id,
+      status: 'running',
+      total: targetTotal,
+      current: 0,
+      percent: 0,
+      synced: 0,
+      errors: 0,
+      startedAt: new Date().toISOString(),
+      finishedAt: null,
+      durationMs: null,
+      message: `Ініціалізація синхронізації (${targetTotal} товарів)...`,
+    };
+    this.syncStatusMap.set(tenant.id, state);
+
     this.logger.log(
       `🔄 [${tenant.id}] Начало синхронизации ${targetTotal} из ${totalCount} товаров в WooCommerce (${tenant.woocommerceUrl})`,
     );
 
-    // Загружаем существующие SKU -> WooCommerce ID для предотвращения дубликатов
-    const skuMap = await this.wooClient.getSkuToIdMap(tenant);
+    try {
+      // Загружаем существующие SKU -> WooCommerce ID для предотвращения дубликатов
+      state.message = 'Перевірка існуючих товарів у WooCommerce...';
+      const skuMap = await this.wooClient.getSkuToIdMap(tenant);
 
-    let synced = 0;
-    let errors = 0;
-    let page = 1;
-    let hasMore = true;
+      let synced = 0;
+      let errors = 0;
+      let page = 1;
+      let hasMore = true;
 
-    while (hasMore) {
-      const remaining = targetTotal - synced;
-      const chunkSize = Math.min(WOO_CHUNK_SIZE, remaining);
+      while (hasMore) {
+        const remaining = targetTotal - synced;
+        const chunkSize = Math.min(WOO_CHUNK_SIZE, remaining);
 
-      if (chunkSize <= 0) break;
+        if (chunkSize <= 0) break;
 
-      const { items } = await this.limanService.getProducts(tenant, {
-        page,
-        limit: chunkSize,
-        baseUrl,
-      });
+        const { items } = await this.limanService.getProducts(tenant, {
+          page,
+          limit: chunkSize,
+          baseUrl,
+        });
 
-      if (!items.length) {
-        hasMore = false;
-        break;
+        if (!items.length) {
+          hasMore = false;
+          break;
+        }
+
+        const wooProducts = items.map((p) => this.mapProductToWoo(p, baseUrl));
+
+        try {
+          await this.wooClient.batchUpsertProducts(tenant, wooProducts, skuMap);
+          synced += items.length;
+        } catch (err) {
+          this.logger.error(
+            `❌ [${tenant.id}] Ошибка пакетного обновления WooCommerce (страница ${page}):`,
+            err,
+          );
+          errors += items.length;
+
+          void this.alertService?.sendCritical(
+            'woocommerce',
+            `Сбой синхронизации WooCommerce [${tenant.id}]`,
+            `Ошибка пакетного обновления товаров (стр. ${page}): ${err instanceof Error ? err.message : String(err)}`,
+            err instanceof Error ? err.stack : undefined,
+            tenant.id,
+            { page, chunkSize: wooProducts.length, targetUrl: tenant.woocommerceUrl },
+          );
+        }
+
+        const processed = synced + errors;
+        const pct = targetTotal > 0 ? Math.min(100, Math.round((processed / targetTotal) * 100)) : 100;
+        state.current = processed;
+        state.synced = synced;
+        state.errors = errors;
+        state.percent = pct;
+        state.message = `Синхронізовано ${synced} з ${targetTotal} (${pct}%)...`;
+
+        options?.onProgress?.(synced, targetTotal);
+
+        page++;
+        if (items.length < chunkSize || synced >= targetTotal) {
+          hasMore = false;
+        }
       }
 
-      const wooProducts = items.map((p) => this.mapProductToWoo(p, baseUrl));
+      const durationMs = Date.now() - startTime;
+      state.status = 'completed';
+      state.finishedAt = new Date().toISOString();
+      state.durationMs = durationMs;
+      state.percent = 100;
+      state.current = targetTotal;
+      const durationSec = Math.round(durationMs / 1000);
+      state.message = `Синхронізацію успішно завершено! Оновлено: ${synced}, помилок: ${errors} за ${durationSec} сек.`;
 
-      try {
-        await this.wooClient.batchUpsertProducts(tenant, wooProducts, skuMap);
-        synced += items.length;
-      } catch (err) {
-        this.logger.error(
-          `❌ [${tenant.id}] Ошибка пакетного обновления WooCommerce (страница ${page}):`,
-          err,
-        );
-        errors += items.length;
+      this.logger.log(
+        `✅ [${tenant.id}] WooCommerce синхронизация завершена за ${durationMs}ms. Синхронизировано: ${synced}, ошибок: ${errors}`,
+      );
 
-        void this.alertService?.sendCritical(
-          'woocommerce',
-          `Сбой синхронизации WooCommerce [${tenant.id}]`,
-          `Ошибка пакетного обновления товаров (стр. ${page}): ${err instanceof Error ? err.message : String(err)}`,
-          err instanceof Error ? err.stack : undefined,
-          tenant.id,
-          { page, chunkSize: wooProducts.length, targetUrl: tenant.woocommerceUrl },
-        );
-      }
-
-      options?.onProgress?.(synced, targetTotal);
-
-      page++;
-      if (items.length < chunkSize || synced >= targetTotal) {
-        hasMore = false;
-      }
+      return { synced, errors, durationMs };
+    } catch (err) {
+      const durationMs = Date.now() - startTime;
+      state.status = 'error';
+      state.finishedAt = new Date().toISOString();
+      state.durationMs = durationMs;
+      state.error = err instanceof Error ? err.message : String(err);
+      state.message = `Помилка синхронізації: ${state.error}`;
+      throw err;
     }
-
-    const durationMs = Date.now() - startTime;
-    this.logger.log(
-      `✅ [${tenant.id}] WooCommerce синхронизация завершена за ${durationMs}ms. Синхронизировано: ${synced}, ошибок: ${errors}`,
-    );
-
-    return { synced, errors, durationMs };
   }
 
   /**

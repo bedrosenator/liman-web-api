@@ -141,6 +141,50 @@ class LSW_Sync_Client {
     }
 
     /**
+     * Получить статус и прогресс фоновой синхронизации
+     *
+     * @return array{success: bool, data?: array<string, mixed>, message?: string}
+     */
+    public function get_sync_status(): array {
+        if ( ! $this->settings->is_configured() ) {
+            return [
+                'success' => false,
+                'message' => __( 'Плагин не настроен.', 'limansoft-sync' ),
+            ];
+        }
+
+        $tenant_id = $this->settings->get_tenant_id();
+        $url       = $this->settings->get_api_url() . "/api/v1/woocommerce/{$tenant_id}/sync/status";
+
+        $response = wp_remote_get( $url, [
+            'timeout' => 10,
+            'headers' => $this->get_headers(),
+        ] );
+
+        if ( is_wp_error( $response ) ) {
+            return [
+                'success' => false,
+                'message' => $response->get_error_message(),
+            ];
+        }
+
+        $code = wp_remote_retrieve_response_code( $response );
+        $body = json_decode( wp_remote_retrieve_body( $response ), true );
+
+        if ( 200 === $code && is_array( $body ) ) {
+            return [
+                'success' => true,
+                'data'    => $body,
+            ];
+        }
+
+        return [
+            'success' => false,
+            'message' => sprintf( __( 'Ошибка проверки статуса (HTTP %d)', 'limansoft-sync' ), $code ),
+        ];
+    }
+
+    /**
      * Отправить данные заказа в Limansoft (списание остатка)
      *
      * @param int   $order_id  ID заказа WooCommerce

@@ -48,6 +48,13 @@ export class WoocommerceController {
     return this.wooClient.testConnection(tenant);
   }
 
+  @Get('sync/status')
+  @ApiOperation({ summary: 'Получить текущий статус и прогресс синхронизации каталога' })
+  @ApiParam({ name: 'tenantId', example: 'columb' })
+  getSyncStatus(@Param('tenantId') tenantId: string) {
+    return this.syncService.getSyncStatus(tenantId);
+  }
+
   @Post('sync')
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({
