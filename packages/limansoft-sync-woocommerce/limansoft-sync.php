@@ -3,7 +3,7 @@
  * Plugin Name: Limansoft Sync for WooCommerce
  * Plugin URI:  https://github.com/your-org/limansoft-sync-woocommerce
  * Description: Синхронизация каталога товаров, цен и остатков между Limansoft (liman-web-api) и WooCommerce. Поддерживает автоматическое обновление по расписанию, мгновенное списание остатков при заказах и двусторонний импорт товаров (Two-Way Sync).
- * Version:     1.1.0
+ * Version:     1.1.1
  * Author:      Limansoft Team
  * Author URI:  https://limansoft.com
  * License:     GPL-2.0+
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Константы плагина
-define( 'LSW_VERSION',     '1.1.0' );
+define( 'LSW_VERSION',     '1.1.1' );
 define( 'LSW_PLUGIN_FILE', __FILE__ );
 define( 'LSW_PLUGIN_DIR',  plugin_dir_path( __FILE__ ) );
 define( 'LSW_PLUGIN_URL',  plugin_dir_url( __FILE__ ) );

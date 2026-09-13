@@ -104,10 +104,19 @@ export class WoocommerceApiClient {
     return client;
   }
 
+  private readonly skuMapCache = new Map<string, { map: Map<string, number>; expiresAt: number }>();
+  private static readonly SKU_MAP_TTL_MS = 10 * 60 * 1000; // 10 минут
+
   /**
-   * Получить карту всех существующих SKU -> WooCommerce ID
+   * Получить карту всех существующих SKU -> WooCommerce ID с кэшированием в памяти
    */
-  async getSkuToIdMap(tenant: Tenant): Promise<Map<string, number>> {
+  async getSkuToIdMap(tenant: Tenant, forceRefresh = false): Promise<Map<string, number>> {
+    const cached = this.skuMapCache.get(tenant.id);
+    if (!forceRefresh && cached && cached.expiresAt > Date.now()) {
+      this.logger.log(`🔍 [${tenant.id}] Использован кэш SKU map (${cached.map.size} товаров)`);
+      return cached.map;
+    }
+
     const client = this.createClient(tenant);
     const skuMap = new Map<string, number>();
     let page = 1;
@@ -138,7 +147,12 @@ export class WoocommerceApiClient {
       }
     }
 
-    this.logger.log(`🔍 [${tenant.id}] Найдено ${skuMap.size} товаров с SKU в WooCommerce`);
+    this.skuMapCache.set(tenant.id, {
+      map: skuMap,
+      expiresAt: Date.now() + WoocommerceApiClient.SKU_MAP_TTL_MS,
+    });
+
+    this.logger.log(`🔍 [${tenant.id}] Найдено ${skuMap.size} товаров с SKU в WooCommerce (сохранено в кэш)`);
     return skuMap;
   }
 

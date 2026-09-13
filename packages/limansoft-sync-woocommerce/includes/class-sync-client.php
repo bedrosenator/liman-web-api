@@ -96,7 +96,7 @@ class LSW_Sync_Client {
         $url       = $this->settings->get_api_url() . "/api/v1/woocommerce/{$tenant_id}/sync";
 
         $response = wp_remote_post( $url, [
-            'timeout' => 120,
+            'timeout' => 300,
             'headers' => $this->get_headers(),
             'body'    => '{}',
         ] );
@@ -112,16 +112,20 @@ class LSW_Sync_Client {
         $body = json_decode( wp_remote_retrieve_body( $response ), true );
 
         if ( in_array( $code, [ 200, 202 ], true ) && ! empty( $body['success'] ) ) {
-            return [
-                'success' => true,
-                'message' => sprintf(
+            $message = ! empty( $body['message'] )
+                ? $body['message']
+                : sprintf(
                     /* translators: 1: synced count, 2: errors count, 3: duration ms */
                     __( 'Синхронизировано %d товаров (ошибок: %d) за %d мс', 'limansoft-sync' ),
                     $body['synced'] ?? 0,
                     $body['errors'] ?? 0,
                     $body['durationMs'] ?? 0
-                ),
-                'data' => $body,
+                );
+
+            return [
+                'success' => true,
+                'message' => $message,
+                'data'    => $body,
             ];
         }
 

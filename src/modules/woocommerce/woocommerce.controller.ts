@@ -51,9 +51,9 @@ export class WoocommerceController {
   @Post('sync')
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({
-    summary: 'Запустить полную синхронизацию каталога Limansoft → WooCommerce',
+    summary: 'Запустить синхронизацию каталога Limansoft → WooCommerce',
     description:
-      'Выгружает все активные товары из Limansoft в WooCommerce пакетами по 50 шт. SKU = tcod.',
+      'Выгружает активные товары из Limansoft в WooCommerce пакетами по 50 шт. Для полного каталога выполняется в фоне без блокировки.',
   })
   @ApiParam({ name: 'tenantId', example: 'columb' })
   @ApiQuery({
@@ -63,21 +63,49 @@ export class WoocommerceController {
     example: 50,
   })
   @ApiQuery({
+    name: 'async',
+    required: false,
+    description: 'Запустить асинхронно в фоне (по умолчанию true для полного каталога)',
+    example: 'true',
+  })
+  @ApiQuery({
     name: 'imageBaseUrl',
     required: false,
     description: 'Базовый URL для ссылок на изображения (переопределяет авто-определение из request.host). Нужен если WooCommerce в Docker и API на хосте.',
     example: 'http://172.20.0.1:3000',
   })
-  @ApiResponse({ status: 202, description: 'Синхронизация запущена и завершена' })
+  @ApiResponse({ status: 202, description: 'Синхронизация запущена' })
   async syncCatalog(
     @Param('tenantId') tenantId: string,
     @Query('limit') limit: string | undefined,
+    @Query('async') asyncParam: string | undefined,
     @Query('imageBaseUrl') imageBaseUrl: string | undefined,
     @Req() req: Request,
   ) {
     const tenant = await this.tenantService.findOne(tenantId);
     const baseUrl = imageBaseUrl ?? `${req.protocol}://${req.get('host')}`;
     const limitNum = limit ? parseInt(limit, 10) : undefined;
+    const isAsync = asyncParam === 'false' ? false : (!limitNum || limitNum > 100);
+
+    if (isAsync) {
+      // Фоновый запуск: не подвешивает HTTP-соединение WordPress / cURL
+      setImmediate(async () => {
+        try {
+          await this.syncService.syncFullCatalog(tenant, baseUrl, { limit: limitNum });
+        } catch (err) {
+          this.logger.error(`❌ [${tenantId}] Сбой фоновой синхронизации в WooCommerce:`, err);
+        }
+      });
+
+      return {
+        success: true,
+        tenantId,
+        target: tenant.woocommerceUrl,
+        imageBaseUrl: baseUrl,
+        message: 'Синхронізація повного каталогу успішно запущена у фоновому режимі',
+        async: true,
+      };
+    }
 
     const result = await this.syncService.syncFullCatalog(tenant, baseUrl, { limit: limitNum });
 
