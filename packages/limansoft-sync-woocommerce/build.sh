@@ -14,6 +14,17 @@ PLUGIN_SLUG="limansoft-sync-woocommerce"
 
 echo "🏗  Збірка плагіну ${PLUGIN_SLUG} v$(grep 'Version:' "${PLUGIN_DIR}/limansoft-sync.php" | head -1 | awk '{print $NF}')"
 
+# Компіляція .po -> .mo за наявності msgfmt
+if command -v msgfmt >/dev/null 2>&1; then
+    echo "🌐 Компіляція файлів перекладів (.po -> .mo)..."
+    for po in "${PLUGIN_DIR}/languages/"*.po; do
+        if [ -f "$po" ]; then
+            mo="${po%.po}.mo"
+            msgfmt -o "$mo" "$po"
+        fi
+    done
+fi
+
 # Створюємо директорію dist
 mkdir -p "${DIST_DIR}"
 

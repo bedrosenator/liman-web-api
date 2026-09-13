@@ -106,15 +106,16 @@
     function updateCronStatus(status) {
         const $row = $('#lsw-interval-row .lsw-cron-status');
         if (status.is_scheduled && status.next_run) {
+            const nextText = lsw_ajax.strings.next_run_in ? lsw_ajax.strings.next_run_in.replace('%s', status.next_run) : ('Наступний запуск: через ' + status.next_run);
             $row
                 .removeClass('lsw-off')
                 .addClass('lsw-ok')
-                .html('✅ Наступний запуск: через ' + status.next_run);
+                .html('✅ ' + nextText);
         } else {
             $row
                 .removeClass('lsw-ok')
                 .addClass('lsw-off')
-                .html('🛑 Розклад вимкнено');
+                .html('🛑 ' + (lsw_ajax.strings.schedule_off || 'Розклад вимкнено'));
         }
     }
 
@@ -138,15 +139,13 @@
                 }
             })
             .fail(function () {
-                setConnectionStatus('error', '❌ Не вдалося зв\'язатися з сервером');
+                setConnectionStatus('error', lsw_ajax.strings.conn_failed);
             })
             .always(function () {
-                $btn.prop('disabled', false).html('🔍 Перевірити підключення');
+                $btn.prop('disabled', false).html(lsw_ajax.strings.test_conn);
             });
     });
 
-    // ====================================================================
-    // Синхронізувати зараз
     // ====================================================================
     // Синхронізувати зараз & Live Polling
     // ====================================================================
@@ -178,16 +177,16 @@
                     const pct = Math.min(100, Math.max(0, info.percent || 0));
 
                     if (info.status === 'running') {
-                        setProgress(pct, info.message || ('Синхронізація товарів: ' + pct + '%'));
+                        setProgress(pct, info.message || (lsw_ajax.strings.syncing + ' ' + pct + '%'));
                     } else if (info.status === 'completed') {
                         clearInterval(pollTimer);
                         pollTimer = null;
-                        setProgress(100, 'Готово!');
+                        setProgress(100, lsw_ajax.strings.done);
 
                         setTimeout(function () {
                             $wrap.hide();
-                            showResult($result, true, '🎉 ' + (info.message || 'Синхронізацію успішно завершено!'));
-                            $btn.prop('disabled', false).html('🚀 Синхронізувати зараз');
+                            showResult($result, true, '🎉 ' + (info.message || lsw_ajax.strings.sync_completed));
+                            $btn.prop('disabled', false).html(lsw_ajax.strings.sync_now);
 
                             // Оновити блок останньої синхронізації
                             const $lastSync = $('.lsw-last-sync span');
@@ -195,15 +194,15 @@
                                 $lastSync
                                     .removeClass('lsw-error')
                                     .addClass('lsw-ok')
-                                    .text(new Date().toLocaleTimeString() + ' — ' + (info.message || 'Оновлено'));
+                                    .text(new Date().toLocaleTimeString() + ' — ' + (info.message || lsw_ajax.strings.done));
                             }
                         }, 600);
                     } else if (info.status === 'error') {
                         clearInterval(pollTimer);
                         pollTimer = null;
                         $wrap.hide();
-                        showResult($result, false, '❌ ' + (info.message || 'Помилка синхронізації'));
-                        $btn.prop('disabled', false).html('🚀 Синхронізувати зараз');
+                        showResult($result, false, '❌ ' + (info.message || lsw_ajax.strings.sync_failed));
+                        $btn.prop('disabled', false).html(lsw_ajax.strings.sync_now);
                     }
                 })
                 .fail(function () {
@@ -236,7 +235,7 @@
         $btn.prop('disabled', true).html('⏳ ' + lsw_ajax.strings.syncing);
         $result.hide();
         $wrap.show();
-        setProgress(5, 'Ініціалізація синхронізації...');
+        setProgress(5, lsw_ajax.strings.init_sync);
 
         $.post(lsw_ajax.ajax_url, {
             action: 'lsw_sync_now',
@@ -245,30 +244,30 @@
             .done(function (res) {
                 if (!res.success) {
                     $wrap.hide();
-                    showResult($result, false, '❌ ' + (res.data ? res.data.message : 'Невідома помилка'));
-                    $btn.prop('disabled', false).html('🚀 Синхронізувати зараз');
+                    showResult($result, false, '❌ ' + (res.data ? res.data.message : lsw_ajax.strings.unknown_error));
+                    $btn.prop('disabled', false).html(lsw_ajax.strings.sync_now);
                     return;
                 }
 
                 // Перевіряємо, чи запущено асинхронно
                 const data = res.data && res.data.data ? res.data.data : {};
                 if (data.async) {
-                    setProgress(10, 'Синхронізацію запущено у фоні. Відстеження прогресу...');
+                    setProgress(10, lsw_ajax.strings.sync_bg_track);
                     startStatusPolling();
                 } else {
-                    setProgress(100, 'Готово!');
+                    setProgress(100, lsw_ajax.strings.done);
                     setTimeout(function () {
                         $wrap.hide();
-                        showResult($result, true, '🎉 ' + (res.data ? res.data.message : 'Успішно!'));
-                        $btn.prop('disabled', false).html('🚀 Синхронізувати зараз');
+                        showResult($result, true, '🎉 ' + (res.data ? res.data.message : lsw_ajax.strings.done));
+                        $btn.prop('disabled', false).html(lsw_ajax.strings.sync_now);
                     }, 500);
                 }
             })
             .fail(function (xhr) {
                 $wrap.hide();
-                const errMsg = xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : 'Помилка з\'єднання';
+                const errMsg = xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : lsw_ajax.strings.network_err;
                 showResult($result, false, '❌ ' + errMsg);
-                $btn.prop('disabled', false).html('🚀 Синхронізувати зараз');
+                $btn.prop('disabled', false).html(lsw_ajax.strings.sync_now);
             });
     });
 

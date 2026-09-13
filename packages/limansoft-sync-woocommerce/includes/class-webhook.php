@@ -110,7 +110,7 @@ class LSW_Webhook {
             // Добавить заметку в заказ WooCommerce
             $order->add_order_note(
                 sprintf(
-                    __( 'Limansoft: остатки успешно списаны (%d позиций)', 'limansoft-sync' ),
+                    __( 'Limansoft: залишки успішно списано (%d позицій)', 'limansoft-sync' ),
                     count( $line_items )
                 )
             );
@@ -118,7 +118,7 @@ class LSW_Webhook {
             error_log( "[Limansoft Sync] ✅ Заказ #{$order_id}: остатки списаны в Limansoft." );
         } else {
             $order->add_order_note(
-                __( 'Limansoft: ❌ Ошибка при списании остатков. Проверьте логи.', 'limansoft-sync' )
+                __( 'Limansoft: ❌ Помилка при списанні залишків. Перевірте логи.', 'limansoft-sync' )
             );
             error_log( "[Limansoft Sync] ❌ Заказ #{$order_id}: ошибка уведомления Limansoft." );
         }

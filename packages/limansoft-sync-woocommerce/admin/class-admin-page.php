@@ -71,12 +71,24 @@ class LSW_Admin_Page {
             'ajax_url' => admin_url( 'admin-ajax.php' ),
             'nonce'    => wp_create_nonce( 'lsw_nonce' ),
             'strings'  => [
-                'testing'    => __( 'Проверяем подключение...', 'limansoft-sync' ),
-                'syncing'    => __( 'Синхронизируем товары...', 'limansoft-sync' ),
-                'saving'     => __( 'Сохраняем...', 'limansoft-sync' ),
-                'saved'      => __( '✅ Настройки сохранены!', 'limansoft-sync' ),
-                'error'      => __( '❌ Ошибка', 'limansoft-sync' ),
-                'confirm_sync' => __( 'Запустить полную синхронизацию каталога? Это может занять несколько минут.', 'limansoft-sync' ),
+                'testing'        => __( 'Перевіряємо підключення...', 'limansoft-sync' ),
+                'syncing'        => __( 'Синхронізуємо товари...', 'limansoft-sync' ),
+                'saving'         => __( 'Зберігаємо...', 'limansoft-sync' ),
+                'saved'          => __( '✅ Налаштування збережено!', 'limansoft-sync' ),
+                'error'          => __( '❌ Помилка', 'limansoft-sync' ),
+                'confirm_sync'   => __( 'Запустити повну синхронізацію каталогу? Це може зайняти кілька хвилин.', 'limansoft-sync' ),
+                'sync_now'       => __( '🚀 Синхронізувати зараз', 'limansoft-sync' ),
+                'test_conn'      => __( '🔍 Перевірити підключення', 'limansoft-sync' ),
+                'conn_failed'    => __( '❌ Не вдалося зв\'язатися з сервером', 'limansoft-sync' ),
+                'init_sync'      => __( 'Ініціалізація синхронізації...', 'limansoft-sync' ),
+                'sync_bg_track'  => __( 'Синхронізацію запущено у фоні. Відстеження прогресу...', 'limansoft-sync' ),
+                'network_err'    => __( 'Помилка з\'єднання', 'limansoft-sync' ),
+                'done'           => __( 'Готово!', 'limansoft-sync' ),
+                'sync_completed' => __( 'Синхронізацію успішно завершено!', 'limansoft-sync' ),
+                'sync_failed'    => __( 'Помилка синхронізації', 'limansoft-sync' ),
+                'unknown_error'  => __( 'Невідома помилка', 'limansoft-sync' ),
+                'next_run_in'    => __( 'Наступний запуск: через %s', 'limansoft-sync' ),
+                'schedule_off'   => __( 'Розклад вимкнено', 'limansoft-sync' ),
             ],
         ] );
     }
@@ -88,7 +100,7 @@ class LSW_Admin_Page {
         check_ajax_referer( 'lsw_nonce', 'nonce' );
 
         if ( ! current_user_can( 'manage_woocommerce' ) ) {
-            wp_send_json_error( __( 'Нет прав', 'limansoft-sync' ), 403 );
+            wp_send_json_error( __( 'Немає прав', 'limansoft-sync' ), 403 );
         }
 
         $data = [
@@ -110,7 +122,7 @@ class LSW_Admin_Page {
         $cron_status = LSW_Cron::get_instance()->get_status();
 
         wp_send_json_success( [
-            'message'    => __( 'Настройки сохранены', 'limansoft-sync' ),
+            'message'    => __( 'Налаштування збережено', 'limansoft-sync' ),
             'cron_status' => $cron_status,
         ] );
     }
@@ -122,7 +134,7 @@ class LSW_Admin_Page {
         check_ajax_referer( 'lsw_nonce', 'nonce' );
 
         if ( ! current_user_can( 'manage_woocommerce' ) ) {
-            wp_send_json_error( __( 'Нет прав', 'limansoft-sync' ), 403 );
+            wp_send_json_error( __( 'Немає прав', 'limansoft-sync' ), 403 );
         }
 
         $result = LSW_Sync_Client::get_instance()->test_connection();
@@ -136,7 +148,7 @@ class LSW_Admin_Page {
         check_ajax_referer( 'lsw_nonce', 'nonce' );
 
         if ( ! current_user_can( 'manage_woocommerce' ) ) {
-            wp_send_json_error( __( 'Нет прав', 'limansoft-sync' ), 403 );
+            wp_send_json_error( __( 'Немає прав', 'limansoft-sync' ), 403 );
         }
 
         $result = LSW_Sync_Client::get_instance()->sync_catalog();
@@ -155,7 +167,7 @@ class LSW_Admin_Page {
         check_ajax_referer( 'lsw_nonce', 'nonce' );
 
         if ( ! current_user_can( 'manage_woocommerce' ) ) {
-            wp_send_json_error( __( 'Нет прав', 'limansoft-sync' ), 403 );
+            wp_send_json_error( __( 'Немає прав', 'limansoft-sync' ), 403 );
         }
 
         $result = LSW_Sync_Client::get_instance()->get_sync_status();

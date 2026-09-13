@@ -63,7 +63,7 @@ class LSW_Sync_Client {
                 'status'  => $body['status'] ?? 'ok',
                 'message' => sprintf(
                     /* translators: 1: service version */
-                    __( 'Подключено к Limansoft API v%s', 'limansoft-sync' ),
+                    __( 'Підключено до Limansoft API v%s', 'limansoft-sync' ),
                     $body['version'] ?? '?'
                 ),
             ];
@@ -73,14 +73,14 @@ class LSW_Sync_Client {
             'success' => false,
             'message' => sprintf(
                 /* translators: 1: HTTP status code */
-                __( 'Ошибка подключения (HTTP %d)', 'limansoft-sync' ),
+                __( 'Помилка підключення (HTTP %d)', 'limansoft-sync' ),
                 $code
             ),
         ];
     }
 
     /**
-     * Запустить полную синхронизацию каталога
+     * Запустити повну синхронізацію каталогу
      *
      * @return array{success: bool, message: string, data?: array<string, mixed>}
      */
@@ -88,7 +88,7 @@ class LSW_Sync_Client {
         if ( ! $this->settings->is_configured() ) {
             return [
                 'success' => false,
-                'message' => __( 'Плагин не настроен. Заполните API URL, API Key и Tenant ID.', 'limansoft-sync' ),
+                'message' => __( 'Плагін не налаштовано. Заповніть API URL, API Key та Tenant ID.', 'limansoft-sync' ),
             ];
         }
 
@@ -116,7 +116,7 @@ class LSW_Sync_Client {
                 ? $body['message']
                 : sprintf(
                     /* translators: 1: synced count, 2: errors count, 3: duration ms */
-                    __( 'Синхронизировано %d товаров (ошибок: %d) за %d мс', 'limansoft-sync' ),
+                    __( 'Синхронізовано %1$d товарів (помилок: %2$d) за %3$d мс', 'limansoft-sync' ),
                     $body['synced'] ?? 0,
                     $body['errors'] ?? 0,
                     $body['durationMs'] ?? 0
@@ -133,7 +133,7 @@ class LSW_Sync_Client {
             'success' => false,
             'message' => sprintf(
                 /* translators: 1: HTTP code, 2: error message */
-                __( 'Ошибка синхронизации (HTTP %1$d): %2$s', 'limansoft-sync' ),
+                __( 'Помилка синхронізації (HTTP %1$d): %2$s', 'limansoft-sync' ),
                 $code,
                 $body['message'] ?? wp_remote_retrieve_body( $response )
             ),
@@ -149,7 +149,7 @@ class LSW_Sync_Client {
         if ( ! $this->settings->is_configured() ) {
             return [
                 'success' => false,
-                'message' => __( 'Плагин не настроен.', 'limansoft-sync' ),
+                'message' => __( 'Плагін не налаштовано.', 'limansoft-sync' ),
             ];
         }
 
@@ -180,7 +180,7 @@ class LSW_Sync_Client {
 
         return [
             'success' => false,
-            'message' => sprintf( __( 'Ошибка проверки статуса (HTTP %d)', 'limansoft-sync' ), $code ),
+            'message' => sprintf( __( 'Помилка перевірки статусу (HTTP %d)', 'limansoft-sync' ), $code ),
         ];
     }
 

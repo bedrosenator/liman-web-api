@@ -12,11 +12,18 @@ $settings    = LSW_Settings::get_instance();
 $cron_status = LSW_Cron::get_instance()->get_status();
 $last_sync   = $cron_status['last_sync'];
 
-$price_columns = array_merge( ['cena2' => 'cena2 (Розниця)'], array_combine(
-    array_map( fn($i) => "cena{$i}", range(3, 10) ),
-    array_map( fn($i) => "cena{$i}", range(3, 10) )
-) );
-$stock_columns = ['skl_k' => 'skl_k (Основний склад)', 'skl_kt' => 'skl_kt (Транзит)', 'skl_r' => 'skl_r (Роздрібний склад)'];
+$price_columns = array_merge(
+    [ 'cena2' => sprintf( 'cena2 (%s)', __( 'Роздріб', 'limansoft-sync' ) ) ],
+    array_combine(
+        array_map( fn($i) => "cena{$i}", range(3, 10) ),
+        array_map( fn($i) => "cena{$i}", range(3, 10) )
+    )
+);
+$stock_columns = [
+    'skl_k'  => sprintf( 'skl_k (%s)', __( 'Основний склад', 'limansoft-sync' ) ),
+    'skl_kt' => sprintf( 'skl_kt (%s)', __( 'Транзит', 'limansoft-sync' ) ),
+    'skl_r'  => sprintf( 'skl_r (%s)', __( 'Роздрібний склад', 'limansoft-sync' ) ),
+];
 ?>
 <div class="wrap lsw-wrap">
     <h1>
@@ -119,7 +126,7 @@ $stock_columns = ['skl_k' => 'skl_k (Основний склад)', 'skl_kt' => 
                     <div id="lsw-interval-row" class="lsw-field <?php echo '1' !== $settings->get( 'auto_sync_enabled', '0' ) ? 'lsw-disabled' : ''; ?>">
                         <label for="lsw-sync-interval"><?php esc_html_e( 'Інтервал оновлення', 'limansoft-sync' ); ?></label>
                         <select id="lsw-sync-interval" name="sync_interval" <?php echo '1' !== $settings->get( 'auto_sync_enabled', '0' ) ? 'disabled' : ''; ?>>
-                            <?php foreach ( LSW_Cron::INTERVALS as $minutes => $label ) : ?>
+                            <?php foreach ( LSW_Cron::get_intervals() as $minutes => $label ) : ?>
                                 <option value="<?php echo esc_attr( $minutes ); ?>"<?php selected( (int) $settings->get( 'sync_interval', 15 ), $minutes ); ?>>
                                     <?php echo esc_html( $label ); ?>
                                 </option>
@@ -202,11 +209,11 @@ $stock_columns = ['skl_k' => 'skl_k (Основний склад)', 'skl_kt' => 
             <div class="lsw-card lsw-info-card">
                 <h2><?php esc_html_e( 'ℹ Інформація', 'limansoft-sync' ); ?></h2>
                 <ul class="lsw-info-list">
-                    <li><strong>SKU</strong> = tcod з Limansoft</li>
-                    <li><strong>Ціна</strong> = <?php echo esc_html( $settings->get( 'price_column', 'cena2' ) ); ?></li>
-                    <li><strong>Залишок</strong> = <?php echo esc_html( $settings->get( 'stock_column', 'skl_k' ) ); ?></li>
-                    <li><strong>Зображення</strong> — стримінг через media API</li>
-                    <li><strong>Вебхук замовлень</strong> — автоматичне списання залишків</li>
+                    <li><strong><?php esc_html_e( 'SKU', 'limansoft-sync' ); ?></strong> = <?php esc_html_e( 'tcod з Limansoft', 'limansoft-sync' ); ?></li>
+                    <li><strong><?php esc_html_e( 'Ціна', 'limansoft-sync' ); ?></strong> = <?php echo esc_html( $settings->get( 'price_column', 'cena2' ) ); ?></li>
+                    <li><strong><?php esc_html_e( 'Залишок', 'limansoft-sync' ); ?></strong> = <?php echo esc_html( $settings->get( 'stock_column', 'skl_k' ) ); ?></li>
+                    <li><strong><?php esc_html_e( 'Зображення', 'limansoft-sync' ); ?></strong> — <?php esc_html_e( 'стримінг через media API', 'limansoft-sync' ); ?></li>
+                    <li><strong><?php esc_html_e( 'Вебхук замовлень', 'limansoft-sync' ); ?></strong> — <?php esc_html_e( 'автоматичне списання залишків', 'limansoft-sync' ); ?></li>
                 </ul>
 
                 <hr>

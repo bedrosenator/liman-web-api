@@ -16,10 +16,23 @@ class LSW_Cron {
      * @var array<int, string>
      */
     const INTERVALS = [
-        15  => '15 минут',
-        30  => '30 минут',
-        60  => '1 час',
+        15  => '15 хвилин',
+        30  => '30 хвилин',
+        60  => '1 година',
     ];
+
+    /**
+     * Отримати локалізовані інтервали
+     *
+     * @return array<int, string>
+     */
+    public static function get_intervals(): array {
+        return [
+            15 => __( '15 хвилин', 'limansoft-sync' ),
+            30 => __( '30 хвилин', 'limansoft-sync' ),
+            60 => __( '1 година', 'limansoft-sync' ),
+        ];
+    }
 
     private function __construct() {
         $this->settings = LSW_Settings::get_instance();
@@ -39,7 +52,7 @@ class LSW_Cron {
     }
 
     /**
-     * Добавить пользовательские интервалы в WP-Cron
+     * Додати інтервали до WP-Cron
      *
      * @param array $schedules
      * @return array
@@ -47,15 +60,15 @@ class LSW_Cron {
     public function add_schedules( array $schedules ): array {
         $schedules['limansoft_15min'] = [
             'interval' => 15 * MINUTE_IN_SECONDS,
-            'display'  => __( 'Каждые 15 минут (Limansoft)', 'limansoft-sync' ),
+            'display'  => __( 'Кожні 15 хвилин (Limansoft)', 'limansoft-sync' ),
         ];
         $schedules['limansoft_30min'] = [
             'interval' => 30 * MINUTE_IN_SECONDS,
-            'display'  => __( 'Каждые 30 минут (Limansoft)', 'limansoft-sync' ),
+            'display'  => __( 'Кожні 30 хвилин (Limansoft)', 'limansoft-sync' ),
         ];
         $schedules['limansoft_60min'] = [
             'interval' => HOUR_IN_SECONDS,
-            'display'  => __( 'Каждый час (Limansoft)', 'limansoft-sync' ),
+            'display'  => __( 'Щогодини (Limansoft)', 'limansoft-sync' ),
         ];
         return $schedules;
     }
