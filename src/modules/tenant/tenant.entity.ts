@@ -50,6 +50,9 @@ export class Tenant {
   @Column({ type: 'boolean', default: false })
   woocommerceSyncEnabled!: boolean;
 
+  @Column({ type: 'boolean', default: false })
+  woocommerceImportEnabled!: boolean;
+
   @Column({ type: 'integer', default: 15 })
   woocommerceSyncIntervalMinutes!: number;
 

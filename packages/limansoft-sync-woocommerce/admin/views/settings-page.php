@@ -140,6 +140,20 @@ $stock_columns = ['skl_k' => 'skl_k (Основний склад)', 'skl_kt' => 
                             </p>
                         <?php endif; ?>
                     </div>
+
+                    <div class="lsw-toggle-row" style="margin-top: 18px;">
+                        <label class="lsw-toggle-switch">
+                            <input type="checkbox" id="lsw-auto-update-product" name="auto_update_product" value="1"
+                                   <?php checked( '1', $settings->get( 'auto_update_product', '0' ) ); ?>>
+                            <span class="lsw-toggle-slider"></span>
+                        </label>
+                        <span class="lsw-toggle-label">
+                            <?php esc_html_e( 'Автоматично передавати створені/змінені товари до Limansoft (Two-Way Sync)', 'limansoft-sync' ); ?>
+                        </span>
+                    </div>
+                    <p class="lsw-help">
+                        <?php esc_html_e( 'При створенні або редагуванні товару в WooCommerce плагін миттєво відправляє вебхук до Liman Web API для оновлення облікової бази MariaDB.', 'limansoft-sync' ); ?>
+                    </p>
                 </div>
 
                 <div class="lsw-actions">

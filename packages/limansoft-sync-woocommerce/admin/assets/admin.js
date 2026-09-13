@@ -71,6 +71,10 @@
             data.auto_sync_enabled = '1';
         }
 
+        if ($('#lsw-auto-update-product').is(':checked')) {
+            data.auto_update_product = '1';
+        }
+
         $.post(lsw_ajax.ajax_url, data)
             .done(function (res) {
                 if (res.success) {

@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
-import { QUEUE_NAMES, SyncStockJobData } from './queue.constants';
+import { QUEUE_NAMES, SyncStockJobData, ImportWooCatalogJobData } from './queue.constants';
 import { TenantService } from '../tenant/tenant.service';
 
 @Injectable()
@@ -11,6 +11,8 @@ export class SyncService {
   constructor(
     @InjectQueue(QUEUE_NAMES.SYNC_STOCK)
     private readonly stockQueue: Queue<SyncStockJobData>,
+    @InjectQueue(QUEUE_NAMES.IMPORT_WOO_CATALOG)
+    private readonly wooImportQueue: Queue<ImportWooCatalogJobData>,
     private readonly tenantService: TenantService,
   ) {}
 
@@ -47,6 +49,7 @@ export class SyncService {
   async getJobStatus(queueName: string, jobId: string) {
     let queue: Queue | null = null;
     if (queueName === QUEUE_NAMES.SYNC_STOCK) queue = this.stockQueue;
+    if (queueName === QUEUE_NAMES.IMPORT_WOO_CATALOG) queue = this.wooImportQueue as unknown as Queue;
 
     if (!queue) {
       throw new NotFoundException(`Очередь "${queueName}" не поддерживается`);

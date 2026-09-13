@@ -18,6 +18,10 @@ class LSW_Webhook {
 
         // Также отслеживаем смену статуса на processing/completed
         add_action( 'woocommerce_order_status_changed', [ $this, 'handle_status_change' ], 10, 3 );
+
+        // Two-Way Sync: перехват создания и изменения товаров (если включено в настройках)
+        add_action( 'woocommerce_new_product', [ $this, 'handle_new_product' ], 10, 1 );
+        add_action( 'woocommerce_update_product', [ $this, 'handle_update_product' ], 10, 1 );
     }
 
     public static function get_instance(): self {
@@ -117,6 +121,54 @@ class LSW_Webhook {
                 __( 'Limansoft: ❌ Ошибка при списании остатков. Проверьте логи.', 'limansoft-sync' )
             );
             error_log( "[Limansoft Sync] ❌ Заказ #{$order_id}: ошибка уведомления Limansoft." );
+        }
+    }
+
+    /**
+     * Обработка создания нового товара
+     *
+     * @param int $product_id
+     */
+    public function handle_new_product( int $product_id ): void {
+        $this->notify_product_change( $product_id, 'created' );
+    }
+
+    /**
+     * Обработка обновления товара
+     *
+     * @param int $product_id
+     */
+    public function handle_update_product( int $product_id ): void {
+        $this->notify_product_change( $product_id, 'updated' );
+    }
+
+    /**
+     * Отправить вебхук изменения товара в Limansoft (Two-Way Sync)
+     *
+     * @param int    $product_id
+     * @param string $event
+     */
+    private function notify_product_change( int $product_id, string $event ): void {
+        if ( ! $this->settings->is_configured() || ! $this->settings->is_auto_update_product_enabled() ) {
+            return;
+        }
+
+        // Защита от бесконечного цикла: если этот товар прямо сейчас обновляется из API Limansoft
+        $lock_key = 'liman_sync_lock_' . $product_id;
+        if ( get_transient( $lock_key ) ) {
+            return;
+        }
+
+        // Устанавливаем блокировку на 15 секунд для предотвращения дублирования
+        set_transient( $lock_key, '1', 15 );
+
+        $client  = LSW_Sync_Client::get_instance();
+        $success = $client->notify_product( $product_id, $event );
+
+        if ( $success ) {
+            error_log( "[Limansoft Sync] 📦 Товар #{$product_id} ({$event}) успешно передан в Limansoft." );
+        } else {
+            error_log( "[Limansoft Sync] ⚠️ Товар #{$product_id}: ошибка передачи в Limansoft." );
         }
     }
 }

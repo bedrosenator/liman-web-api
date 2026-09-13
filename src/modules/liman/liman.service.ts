@@ -2,7 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import mysql from 'mysql2/promise';
 import { Tenant } from '../tenant/tenant.entity';
 import { TenantConnectionManager } from './tenant-connection-manager.service';
-import { LimanCategoryDto, LimanProductDto } from './dto/liman-product.dto';
+import { LimanCategoryDto, LimanProductDto, ExternalProductUpsertDto } from './dto/liman-product.dto';
 
 interface RawCategoryRow extends mysql.RowDataPacket {
   group: string;
@@ -26,6 +26,22 @@ interface RawProductRow extends mysql.RowDataPacket {
   has_photo4: number;
   has_photo5: number;
 }
+
+export const LIMAN_LIMITS = {
+  NAME_MAX_LEN: 100,
+  BARCODE_MAX_LEN: 20,
+  STRIHCOD_MAX_LEN: 14,
+  CATEGORY_GROUP_MAX_LEN: 10,
+  MAX_TCOD_INSERT_RETRIES: 3,
+} as const;
+
+export const NAMEDESC_PHOTO_COLUMNS = [
+  'photo',
+  'photo2',
+  'photo3',
+  'photo4',
+  'photo5',
+] as const;
 
 /**
  * Основной Data Access Layer сервис для работы с учетной базой данных Limansoft (MariaDB).
@@ -511,5 +527,339 @@ export class LimanService {
       [limit],
     );
     return rows;
+  }
+
+  /**
+   * Найти существующий товар в Limansoft по SKU или штрихкоду
+   */
+  async findProductBySkuOrBarcode(
+    tenant: Tenant,
+    identifier: string,
+  ): Promise<{ tcod: number } | null> {
+    const pool = this.connectionManager.getPool(tenant);
+    const clean = identifier?.trim();
+    if (!clean) return null;
+
+    // 1. Если числовой идентификатор — проверяем напрямую tcod в name2
+    const num = parseInt(clean, 10);
+    if (!isNaN(num) && num > 0 && String(num) === clean) {
+      const [rows] = await pool.query<mysql.RowDataPacket[]>(
+        "SELECT tcod FROM `name2` WHERE tcod = ? AND (del IS NULL OR del != 't') LIMIT 1",
+        [num],
+      );
+      if (rows.length && rows[0].tcod) {
+        return { tcod: Number(rows[0].tcod) };
+      }
+    }
+
+    // 2. Проверяем таблицу strihcod по дополнительным штрихкодам
+    const [barcodeRows] = await pool.query<mysql.RowDataPacket[]>(
+      'SELECT tcod FROM `strihcod` WHERE nnom = ? LIMIT 1',
+      [clean],
+    );
+    if (barcodeRows.length && barcodeRows[0].tcod) {
+      return { tcod: Number(barcodeRows[0].tcod) };
+    }
+
+    // 3. Проверяем основное поле nnom в name2
+    const [nnomRows] = await pool.query<mysql.RowDataPacket[]>(
+      "SELECT tcod FROM `name2` WHERE nnom = ? AND (del IS NULL OR del != 't') LIMIT 1",
+      [clean],
+    );
+    if (nnomRows.length && nnomRows[0].tcod) {
+      return { tcod: Number(nnomRows[0].tcod) };
+    }
+
+    return null;
+  }
+
+  /**
+   * Разрешить категорию товара в Limansoft (код group)
+   */
+  private async resolveCategoryGroup(
+    tenant: Tenant,
+    categoryGroup?: string,
+    categoryName?: string,
+  ): Promise<string> {
+    const pool = this.connectionManager.getPool(tenant);
+    if (categoryGroup && categoryGroup.trim()) {
+      return categoryGroup.trim().substring(0, LIMAN_LIMITS.CATEGORY_GROUP_MAX_LEN);
+    }
+    if (categoryName && categoryName.trim()) {
+      const [rows] = await pool.query<mysql.RowDataPacket[]>(
+        'SELECT `group` FROM `name` WHERE LOWER(name_g) = LOWER(?) LIMIT 1',
+        [categoryName.trim()],
+      );
+      if (rows.length && rows[0].group) {
+        return String(rows[0].group).trim();
+      }
+    }
+    // Fallback: первая группа в справочнике или '01'
+    const [defRows] = await pool.query<mysql.RowDataPacket[]>(
+      'SELECT `group` FROM `name` ORDER BY `index` ASC LIMIT 1',
+    );
+    if (defRows.length && defRows[0].group) {
+      return String(defRows[0].group).trim();
+    }
+    return '01';
+  }
+
+  /**
+   * Сохранить фотографии и описание в namedesc (DRY: устранено дублирование 5 колонок)
+   */
+  private async saveNamedescMedia(
+    conn: mysql.Pool | mysql.PoolConnection,
+    tcod: number,
+    photos?: Buffer[],
+    description?: string,
+  ): Promise<void> {
+    const descBuffer = description ? Buffer.from(description, 'utf8') : null;
+    const photoSlots = NAMEDESC_PHOTO_COLUMNS.map((_, i) => photos?.[i] ?? null);
+
+    const [rows] = await conn.query<mysql.RowDataPacket[]>(
+      'SELECT `index` FROM `namedesc` WHERE tcod = ? LIMIT 1',
+      [tcod],
+    );
+
+    if (rows.length > 0) {
+      const updates: string[] = [];
+      const params: any[] = [];
+
+      NAMEDESC_PHOTO_COLUMNS.forEach((col, i) => {
+        const photo = photoSlots[i];
+        if (photo) {
+          updates.push(`\`${col}\` = ?`);
+          params.push(photo);
+        }
+      });
+
+      if (descBuffer) {
+        updates.push('`description` = ?');
+        params.push(descBuffer);
+      }
+
+      if (updates.length > 0) {
+        params.push(tcod);
+        await conn.query(`UPDATE \`namedesc\` SET ${updates.join(', ')} WHERE tcod = ?`, params);
+      }
+    } else {
+      const columns = ['tcod', ...NAMEDESC_PHOTO_COLUMNS, 'description'].map((c) => `\`${c}\``).join(', ');
+      const placeholders = Array(NAMEDESC_PHOTO_COLUMNS.length + 2).fill('?').join(', ');
+
+      await conn.query(
+        `INSERT INTO \`namedesc\` (${columns}) VALUES (${placeholders})`,
+        [tcod, ...photoSlots, descBuffer],
+      );
+    }
+  }
+
+  /**
+   * Сохранить штрихкод в strihcod при его отсутствии
+   */
+  private async saveStrihcod(
+    conn: mysql.Pool | mysql.PoolConnection,
+    tcod: number,
+    barcode: string,
+  ): Promise<void> {
+    const clean = barcode.trim().substring(0, LIMAN_LIMITS.STRIHCOD_MAX_LEN);
+    if (!clean) return;
+
+    const [rows] = await conn.query<mysql.RowDataPacket[]>(
+      'SELECT `index` FROM `strihcod` WHERE tcod = ? AND nnom = ? LIMIT 1',
+      [tcod, clean],
+    );
+    if (rows.length === 0) {
+      await conn.query('INSERT INTO `strihcod` (tcod, nnom) VALUES (?, ?)', [tcod, clean]);
+    }
+  }
+
+  /**
+   * Разрешить существующий tcod товара по SKU или штрихкоду
+   */
+  private async resolveExistingProductTcod(
+    tenant: Tenant,
+    data: ExternalProductUpsertDto,
+  ): Promise<number | null> {
+    if (data.sku) {
+      const found = await this.findProductBySkuOrBarcode(tenant, data.sku);
+      if (found) return found.tcod;
+    }
+    if (data.barcode) {
+      const found = await this.findProductBySkuOrBarcode(tenant, data.barcode);
+      if (found) return found.tcod;
+    }
+    return null;
+  }
+
+  /**
+   * Обновить существующую мастер-запись товара в name2
+   */
+  private async updateProductMaster(
+    conn: mysql.PoolConnection,
+    tenant: Tenant,
+    tcod: number,
+    name: string,
+    categoryGroup: string,
+    barcode: string,
+    data: ExternalProductUpsertDto,
+  ): Promise<void> {
+    const priceCol = this.sanitizeIdentifier(tenant.priceColumn, 'cena2');
+    const updateFields: string[] = ['name = ?'];
+    const updateParams: any[] = [name];
+
+    if (categoryGroup) {
+      updateFields.push('`group` = ?');
+      updateParams.push(categoryGroup);
+    }
+    if (data.price !== undefined && data.price !== null) {
+      updateFields.push(`\`${priceCol}\` = ?`);
+      updateParams.push(data.price);
+      if (priceCol !== 'cena2') {
+        updateFields.push('cena2 = ?');
+        updateParams.push(data.price);
+      }
+    }
+    if (data.purchasePrice !== undefined && data.purchasePrice !== null) {
+      updateFields.push('cena1 = ?');
+      updateParams.push(data.purchasePrice);
+    }
+    if (barcode) {
+      updateFields.push("nnom = COALESCE(NULLIF(nnom, ''), ?)");
+      updateParams.push(barcode);
+    }
+
+    updateParams.push(tcod);
+    await conn.query(`UPDATE \`name2\` SET ${updateFields.join(', ')} WHERE tcod = ?`, updateParams);
+  }
+
+  /**
+   * Вставить новую мастер-запись товара в name2 с атомарным MAX(tcod)+1 и защитой от конфликтов
+   */
+  private async insertProductMaster(
+    conn: mysql.PoolConnection,
+    name: string,
+    categoryGroup: string,
+    barcode: string,
+    currentDate: string,
+    data: ExternalProductUpsertDto,
+  ): Promise<number> {
+    const retailPrice = data.price ?? 0;
+    const purchasePrice = data.purchasePrice ?? 0;
+
+    let nextTcod = 0;
+    let retries = LIMAN_LIMITS.MAX_TCOD_INSERT_RETRIES;
+
+    while (retries > 0) {
+      try {
+        const [maxRows] = await conn.query<mysql.RowDataPacket[]>(
+          'SELECT COALESCE(MAX(tcod), 0) + 1 AS nextTcod FROM `name2` FOR UPDATE',
+        );
+        nextTcod = Number(maxRows[0]?.nextTcod ?? 1);
+
+        await conn.query(
+          `INSERT INTO \`name2\` (tcod, name, \`group\`, cena1, cena2, nnom, del, vid, date)
+           VALUES (?, ?, ?, ?, ?, ?, NULL, 0, ?)`,
+          [nextTcod, name, categoryGroup, purchasePrice, retailPrice, barcode || null, currentDate],
+        );
+        return nextTcod;
+      } catch (err: any) {
+        retries--;
+        if (err?.code === 'ER_DUP_ENTRY' && retries > 0) {
+          this.logger.warn(`⚠️ Конфликт tcod=${nextTcod}, повтор попытки (осталось ${retries})...`);
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    return nextTcod;
+  }
+
+  /**
+   * Синхронизация зависимых сущностей товара (остаток name2ost, медиа namedesc, штрихкод strihcod)
+   * Единая точка обновления для INSERT и UPDATE (DRY)
+   */
+  private async syncProductRelations(
+    conn: mysql.PoolConnection,
+    tenant: Tenant,
+    tcod: number,
+    barcode: string,
+    data: ExternalProductUpsertDto,
+  ): Promise<void> {
+    const stockCol = this.sanitizeIdentifier(tenant.stockColumn, 'skl_k');
+
+    // 1. Остаток в name2ost
+    if (data.stock !== undefined && data.stock !== null) {
+      const safeStock = Math.max(0, data.stock);
+      await conn.query(
+        `INSERT INTO \`name2ost\` (tcod, \`${stockCol}\`) VALUES (?, ?)
+         ON DUPLICATE KEY UPDATE \`${stockCol}\` = VALUES(\`${stockCol}\`)`,
+        [tcod, safeStock],
+      );
+    }
+
+    // 2. Фото и описание в namedesc
+    if ((data.photos && data.photos.length > 0) || data.description) {
+      await this.saveNamedescMedia(conn, tcod, data.photos, data.description);
+    }
+
+    // 3. Штрихкод в strihcod
+    if (barcode) {
+      await this.saveStrihcod(conn, tcod, barcode);
+    }
+  }
+
+  /**
+   * Атомарный Upsert товара из внешнего источника (WooCommerce) в Limansoft MariaDB.
+   *
+   * Архитектурный конвейер (Martin Fowler Pipeline):
+   * 1. Match: сопоставление по SKU / barcode.
+   * 2. Transaction Boundary: изоляция операций в conn.beginTransaction().
+   * 3. Master Record: INSERT (с авто-генерацией tcod) или UPDATE name2.
+   * 4. Relations Sync: единая синхронизация name2ost, namedesc, strihcod (DRY).
+   */
+  async upsertProductFromExternal(
+    tenant: Tenant,
+    data: ExternalProductUpsertDto,
+  ): Promise<{ tcod: number; action: 'created' | 'updated' }> {
+    const pool = this.connectionManager.getPool(tenant);
+    const existingTcod = await this.resolveExistingProductTcod(tenant, data);
+
+    const categoryGroup = await this.resolveCategoryGroup(tenant, data.categoryGroup, data.categoryName);
+    const currentDate = new Date().toISOString().slice(0, 10);
+    const truncatedName = (data.name || 'Товар без названия').trim().substring(0, LIMAN_LIMITS.NAME_MAX_LEN);
+    const barcode = (data.barcode || (data.sku && isNaN(Number(data.sku)) ? data.sku : '') || '')
+      .trim()
+      .substring(0, LIMAN_LIMITS.BARCODE_MAX_LEN);
+
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      let tcod: number;
+      let action: 'created' | 'updated';
+
+      if (existingTcod) {
+        tcod = existingTcod;
+        action = 'updated';
+        await this.updateProductMaster(conn, tenant, tcod, truncatedName, categoryGroup, barcode, data);
+        this.logger.log(`🔄 [${tenant.id}] Обновлен товар tcod=${tcod} ("${truncatedName}")`);
+      } else {
+        action = 'created';
+        tcod = await this.insertProductMaster(conn, truncatedName, categoryGroup, barcode, currentDate, data);
+        this.logger.log(`✨ [${tenant.id}] Создан новый товар tcod=${tcod} ("${truncatedName}")`);
+      }
+
+      // Единая точка синхронизации зависимых таблиц (DRY)
+      await this.syncProductRelations(conn, tenant, tcod, barcode, data);
+
+      await conn.commit();
+      return { tcod, action };
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
   }
 }

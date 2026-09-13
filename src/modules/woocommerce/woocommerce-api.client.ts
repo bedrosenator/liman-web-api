@@ -221,6 +221,39 @@ export class WoocommerceApiClient {
   }
 
   /**
+   * Получить полную карточку товара по ID в WooCommerce
+   */
+  async getProductById(tenant: Tenant, id: number): Promise<WooProduct | null> {
+    const client = this.createClient(tenant);
+    try {
+      const response = await client.get(`/products/${id}`);
+      return response.data as WooProduct;
+    } catch (err) {
+      this.logger.warn(`Не удалось загрузить товар ID=${id} из WooCommerce: ${err}`);
+      return null;
+    }
+  }
+
+  /**
+   * Получить список товаров из WooCommerce с пагинацией
+   */
+  async getProducts(
+    tenant: Tenant,
+    page = 1,
+    perPage = 50,
+  ): Promise<WooProduct[]> {
+    const client = this.createClient(tenant);
+    const response = await client.get('/products', {
+      params: {
+        page,
+        per_page: perPage,
+        status: 'publish',
+      },
+    });
+    return (response.data as WooProduct[]) || [];
+  }
+
+  /**
    * Получить список заказов
    */
   async getOrders(tenant: Tenant, status?: string, perPage = 10): Promise<WooOrder[]> {

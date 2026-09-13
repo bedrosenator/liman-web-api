@@ -45,6 +45,7 @@ class LSW_Settings {
             'price_column',
             'stock_column',
             'auto_sync_enabled',
+            'auto_update_product',
             'sync_interval',
         ];
 
@@ -56,10 +57,18 @@ class LSW_Settings {
         }
 
         // Булевые поля
-        $sanitized['auto_sync_enabled'] = isset( $data['auto_sync_enabled'] ) ? '1' : '0';
+        $sanitized['auto_sync_enabled']   = isset( $data['auto_sync_enabled'] ) ? '1' : '0';
+        $sanitized['auto_update_product'] = isset( $data['auto_update_product'] ) ? '1' : '0';
 
         $this->options = array_merge( $this->options, $sanitized );
         update_option( LSW_OPTION_KEY, $this->options );
+    }
+
+    /**
+     * Включена ли автоматическая отправка товаров в Limansoft (Two-Way Sync)
+     */
+    public function is_auto_update_product_enabled(): bool {
+        return '1' === (string) $this->get( 'auto_update_product', '0' );
     }
 
     /**

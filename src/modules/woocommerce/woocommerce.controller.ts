@@ -12,13 +12,17 @@ import {
   Optional,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiBody, ApiResponse, ApiQuery } from '@nestjs/swagger';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import type { Request } from 'express';
 import { WoocommerceSyncService } from './woocommerce-sync.service';
 import { WoocommerceApiClient } from './woocommerce-api.client';
+import { WoocommerceImportService } from './woocommerce-import.service';
 import { TenantService } from '../tenant/tenant.service';
 import { LimanService } from '../liman/liman.service';
 import { Public } from '../../common/decorators/public.decorator';
 import { AlertService } from '../alert/alert.service';
+import { QUEUE_NAMES, ImportWooCatalogJobData } from '../queue/queue.constants';
 
 @ApiTags('WooCommerce')
 @Controller('woocommerce/:tenantId')
@@ -28,8 +32,11 @@ export class WoocommerceController {
   constructor(
     private readonly syncService: WoocommerceSyncService,
     private readonly wooClient: WoocommerceApiClient,
+    private readonly importService: WoocommerceImportService,
     private readonly tenantService: TenantService,
     private readonly limanService: LimanService,
+    @InjectQueue(QUEUE_NAMES.IMPORT_WOO_CATALOG)
+    private readonly wooImportQueue: Queue<ImportWooCatalogJobData>,
     @Optional() private readonly alertService?: AlertService,
   ) {}
 
@@ -190,6 +197,112 @@ export class WoocommerceController {
       source: 'woocommerce',
       processedItems: results,
       timestamp: new Date().toISOString(),
+    };
+  }
+
+  @Post('import/products')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({
+    summary: 'Запустить пакетный импорт каталога WooCommerce → Limansoft MariaDB (Pull, async)',
+    description:
+      'Ставит задачу в очередь BullMQ и возвращает jobId немедленно. Для отслеживания прогресса — GET /sync/jobs/import-woo-catalog/:jobId.',
+  })
+  @ApiParam({ name: 'tenantId', example: 'columb' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Максимальное количество товаров для импорта',
+    example: 50,
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Начальная страница пагинации WooCommerce (по умолчанию 1)',
+    example: 1,
+  })
+  @ApiResponse({ status: 202, description: 'Задача импорта поставлена в очередь, возвращён jobId' })
+  async importCatalog(
+    @Param('tenantId') tenantId: string,
+    @Query('limit') limit?: string,
+    @Query('page') page?: string,
+  ) {
+    // Валидируем тенанта (выбросит 404 если не найден)
+    await this.tenantService.findOne(tenantId);
+
+    const limitNum = limit ? parseInt(limit, 10) : undefined;
+    const pageNum = page ? parseInt(page, 10) : undefined;
+
+    const job = await this.wooImportQueue.add(
+      'import-woo-catalog-job',
+      { tenantId, limit: limitNum, page: pageNum },
+      {
+        attempts: 2,
+        backoff: { type: 'exponential', delay: 10000 },
+        removeOnComplete: 50,
+        removeOnFail: 20,
+      },
+    );
+
+    this.logger.log(`📥 [${tenantId}] Задача импорта WooCommerce каталога поставлена в очередь: jobId=${job.id}`);
+
+    return {
+      success: true,
+      message: 'Задача импорта каталога поставлена в очередь',
+      jobId: job.id,
+      queue: QUEUE_NAMES.IMPORT_WOO_CATALOG,
+      tenantId,
+      statusUrl: `/sync/jobs/${QUEUE_NAMES.IMPORT_WOO_CATALOG}/${job.id}`,
+    };
+  }
+
+  @Post('webhook/product')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Вебхук: приём нового или изменённого товара из WordPress плагина (Push)',
+    description:
+      'Вызывается плагином limansoft-sync при хуках woocommerce_new_product / woocommerce_update_product. Загружает карточку, скачивает медиа и обновляет MariaDB.',
+  })
+  @ApiParam({ name: 'tenantId', example: 'columb' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        product_id: { type: 'number', example: 123 },
+        event: { type: 'string', example: 'updated' },
+      },
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Товар успешно импортирован' })
+  async handleProductWebhook(
+    @Param('tenantId') tenantId: string,
+    @Body() payload: any,
+  ) {
+    const productId = Number(payload?.product_id ?? payload?.id);
+
+    if (!productId || isNaN(productId)) {
+      return { success: false, message: 'Параметр product_id обязателен' };
+    }
+
+    // Fix #5: Безопасный lookup тенанта — возвращаем 200 вместо 500,
+    // чтобы WordPress плагин не уходил в бесконечные ретраи.
+    let tenant: Awaited<ReturnType<typeof this.tenantService.findOne>>;
+    try {
+      tenant = await this.tenantService.findOne(tenantId);
+    } catch {
+      this.logger.warn(`⚠️ Вебхук товара #${productId}: тенант "${tenantId}" не найден`);
+      return { success: false, tenantId, message: `Тенант "${tenantId}" не найден` };
+    }
+
+    this.logger.log(
+      `📦 [${tenantId}] Вебхук товара #${productId} (${payload?.event || 'update'}) из WooCommerce`,
+    );
+
+    const result = await this.importService.importProductById(tenant, productId);
+
+    return {
+      tenantId,
+      ...result,
     };
   }
 }

@@ -17,6 +17,7 @@
 4. [Стриминг медиа: BLOB в HTTP URL](#4-стриминг-медиа-blob-в-http-url)
 5. [Синхронизация каталогов (Outbound Sync)](#5-синхронизация-каталогов-outbound-sync)
    - [WooCommerce (REST API + WP Plugin)](#51-woocommerce-rest-api--wp-plugin)
+     - [Двусторонний импорт каталога (WooCommerce ➔ Limansoft / Two-Way Sync)](#511-двусторонний-импорт-каталога-woocommerce--limansoft--two-way-sync)
    - [Rozetka Marketplace (YML Feed + Seller API)](#52-rozetka-marketplace-yml-feed--seller-api)
    - [Prom.ua (Потоковый XML/YML фид)](#53-promua-потоковый-xmlyml-фид)
    - [Хорошоп (Гибридная схема + Polling)](#54-хорошоп-гибридная-схема--polling)
@@ -300,6 +301,48 @@ GET /api/v1/media/:tenantId/products/:tcod/:photoIndex.jpg
   - Настраивается URL API, Tenant ID и API Key.
   - **Планировщик WP-Cron**: настраиваемый интервал (15, 30 или 60 минут). При выключении переключателя задача сразу удаляется из cron, не создавая нагрузки на процессор сервера.
   - Поддержка WooCommerce HPOS (High-Performance Order Storage).
+
+#### 5.1.1. Двусторонний импорт каталога (WooCommerce ➔ Limansoft / Two-Way Sync)
+
+Помимо классической выгрузки каталога из учетной системы на витрину, сервис поддерживает **обратный импорт** товаров, созданных или отредактированных контент-менеджерами непосредственно в WooCommerce (или импортированных из других источников).
+
+##### Архитектура и потоки данных (Data Flow):
+
+```mermaid
+sequenceDiagram
+    participant WP as WordPress Plugin (limansoft-sync)
+    participant API as Liman Web API
+    participant DB as Limansoft MariaDB (name2, name2ost, namedesc)
+
+    Note over WP,API: PUSH — мгновенный (при создании/изменении товара в WP)
+    WP->>API: POST /woocommerce/:tenantId/webhook/product { product_id, event }
+    API->>WP: GET /wp-json/wc/v3/products/:id (полная карточка)
+    API->>API: Скачать все медиафайлы по URL (ArrayBuffer)
+    API->>DB: В транзакции: MAX(tcod)+1, INSERT/UPDATE name2, name2ost, namedesc, strihcod
+    API-->>WP: 200 OK { tcod, matched: 'created' | 'updated' }
+
+    Note over WP,API: PULL — пакетный импорт (ручной запуск или расписание)
+    API->>WP: GET /wp-json/wc/v3/products?page=1&per_page=50
+    loop Для каждого товара из WooCommerce
+        API->>API: Скачать изображения (до 5 штук)
+        API->>DB: Upsert карточки товара (name2), остатка (name2ost), фото (namedesc)
+    end
+    API-->>API: Сводка { imported, updated, skipped, errors }
+```
+
+##### Ключевые механизмы двустороннего импорта:
+1. **Два режима работы:**
+   - **PUSH (Event-Driven)**: плагин перехватывает хуки WordPress `woocommerce_new_product` и `woocommerce_update_product` и мгновенно отправляет вебхук `POST /api/v1/woocommerce/:tenantId/webhook/product`. В настройках плагина доступен тумблер (галочка) *"Автоматически передавать новые и измененные товары в Limansoft"*.
+   - **PULL (Batch Import)**: вызов `POST /api/v1/woocommerce/:tenantId/import/products` выполняет постраничную загрузку каталога из WooCommerce API и синхронизирует его в учетную базу.
+2. **Алгоритм сопоставления (Matching & Deduplication):**
+   - Если SKU товара в WooCommerce — целое число (например, `251`), система ищет товар в `name2` по `tcod = 251` и выполняет обновление (`UPDATE`).
+   - Если SKU строковый или задан штрихкод, выполняется поиск в `strihcod.nnom`. При нахождении обновляется соответствующий `tcod`.
+   - Если товар не найден ни по одному признаку, открывается транзакция с блокировкой `SELECT MAX(tcod) + 1 FROM name2 FOR UPDATE`, генерируется новый атомарный `tcod`, и создается новая запись в `name2`, `name2ost` и `strihcod`.
+3. **Загрузка и сохранение изображений:**
+   - Из WooCommerce извлекаются все ссылки на изображения (до 5 штук).
+   - Сервер асинхронно скачивает бинарные данные по HTTP, валидирует их и сохраняет в BLOB-поля таблицы `namedesc` (`photo`, `photo2`, `photo3`, `photo4`, `photo5`). Благодаря этому кассиры и операторы сразу видят фотографии в десктопном приложении Limansoft.
+4. **Защита от зацикливания (Anti-Loop Protection):**
+   - Чтобы выгрузка из Limansoft в WooCommerce не вызывала повторный обратный вебхук в Limansoft, при обновлении товаров через API выставляется временный маркер (meta/transient), подавляющий отправку хука плагином.
 
 ### 5.2. Rozetka Marketplace (YML Feed + Seller API)
 - **Потоковый фид (`feed.xml`)**:

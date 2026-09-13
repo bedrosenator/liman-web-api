@@ -3,11 +3,13 @@ import { BullModule } from '@nestjs/bullmq';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { QUEUE_NAMES } from './queue.constants';
 import { StockSyncProcessor } from './sync-queue.processor';
+import { WooImportProcessor } from './woo-import.processor';
 import { SyncService } from './sync.service';
 import { SyncJobsController } from './sync-jobs.controller';
 import { LimanModule } from '../liman/liman.module';
 import { TenantModule } from '../tenant/tenant.module';
 import { PromModule } from '../prom/prom.module';
+import { WoocommerceModule } from '../woocommerce/woocommerce.module';
 
 @Module({
   imports: [
@@ -26,13 +28,15 @@ import { PromModule } from '../prom/prom.module';
       { name: QUEUE_NAMES.SYNC_STOCK },
       { name: QUEUE_NAMES.EXPORT_CATALOG },
       { name: QUEUE_NAMES.IMPORT_ORDERS },
+      { name: QUEUE_NAMES.IMPORT_WOO_CATALOG },
     ),
     TenantModule,
     LimanModule,
     PromModule,
+    WoocommerceModule,
   ],
   controllers: [SyncJobsController],
-  providers: [SyncService, StockSyncProcessor],
+  providers: [SyncService, StockSyncProcessor, WooImportProcessor],
   exports: [SyncService, BullModule],
 })
 export class AppQueueModule {}

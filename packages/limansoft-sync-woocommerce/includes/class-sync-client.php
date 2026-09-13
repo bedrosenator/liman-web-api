@@ -163,4 +163,31 @@ class LSW_Sync_Client {
 
         return ! is_wp_error( $response ) && 200 === wp_remote_retrieve_response_code( $response );
     }
+
+    /**
+     * Отправить уведомление о создании/изменении товара в Limansoft (Push Webhook)
+     *
+     * @param int    $product_id ID товара WooCommerce
+     * @param string $event      'created' | 'updated'
+     * @return bool
+     */
+    public function notify_product( int $product_id, string $event = 'updated' ): bool {
+        if ( ! $this->settings->is_configured() ) {
+            return false;
+        }
+
+        $tenant_id = $this->settings->get_tenant_id();
+        $url       = $this->settings->get_api_url() . "/api/v1/woocommerce/{$tenant_id}/webhook/product";
+
+        $response = wp_remote_post( $url, [
+            'timeout' => 30,
+            'headers' => $this->get_headers(),
+            'body'    => wp_json_encode( [
+                'product_id' => $product_id,
+                'event'      => $event,
+            ] ),
+        ] );
+
+        return ! is_wp_error( $response ) && 200 === wp_remote_retrieve_response_code( $response );
+    }
 }

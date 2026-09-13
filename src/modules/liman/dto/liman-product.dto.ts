@@ -48,3 +48,35 @@ export class LimanProductDto {
   @ApiPropertyOptional({ description: 'Дополнительные штрихкоды из таблицы strihcod' })
   barcodes?: string[];
 }
+
+export class ExternalProductUpsertDto {
+  @ApiPropertyOptional({ example: '251', description: 'SKU из внешней системы' })
+  sku?: string;
+
+  @ApiPropertyOptional({ example: '5060466511019', description: 'Штрихкод товара' })
+  barcode?: string;
+
+  @ApiProperty({ example: 'Burn 0.25 Ж/Б Original', description: 'Наименование товара' })
+  name!: string;
+
+  @ApiPropertyOptional({ example: 47.0, description: 'Розничная цена (cena2)' })
+  price?: number;
+
+  @ApiPropertyOptional({ example: 35.7, description: 'Цена закупки (cena1)' })
+  purchasePrice?: number;
+
+  @ApiPropertyOptional({ example: 10, description: 'Остаток на складе' })
+  stock?: number;
+
+  @ApiPropertyOptional({ example: '01', description: 'Код категории group' })
+  categoryGroup?: string;
+
+  @ApiPropertyOptional({ example: 'Напои', description: 'Название категории' })
+  categoryName?: string;
+
+  @ApiPropertyOptional({ description: 'Текстовое описание товара' })
+  description?: string;
+
+  @ApiPropertyOptional({ description: 'Бинарные буферы изображений (до 5 шт)' })
+  photos?: Buffer[];
+}

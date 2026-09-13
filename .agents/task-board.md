@@ -5,12 +5,12 @@
 ---
 
 ## 📌 Колонка: Backlog (Бэклог)
-- [ ] **[TASK-14]** Двусторонний импорт каталога из внешних магазинов в Limansoft DB (`name`, `name2`, `strihcod`)
+- *(Все запланированные задачи спринта 1 и спринта 2 выполнены)*
 
 ---
 
 ## 🎯 Колонка: To Do (Спринт 2: Следующие интеграции)
-- [ ] **[TASK-14]** Двусторонний импорт каталога из внешних магазинов в Limansoft DB (`name`, `name2`, `strihcod`)
+- *(Все базовые интеграции и ядро завершены)*
 
 ---
 
@@ -26,12 +26,20 @@
 - [x] Верификация Horoshop XML фида: `http://localhost:3000/api/v1/horoshop/columb/feed.xml`
 - [x] Верификация Horoshop Webhook заказа с авто-списанием остатка в MariaDB
 - [x] Верификация WooCommerce REST API (Ping, Batch sync 5768 товаров, Auto-sync toggle)
-- [x] WordPress плагин `limansoft-sync-woocommerce.zip` готов к установке
+- [x] WordPress плагин `limansoft-sync-woocommerce.zip` v1.1.0 с поддержкой Two-Way Sync и защитой от зацикливания
 - [x] Верификация Telegram Alert Bot & Webhook с троттлингом: `POST /api/v1/alerts/test`
+- [x] Верификация двустороннего импорта каталога WooCommerce → Limansoft (Pull + Push)
 
 ---
 
 ## ✅ Колонка: Done (Выполнено)
+- [x] **[TASK-14]** Двусторонний импорт каталога из WooCommerce в Limansoft MariaDB (Two-Way Sync):
+  - Атомарный `upsertProductFromExternal` в `name2`, `name2ost`, `namedesc`, `strihcod` с `MAX(tcod)+1` для новых товаров;
+  - Сопоставление товаров по SKU (`tcod`) и штрихкоду (`strihcod`/`nnom`);
+  - Скачивание всех изображений из WooCommerce и сохранение в `namedesc` (BLOB);
+  - Эндпоинты `POST /woocommerce/:tenantId/import/products` (Pull) и `POST /woocommerce/:tenantId/webhook/product` (Push);
+  - Обновление WordPress-плагина `limansoft-sync` (v1.1.0): тумблер авто-обновления в админке, хуки `woocommerce_new_product` / `woocommerce_update_product`, защита от зацикливания через transients;
+  - Документирование потоков данных и Sequence-диаграмма в `HOWITWORKS.md`.
 - [x] **[TASK-15]** Webhook notifications & Telegram alert bot для критических ошибок синхронизации (Telegram Bot API HTML в группу, Generic Webhook JSON, Anti-spam throttling с TTL, алерты с MariaDB, BullMQ, WooCommerce, Rozetka, Horoshop, AllExceptionsFilter)
 - [x] **[TASK-13]** Интеграция с Хорошоп (Horoshop / Cartum API: потоковый XML фид `/horoshop/:tenantId/feed.xml`, API клиент с JWT/session auth, синхронизация цен/остатков, webhook заказов с автосписанием)
 - [x] **[TASK-11]** Интеграция с Rozetka Marketplace API (XML фид `/rozetka/:tenantId/feed.xml`, Seller API клиент с JWT-авторизацией, обновление остатков/цен, webhook заказов с автосписанием)

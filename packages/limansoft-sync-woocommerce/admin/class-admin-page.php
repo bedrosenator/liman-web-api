@@ -91,13 +91,14 @@ class LSW_Admin_Page {
         }
 
         $data = [
-            'api_url'           => sanitize_url( wp_unslash( $_POST['api_url'] ?? '' ) ),
-            'api_key'           => sanitize_text_field( wp_unslash( $_POST['api_key'] ?? '' ) ),
-            'tenant_id'         => sanitize_key( wp_unslash( $_POST['tenant_id'] ?? '' ) ),
-            'price_column'      => sanitize_key( wp_unslash( $_POST['price_column'] ?? 'cena2' ) ),
-            'stock_column'      => sanitize_key( wp_unslash( $_POST['stock_column'] ?? 'skl_k' ) ),
-            'auto_sync_enabled' => isset( $_POST['auto_sync_enabled'] ) ? '1' : '0',
-            'sync_interval'     => absint( $_POST['sync_interval'] ?? 15 ),
+            'api_url'             => sanitize_url( wp_unslash( $_POST['api_url'] ?? '' ) ),
+            'api_key'             => sanitize_text_field( wp_unslash( $_POST['api_key'] ?? '' ) ),
+            'tenant_id'           => sanitize_key( wp_unslash( $_POST['tenant_id'] ?? '' ) ),
+            'price_column'        => sanitize_key( wp_unslash( $_POST['price_column'] ?? 'cena2' ) ),
+            'stock_column'        => sanitize_key( wp_unslash( $_POST['stock_column'] ?? 'skl_k' ) ),
+            'auto_sync_enabled'   => isset( $_POST['auto_sync_enabled'] ) ? '1' : '0',
+            'auto_update_product' => isset( $_POST['auto_update_product'] ) ? '1' : '0',
+            'sync_interval'       => absint( $_POST['sync_interval'] ?? 15 ),
         ];
 
         $this->settings->save( $data );

@@ -166,6 +166,14 @@ export class CreateTenantDto {
   woocommerceSyncEnabled?: boolean;
 
   @ApiPropertyOptional({
+    description: 'Включить обратный импорт товаров из WooCommerce в Limansoft (при получении webhook или синхронизации)',
+    default: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  woocommerceImportEnabled?: boolean;
+
+  @ApiPropertyOptional({
     description: 'Интервал фоновой синхронизации с WooCommerce (минуты: 15, 30, 60)',
     example: 15,
     default: 15,
