@@ -151,6 +151,49 @@
     // ====================================================================
     let pollTimer = null;
 
+    function getLocalizedProgressMessage(info) {
+        if (!info) return '';
+        if (info.localized_message) {
+            return info.localized_message;
+        }
+        if (info.phase === 'checking_existing' || (info.message && info.message.indexOf('Перевірка існуючих товарів') !== -1)) {
+            return lsw_ajax.strings.checking_existing || info.message;
+        }
+        if (info.phase === 'init' || (info.message && info.message.indexOf('Ініціалізація') !== -1)) {
+            return lsw_ajax.strings.init_sync || info.message;
+        }
+        if (info.phase === 'syncing' && lsw_ajax.strings.sync_progress) {
+            const pct = Math.min(100, Math.max(0, info.percent || 0));
+            return lsw_ajax.strings.sync_progress
+                .replace('%1$d', info.synced || 0)
+                .replace('%2$d', info.total || 0)
+                .replace('%3$d', pct);
+        }
+        if (info.status === 'completed' && lsw_ajax.strings.sync_done_detail) {
+            let sec = Math.round((info.durationMs || 0) / 1000);
+            let synced = info.synced || 0;
+            let errors = info.errors || 0;
+            if (!sec && info.message) {
+                const match = info.message.match(/(\d+)\s*сек/);
+                if (match) sec = parseInt(match[1], 10);
+            }
+            return lsw_ajax.strings.sync_done_detail
+                .replace('%1$d', synced)
+                .replace('%2$d', errors)
+                .replace('%3$d', sec);
+        }
+        if (info.message && info.message.indexOf('Синхронізацію успішно завершено') !== -1 && lsw_ajax.strings.sync_done_detail) {
+            const match = info.message.match(/Оновлено:\s*(\d+),\s*помилок:\s*(\d+)\s*за\s*(\d+)\s*сек/);
+            if (match) {
+                return lsw_ajax.strings.sync_done_detail
+                    .replace('%1$d', match[1])
+                    .replace('%2$d', match[2])
+                    .replace('%3$d', match[3]);
+            }
+        }
+        return info.message || '';
+    }
+
     function startStatusPolling() {
         if (pollTimer) {
             clearInterval(pollTimer);
@@ -175,9 +218,10 @@
 
                     const info = res.data;
                     const pct = Math.min(100, Math.max(0, info.percent || 0));
+                    const message = getLocalizedProgressMessage(info);
 
                     if (info.status === 'running') {
-                        setProgress(pct, info.message || (lsw_ajax.strings.syncing + ' ' + pct + '%'));
+                        setProgress(pct, message || (lsw_ajax.strings.syncing + ' ' + pct + '%'));
                     } else if (info.status === 'completed') {
                         clearInterval(pollTimer);
                         pollTimer = null;
@@ -185,7 +229,9 @@
 
                         setTimeout(function () {
                             $wrap.hide();
-                            showResult($result, true, '🎉 ' + (info.message || lsw_ajax.strings.sync_completed));
+                            const finalMsg = message || lsw_ajax.strings.sync_completed;
+                            const prefix = finalMsg.indexOf('🎉') === -1 ? '🎉 ' : '';
+                            showResult($result, true, prefix + finalMsg);
                             $btn.prop('disabled', false).html(lsw_ajax.strings.sync_now);
 
                             // Оновити блок останньої синхронізації
@@ -194,7 +240,7 @@
                                 $lastSync
                                     .removeClass('lsw-error')
                                     .addClass('lsw-ok')
-                                    .text(new Date().toLocaleTimeString() + ' — ' + (info.message || lsw_ajax.strings.done));
+                                    .text(new Date().toLocaleTimeString() + ' — ' + finalMsg);
                             }
                         }, 600);
                     } else if (info.status === 'error') {
@@ -256,9 +302,11 @@
                     startStatusPolling();
                 } else {
                     setProgress(100, lsw_ajax.strings.done);
+                    const finalMsg = (res.data ? getLocalizedProgressMessage(res.data) : '') || (res.data && res.data.message ? res.data.message : lsw_ajax.strings.done);
+                    const prefix = finalMsg.indexOf('🎉') === -1 ? '🎉 ' : '';
                     setTimeout(function () {
                         $wrap.hide();
-                        showResult($result, true, '🎉 ' + (res.data ? res.data.message : lsw_ajax.strings.done));
+                        showResult($result, true, prefix + finalMsg);
                         $btn.prop('disabled', false).html(lsw_ajax.strings.sync_now);
                     }, 500);
                 }

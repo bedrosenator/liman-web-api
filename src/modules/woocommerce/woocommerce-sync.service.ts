@@ -8,9 +8,12 @@ const WOO_CHUNK_SIZE = 50; // WooCommerce batch max 100, используем 50
 
 export type SyncStatus = 'idle' | 'running' | 'completed' | 'error';
 
+export type SyncPhase = 'init' | 'checking_existing' | 'syncing' | 'completed' | 'error';
+
 export interface SyncProgressState {
   tenantId: string;
   status: SyncStatus;
+  phase?: SyncPhase;
   total: number;
   current: number;
   percent: number;
@@ -141,6 +144,7 @@ export class WoocommerceSyncService {
     const state: SyncProgressState = {
       tenantId: tenant.id,
       status: 'running',
+      phase: 'init',
       total: targetTotal,
       current: 0,
       percent: 0,
@@ -159,6 +163,7 @@ export class WoocommerceSyncService {
 
     try {
       // Загружаем существующие SKU -> WooCommerce ID для предотвращения дубликатов
+      state.phase = 'checking_existing';
       state.message = 'Перевірка існуючих товарів у WooCommerce...';
       const skuMap = await this.wooClient.getSkuToIdMap(tenant);
 
@@ -208,6 +213,7 @@ export class WoocommerceSyncService {
 
         const processed = synced + errors;
         const pct = targetTotal > 0 ? Math.min(100, Math.round((processed / targetTotal) * 100)) : 100;
+        state.phase = 'syncing';
         state.current = processed;
         state.synced = synced;
         state.errors = errors;
@@ -224,6 +230,7 @@ export class WoocommerceSyncService {
 
       const durationMs = Date.now() - startTime;
       state.status = 'completed';
+      state.phase = 'completed';
       state.finishedAt = new Date().toISOString();
       state.durationMs = durationMs;
       state.percent = 100;
@@ -239,6 +246,7 @@ export class WoocommerceSyncService {
     } catch (err) {
       const durationMs = Date.now() - startTime;
       state.status = 'error';
+      state.phase = 'error';
       state.finishedAt = new Date().toISOString();
       state.durationMs = durationMs;
       state.error = err instanceof Error ? err.message : String(err);

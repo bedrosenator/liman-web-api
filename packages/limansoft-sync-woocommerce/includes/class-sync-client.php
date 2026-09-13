@@ -112,15 +112,20 @@ class LSW_Sync_Client {
         $body = json_decode( wp_remote_retrieve_body( $response ), true );
 
         if ( in_array( $code, [ 200, 202 ], true ) && ! empty( $body['success'] ) ) {
-            $message = ! empty( $body['message'] )
-                ? $body['message']
-                : sprintf(
-                    /* translators: 1: synced count, 2: errors count, 3: duration ms */
-                    __( 'Синхронізовано %1$d товарів (помилок: %2$d) за %3$d мс', 'limansoft-sync' ),
+            if ( ! empty( $body['async'] ) ) {
+                $message = __( 'Синхронізація повного каталогу успішно запущена у фоновому режимі', 'limansoft-sync' );
+            } elseif ( isset( $body['synced'] ) ) {
+                $sec = round( ( $body['durationMs'] ?? 0 ) / 1000 );
+                $message = sprintf(
+                    /* translators: 1: synced count, 2: errors count, 3: duration sec */
+                    __( 'Синхронізацію успішно завершено! Оновлено: %1$d, помилок: %2$d за %3$d сек.', 'limansoft-sync' ),
                     $body['synced'] ?? 0,
                     $body['errors'] ?? 0,
-                    $body['durationMs'] ?? 0
+                    $sec
                 );
+            } else {
+                $message = ! empty( $body['message'] ) ? $body['message'] : __( 'Готово!', 'limansoft-sync' );
+            }
 
             return [
                 'success' => true,

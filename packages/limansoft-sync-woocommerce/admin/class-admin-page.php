@@ -86,9 +86,12 @@ class LSW_Admin_Page {
                 'done'           => __( 'Готово!', 'limansoft-sync' ),
                 'sync_completed' => __( 'Синхронізацію успішно завершено!', 'limansoft-sync' ),
                 'sync_failed'    => __( 'Помилка синхронізації', 'limansoft-sync' ),
-                'unknown_error'  => __( 'Невідома помилка', 'limansoft-sync' ),
-                'next_run_in'    => __( 'Наступний запуск: через %s', 'limansoft-sync' ),
-                'schedule_off'   => __( 'Розклад вимкнено', 'limansoft-sync' ),
+                'unknown_error'     => __( 'Невідома помилка', 'limansoft-sync' ),
+                'next_run_in'       => __( 'Наступний запуск: через %s', 'limansoft-sync' ),
+                'schedule_off'      => __( 'Розклад вимкнено', 'limansoft-sync' ),
+                'checking_existing' => __( 'Перевірка існуючих товарів у WooCommerce...', 'limansoft-sync' ),
+                'sync_progress'     => __( 'Синхронізовано %1$d з %2$d товарів (%3$d%%)...', 'limansoft-sync' ),
+                'sync_done_detail'  => __( 'Синхронізацію успішно завершено! Оновлено: %1$d, помилок: %2$d за %3$d сек.', 'limansoft-sync' ),
             ],
         ] );
     }
@@ -176,6 +179,14 @@ class LSW_Admin_Page {
             $data = $result['data'];
             // Если завершилось успешно — сохраняем дату последней синхронизации в опциях
             if ( isset( $data['status'] ) && 'completed' === $data['status'] ) {
+                $sec = isset( $data['durationMs'] ) ? round( $data['durationMs'] / 1000 ) : 0;
+                $data['localized_message'] = sprintf(
+                    /* translators: 1: synced count, 2: errors count, 3: duration sec */
+                    __( 'Синхронізацію успішно завершено! Оновлено: %1$d, помилок: %2$d за %3$d сек.', 'limansoft-sync' ),
+                    $data['synced'] ?? 0,
+                    $data['errors'] ?? 0,
+                    $sec
+                );
                 $last_sync = [
                     'time'    => current_time( 'mysql' ),
                     'success' => true,
@@ -186,6 +197,19 @@ class LSW_Admin_Page {
                     ),
                 ];
                 update_option( 'limansoft_last_sync', $last_sync );
+            } elseif ( isset( $data['status'] ) && 'running' === $data['status'] ) {
+                if ( ( $data['phase'] ?? '' ) === 'checking_existing' || false !== strpos( $data['message'] ?? '', 'Перевірка існуючих' ) ) {
+                    $data['localized_message'] = __( 'Перевірка існуючих товарів у WooCommerce...', 'limansoft-sync' );
+                } elseif ( ( $data['phase'] ?? '' ) === 'init' || false !== strpos( $data['message'] ?? '', 'Ініціалізація' ) ) {
+                    $data['localized_message'] = __( 'Ініціалізація синхронізації...', 'limansoft-sync' );
+                } elseif ( ( $data['phase'] ?? '' ) === 'syncing' || false !== strpos( $data['message'] ?? '', 'Синхронізовано' ) ) {
+                    $data['localized_message'] = sprintf(
+                        __( 'Синхронізовано %1$d з %2$d товарів (%3$d%%)...', 'limansoft-sync' ),
+                        $data['synced'] ?? 0,
+                        $data['total'] ?? 0,
+                        $data['percent'] ?? 0
+                    );
+                }
             }
 
             wp_send_json_success( $data );
