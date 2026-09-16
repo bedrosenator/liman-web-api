@@ -4,7 +4,10 @@ import { Job } from 'bullmq';
 import { QUEUE_NAMES, SyncStockJobData } from './queue.constants';
 import { LimanService } from '../liman/liman.service';
 import { TenantService } from '../tenant/tenant.service';
-import { PromApiClient, PromProductPriceStockUpdate } from '../prom/prom-api.client';
+import {
+  PromApiClient,
+  PromProductPriceStockUpdate,
+} from '../prom/prom-api.client';
 import { AlertService } from '../alert/alert.service';
 import { Optional } from '@nestjs/common';
 
@@ -42,7 +45,9 @@ export class StockSyncProcessor extends WorkerHost {
   }> {
     const startTime = Date.now();
     const { tenantId, targetPlatform } = job.data;
-    this.logger.log(`⏳ Начало обработки задачи синхронизации остатков/цен для "${tenantId}" -> [${targetPlatform}]`);
+    this.logger.log(
+      `⏳ Начало обработки задачи синхронизации остатков/цен для "${tenantId}" -> [${targetPlatform}]`,
+    );
 
     try {
       const tenant = await this.tenantService.findOne(tenantId);
@@ -66,14 +71,19 @@ export class StockSyncProcessor extends WorkerHost {
         if (items.length === 0) break;
 
         if (targetPlatform === 'prom') {
-          const updatePayload: PromProductPriceStockUpdate[] = items.map((p) => ({
-            external_id: String(p.tcod),
-            price: p.price,
-            presence: p.isAvailable ? 'available' : 'not_available',
-            quantity_in_stock: p.stock,
-          }));
+          const updatePayload: PromProductPriceStockUpdate[] = items.map(
+            (p) => ({
+              external_id: String(p.tcod),
+              price: p.price,
+              presence: p.isAvailable ? 'available' : 'not_available',
+              quantity_in_stock: p.stock,
+            }),
+          );
 
-          await this.promApiClient.editPricesAndStock(tenant.promApiKey!, updatePayload);
+          await this.promApiClient.editPricesAndStock(
+            tenant.promApiKey!,
+            updatePayload,
+          );
         }
 
         totalProcessed += items.length;
@@ -99,7 +109,8 @@ export class StockSyncProcessor extends WorkerHost {
         durationMs,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       this.logger.error(
         `❌ Ошибка выполнения задачи синхронизации [${tenantId}] (${targetPlatform}): ${errorMessage}`,
         error instanceof Error ? error.stack : undefined,

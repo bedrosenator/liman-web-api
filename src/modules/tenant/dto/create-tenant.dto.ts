@@ -95,7 +95,10 @@ export class CreateTenantDto {
   })
   @IsString()
   @IsOptional()
-  @Matches(/^[a-zA-Z0-9_]{1,32}$/, { message: 'priceColumn must be a valid alphanumeric SQL identifier (1-32 chars)' })
+  @Matches(/^[a-zA-Z0-9_]{1,32}$/, {
+    message:
+      'priceColumn must be a valid alphanumeric SQL identifier (1-32 chars)',
+  })
   priceColumn?: string;
 
   @ApiPropertyOptional({
@@ -105,7 +108,10 @@ export class CreateTenantDto {
   })
   @IsString()
   @IsOptional()
-  @Matches(/^[a-zA-Z0-9_]{1,32}$/, { message: 'stockColumn must be a valid alphanumeric SQL identifier (1-32 chars)' })
+  @Matches(/^[a-zA-Z0-9_]{1,32}$/, {
+    message:
+      'stockColumn must be a valid alphanumeric SQL identifier (1-32 chars)',
+  })
   stockColumn?: string;
 
   @ApiPropertyOptional({
@@ -126,7 +132,8 @@ export class CreateTenantDto {
   isActive?: boolean;
 
   @ApiPropertyOptional({
-    description: 'API Key тенанта (UUID). Если не указан — генерируется автоматически.',
+    description:
+      'API Key тенанта (UUID). Если не указан — генерируется автоматически.',
     example: 'a1b2c3d4-e5f6-...',
   })
   @IsString()
@@ -158,7 +165,8 @@ export class CreateTenantDto {
   woocommerceConsumerSecret?: string;
 
   @ApiPropertyOptional({
-    description: 'Включить фоновую авто-синхронизацию с WooCommerce по расписанию',
+    description:
+      'Включить фоновую авто-синхронизацию с WooCommerce по расписанию',
     default: false,
   })
   @IsBoolean()
@@ -166,7 +174,8 @@ export class CreateTenantDto {
   woocommerceSyncEnabled?: boolean;
 
   @ApiPropertyOptional({
-    description: 'Включить обратный импорт товаров из WooCommerce в Limansoft (при получении webhook или синхронизации)',
+    description:
+      'Включить обратный импорт товаров из WooCommerce в Limansoft (при получении webhook или синхронизации)',
     default: false,
   })
   @IsBoolean()
@@ -174,7 +183,8 @@ export class CreateTenantDto {
   woocommerceImportEnabled?: boolean;
 
   @ApiPropertyOptional({
-    description: 'Интервал фоновой синхронизации с WooCommerce (минуты: 15, 30, 60)',
+    description:
+      'Интервал фоновой синхронизации с WooCommerce (минуты: 15, 30, 60)',
     example: 15,
     default: 15,
   })
@@ -213,7 +223,8 @@ export class CreateTenantDto {
   rozetkaExportEnabled?: boolean;
 
   @ApiPropertyOptional({
-    description: 'Домен магазина Хорошоп (например: myshop.horoshop.ua или myshop.com.ua)',
+    description:
+      'Домен магазина Хорошоп (например: myshop.horoshop.ua или myshop.com.ua)',
     example: 'myshop.horoshop.ua',
   })
   @IsString()
@@ -221,7 +232,8 @@ export class CreateTenantDto {
   horoshopDomain?: string;
 
   @ApiPropertyOptional({
-    description: 'Логин API-пользователя Хорошоп (создается в админке: Настройки -> Пользователи)',
+    description:
+      'Логин API-пользователя Хорошоп (создается в админке: Настройки -> Пользователи)',
     example: 'api_user',
   })
   @IsString()
@@ -253,4 +265,3 @@ export class CreateTenantDto {
   @IsOptional()
   horoshopSyncIntervalMinutes?: number;
 }
-

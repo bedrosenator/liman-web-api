@@ -44,14 +44,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
     // Если статус ошибки 500+, отправляем алерт администратору
     if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
       const tenantId =
-        (request.params as any)?.tenantId ||
-        ((request as any).tenant as any)?.id;
+        (request.params as any)?.tenantId || (request as any).tenant?.id;
 
       void this.alertService?.sendCritical(
         'system',
         `Ошибка HTTP ${status}: [${request.method}] ${request.url}`,
         typeof message === 'object' ? JSON.stringify(message) : String(message),
-        exception instanceof Error ? exception.stack : JSON.stringify(exception),
+        exception instanceof Error
+          ? exception.stack
+          : JSON.stringify(exception),
         tenantId,
         {
           method: request.method,

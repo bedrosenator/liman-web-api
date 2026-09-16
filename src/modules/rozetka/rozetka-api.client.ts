@@ -98,7 +98,8 @@ export class RozetkaApiClient {
     try {
       const client = await this.createClient(tenant);
       const response = await client.get('/goods/counts');
-      const counts: RozetkaGoodsCounts = response.data?.content ?? response.data;
+      const counts: RozetkaGoodsCounts =
+        response.data?.content ?? response.data;
       return {
         success: true,
         message: `Rozetka Seller API доступен. Всего товаров: ${counts?.all_items ?? 'н/д'}, активных: ${counts?.active_items ?? 'н/д'}`,
@@ -144,8 +145,11 @@ export class RozetkaApiClient {
       const data = response.data;
       const isSuccess = data?.success === true;
       const errors = data?.errors;
-      const errorsCount = errors && typeof errors === 'object' ? Object.keys(errors).length : 0;
-      const updated = isSuccess ? payload.items.length : Math.max(0, payload.items.length - errorsCount);
+      const errorsCount =
+        errors && typeof errors === 'object' ? Object.keys(errors).length : 0;
+      const updated = isSuccess
+        ? payload.items.length
+        : Math.max(0, payload.items.length - errorsCount);
 
       return {
         success: isSuccess || updated > 0,
@@ -193,7 +197,10 @@ export class RozetkaApiClient {
   /**
    * Получить детальную информацию по заказу включая состав покупок (GET /orders/{id}?expand=purchases,item_details)
    */
-  async getOrderDetails(tenant: Tenant, orderId: number): Promise<RozetkaOrder | null> {
+  async getOrderDetails(
+    tenant: Tenant,
+    orderId: number,
+  ): Promise<RozetkaOrder | null> {
     try {
       const client = await this.createClient(tenant);
       const response = await client.get(`/orders/${orderId}`, {
@@ -204,7 +211,10 @@ export class RozetkaApiClient {
       const msg = axios.isAxiosError(err)
         ? (err.response?.data ?? err.message)
         : String(err);
-      this.logger.error(`❌ [${tenant.id}] Rozetka getOrderDetails error (id=${orderId}):`, msg);
+      this.logger.error(
+        `❌ [${tenant.id}] Rozetka getOrderDetails error (id=${orderId}):`,
+        msg,
+      );
       if (axios.isAxiosError(err) && err.response?.status === 401) {
         this.authService.invalidateToken(tenant.id);
       }

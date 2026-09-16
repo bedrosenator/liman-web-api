@@ -1,4 +1,9 @@
-import { Injectable, Logger, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  UnauthorizedException,
+  BadRequestException,
+} from '@nestjs/common';
 import axios from 'axios';
 import { Tenant } from '../tenant/tenant.entity';
 
@@ -16,7 +21,11 @@ export class HoroshopAuthService {
    * Получить действующий токен авторизации для магазина Хорошоп
    */
   async getToken(tenant: Tenant, forceRefresh = false): Promise<string> {
-    if (!tenant.horoshopDomain || !tenant.horoshopLogin || !tenant.horoshopPassword) {
+    if (
+      !tenant.horoshopDomain ||
+      !tenant.horoshopLogin ||
+      !tenant.horoshopPassword
+    ) {
       throw new BadRequestException(
         `[${tenant.id}] Не настроены реквизиты Хорошоп (horoshopDomain, horoshopLogin, horoshopPassword)`,
       );
@@ -44,11 +53,19 @@ export class HoroshopAuthService {
    * Запрос нового токена через /api/auth/
    */
   private async authenticate(tenant: Tenant): Promise<string> {
-    const rawDomain = tenant.horoshopDomain!.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+    const rawDomain = tenant
+      .horoshopDomain!.replace(/^https?:\/\//, '')
+      .replace(/\/+$/, '');
 
     // Тестовый / MOCK режим
-    if (rawDomain === 'mock' || rawDomain === 'test' || rawDomain.includes('mock')) {
-      this.logger.log(`🧪 [${tenant.id}] Тестовый MOCK-режим: авторизация Хорошоп эмулирована успешно`);
+    if (
+      rawDomain === 'mock' ||
+      rawDomain === 'test' ||
+      rawDomain.includes('mock')
+    ) {
+      this.logger.log(
+        `🧪 [${tenant.id}] Тестовый MOCK-режим: авторизация Хорошоп эмулирована успешно`,
+      );
       const mockToken = `mock_horoshop_jwt_token_${tenant.id}`;
       this.tokenCache.set(tenant.id, {
         token: mockToken,
@@ -59,7 +76,9 @@ export class HoroshopAuthService {
 
     const url = `https://${rawDomain}/api/auth/`;
 
-    this.logger.log(`🔑 [${tenant.id}] Запрос токена Хорошоп: ${url} (login: ${tenant.horoshopLogin})`);
+    this.logger.log(
+      `🔑 [${tenant.id}] Запрос токена Хорошоп: ${url} (login: ${tenant.horoshopLogin})`,
+    );
 
     try {
       const response = await axios.post(
@@ -86,7 +105,9 @@ export class HoroshopAuthService {
           JSON.stringify(data),
         );
         throw new UnauthorizedException(
-          data?.message || data?.response?.message || 'Не удалось получить токен авторизации Хорошоп',
+          data?.message ||
+            data?.response?.message ||
+            'Не удалось получить токен авторизации Хорошоп',
         );
       }
 
@@ -97,7 +118,9 @@ export class HoroshopAuthService {
         expiresAt: Date.now() + ttlMs,
       });
 
-      this.logger.log(`✅ [${tenant.id}] Токен Хорошоп успешно получен и сохранен в кэше`);
+      this.logger.log(
+        `✅ [${tenant.id}] Токен Хорошоп успешно получен и сохранен в кэше`,
+      );
       return token;
     } catch (error: any) {
       const status = error.response?.status;

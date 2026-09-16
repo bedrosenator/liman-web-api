@@ -4,7 +4,8 @@ describe('XML Utilities (DRY)', () => {
   describe('escapeXml', () => {
     it('should escape special XML characters', () => {
       const input = '<item name="test & "more" & \'single\'>';
-      const expected = '&lt;item name=&quot;test &amp; &quot;more&quot; &amp; &apos;single&apos;&gt;';
+      const expected =
+        '&lt;item name=&quot;test &amp; &quot;more&quot; &amp; &apos;single&apos;&gt;';
       expect(escapeXml(input)).toBe(expected);
     });
 

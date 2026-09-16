@@ -2,7 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { Response } from 'express';
 import { LimanService } from '../liman/liman.service';
 import { Tenant } from '../tenant/tenant.entity';
-import { escapeXml, wrapCdata, formatYmlDate } from '../../common/utils/xml.utils';
+import {
+  escapeXml,
+  wrapCdata,
+  formatYmlDate,
+} from '../../common/utils/xml.utils';
 
 /**
  * Потоковый сервис генерации YML (Yandex Market Language) XML фида для Prom.ua.
@@ -25,12 +29,21 @@ export class PromFeedService {
    * @param baseUrl Базовый URL сервиса для ссылок на фото товаров
    * @param res Исходящий поток Express Response
    */
-  async streamYmlFeed(tenant: Tenant, baseUrl: string, res: Response): Promise<void> {
-    this.logger.log(`📡 Начало потоковой генерации Prom YML фида для "${tenant.id}"...`);
+  async streamYmlFeed(
+    tenant: Tenant,
+    baseUrl: string,
+    res: Response,
+  ): Promise<void> {
+    this.logger.log(
+      `📡 Начало потоковой генерации Prom YML фида для "${tenant.id}"...`,
+    );
     const dateStr = formatYmlDate();
 
     res.setHeader('Content-Type', 'application/xml; charset=utf-8');
-    res.setHeader('Content-Disposition', `inline; filename="prom_feed_${tenant.id}.xml"`);
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="prom_feed_${tenant.id}.xml"`,
+    );
 
     // Заголовок YML
     res.write('<?xml version="1.0" encoding="UTF-8"?>\n');
@@ -48,8 +61,12 @@ export class PromFeedService {
     const categories = await this.limanService.getCategories(tenant);
     res.write('    <categories>\n');
     for (const cat of categories) {
-      const parentAttr = cat.parent ? ` parentId="${escapeXml(cat.parent)}"` : '';
-      res.write(`      <category id="${escapeXml(cat.group)}"${parentAttr}>${escapeXml(cat.name)}</category>\n`);
+      const parentAttr = cat.parent
+        ? ` parentId="${escapeXml(cat.parent)}"`
+        : '';
+      res.write(
+        `      <category id="${escapeXml(cat.group)}"${parentAttr}>${escapeXml(cat.name)}</category>\n`,
+      );
     }
     res.write('    </categories>\n');
 
@@ -74,17 +91,23 @@ export class PromFeedService {
 
       for (const item of items) {
         const availableAttr = item.isAvailable ? 'true' : 'false';
-        res.write(`      <offer id="${item.tcod}" available="${availableAttr}">\n`);
+        res.write(
+          `      <offer id="${item.tcod}" available="${availableAttr}">\n`,
+        );
         res.write(`        <name>${escapeXml(item.name)}</name>\n`);
         res.write(`        <price>${item.price.toFixed(2)}</price>\n`);
         res.write(`        <currencyId>UAH</currencyId>\n`);
         if (item.categoryGroup) {
-          res.write(`        <categoryId>${escapeXml(item.categoryGroup)}</categoryId>\n`);
+          res.write(
+            `        <categoryId>${escapeXml(item.categoryGroup)}</categoryId>\n`,
+          );
         }
         if (item.barcode) {
           res.write(`        <barcode>${escapeXml(item.barcode)}</barcode>\n`);
         }
-        res.write(`        <quantity_in_stock>${item.stock}</quantity_in_stock>\n`);
+        res.write(
+          `        <quantity_in_stock>${item.stock}</quantity_in_stock>\n`,
+        );
 
         // Картинки
         if (item.imageUrls && item.imageUrls.length > 0) {
@@ -95,7 +118,9 @@ export class PromFeedService {
 
         // Описание
         if (item.description) {
-          res.write(`        <description>${wrapCdata(item.description)}</description>\n`);
+          res.write(
+            `        <description>${wrapCdata(item.description)}</description>\n`,
+          );
         }
 
         res.write('      </offer>\n');
@@ -112,7 +137,9 @@ export class PromFeedService {
     res.write('  </shop>\n');
     res.write('</yml_catalog>\n');
 
-    this.logger.log(`✅ Prom YML фид успешно отправлен! Экспортировано товаров: ${totalExported}`);
+    this.logger.log(
+      `✅ Prom YML фид успешно отправлен! Экспортировано товаров: ${totalExported}`,
+    );
     res.end();
   }
 }

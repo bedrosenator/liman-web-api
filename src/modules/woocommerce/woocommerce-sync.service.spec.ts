@@ -42,9 +42,11 @@ describe('WoocommerceSyncService', () => {
             stock: 12,
             isAvailable: true,
             barcode: '48200000001',
-            imageUrls: ['http://localhost:3000/api/v1/media/columb/products/251/1.jpg'],
+            imageUrls: [
+              'http://localhost:3000/api/v1/media/columb/products/251/1.jpg',
+            ],
           },
-        ] as any,
+        ],
         total: 1,
         page: 1,
         limit: 50,
@@ -52,13 +54,21 @@ describe('WoocommerceSyncService', () => {
 
       const mockSkuMap = new Map<string, number>([['251', 1001]]);
       wooClient.getSkuToIdMap.mockResolvedValue(mockSkuMap);
-      wooClient.batchUpsertProducts.mockResolvedValue({ created: 0, updated: 1, failed: 0 });
+      wooClient.batchUpsertProducts.mockResolvedValue({
+        created: 0,
+        updated: 1,
+        failed: 0,
+      });
 
       const onProgress = jest.fn();
 
-      const result = await service.syncFullCatalog(mockTenant, 'http://localhost:3000', {
-        onProgress,
-      });
+      const result = await service.syncFullCatalog(
+        mockTenant,
+        'http://localhost:3000',
+        {
+          onProgress,
+        },
+      );
 
       expect(result.synced).toBe(1);
       expect(result.errors).toBe(0);
@@ -97,9 +107,16 @@ describe('WoocommerceSyncService', () => {
       });
 
       wooClient.getSkuToIdMap.mockResolvedValue(new Map());
-      wooClient.batchUpsertProducts.mockResolvedValue({ created: 1, updated: 0, failed: 0 });
+      wooClient.batchUpsertProducts.mockResolvedValue({
+        created: 1,
+        updated: 0,
+        failed: 0,
+      });
 
-      const result = await service.syncStockAndPrices(mockTenant, 'http://localhost:3000');
+      const result = await service.syncStockAndPrices(
+        mockTenant,
+        'http://localhost:3000',
+      );
 
       expect(result.synced).toBe(1);
       expect(result.errors).toBe(0);

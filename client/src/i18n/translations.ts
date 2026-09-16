@@ -1,0 +1,328 @@
+/**
+ * Словарь локализации для двух языков: русский (RU) и украинский (UK).
+ * RU — язык по умолчанию.
+ */
+export const translations = {
+  ru: {
+    // Общие
+    appName: 'Liman Sync',
+    loading: 'Загрузка...',
+    save: 'Сохранить',
+    cancel: 'Отмена',
+    delete: 'Удалить',
+    edit: 'Редактировать',
+    add: 'Добавить',
+    confirm: 'Подтвердить',
+    close: 'Закрыть',
+    yes: 'Да',
+    no: 'Нет',
+    error: 'Ошибка',
+    success: 'Успешно',
+    warning: 'Внимание',
+    copy: 'Копировать',
+    copied: 'Скопировано!',
+    download: 'Скачать',
+    upload: 'Загрузить',
+    refresh: 'Обновить',
+    back: 'Назад',
+    next: 'Далее',
+    status: 'Статус',
+    actions: 'Действия',
+    search: 'Поиск...',
+    noData: 'Нет данных',
+
+    // Auth
+    login: 'Вход',
+    logout: 'Выход',
+    enterApiKey: 'Введите API ключ',
+    apiKeyPlaceholder: 'liman-secret-key...',
+    loginButton: 'Войти',
+    loginError: 'Неверный API ключ',
+    loginTitle: 'Добро пожаловать',
+    loginSubtitle: 'Введите ключ доступа для входа в панель управления',
+    masterKeyHint: 'Для входа в панель администратора используйте Master API Key',
+
+    // Navigation
+    superAdmin: 'Суперадмин',
+    clientPortal: 'Личный кабинет',
+    tenants: 'Клиенты',
+    queues: 'Очереди',
+    backups: 'Резервные копии',
+    settings: 'Настройки',
+
+    // Super Admin
+    allTenants: 'Все клиенты',
+    addTenant: 'Добавить клиента',
+    tenantId: 'ID клиента',
+    tenantName: 'Название магазина',
+    tenantStatus: 'Статус',
+    active: 'Активен',
+    inactive: 'Неактивен',
+    lastSync: 'Последняя синхр.',
+    openPortal: 'Войти как клиент',
+    copyLink: 'Ссылка клиента',
+    rotateKey: 'Ротация ключа',
+    revealPassword: 'Показать пароль',
+    hidePassword: 'Скрыть пароль',
+
+    // MariaDB
+    dbHost: 'Хост БД',
+    dbPort: 'Порт',
+    dbName: 'Имя базы данных',
+    dbUser: 'Пользователь',
+    dbPassword: 'Пароль',
+    testConnection: 'Тест соединения',
+    testConnectionSuccess: 'Соединение успешно',
+    testConnectionFailed: 'Ошибка соединения',
+    pingMs: 'Пинг',
+
+    // Horoshop
+    horoshop: 'Хорошоп',
+    horoshopDomain: 'Домен магазина',
+    horoshopLogin: 'Логин',
+    horoshopPassword: 'Пароль',
+    horoshopSync: 'Синхронизация',
+    syncPricesStock: 'Синхронизировать цены и остатки',
+    xmlFeed: 'XML фид',
+    copyFeedLink: 'Скопировать ссылку на фид',
+    autoSync: 'Автосинхронизация',
+    syncInterval: 'Интервал (мин)',
+    checkConnection: 'Проверить связь',
+    lastSyncActivity: 'Последние события',
+
+    // Backups
+    createBackup: 'Создать резервную копию',
+    createBackupNow: 'Создать резервную копию сейчас',
+    fastBackup: 'Быстрый (без фото)',
+    fullBackup: 'Полный (с фотографиями)',
+    restoreBackup: 'Восстановить (Откат)',
+    downloadBackup: 'Скачать файл',
+    deleteBackup: 'Удалить',
+    backupCreatedAt: 'Дата создания',
+    backupSize: 'Размер',
+    backupMode: 'Режим',
+    confirmRestore:
+      'Текущее состояние базы будет перезаписано. Это действие невозможно отменить. Продолжить?',
+    restoreWarning: '⚠️ Внимание! Восстановление перезапишет все текущие данные базы.',
+    noBackups: 'Резервных копий нет',
+    backupRecommendation:
+      '🛡️ Рекомендация безопасности: Перед началом перезаписи каталога настоятельно рекомендуется создать резервную копию.',
+    lastBackupFresh: '🟢 Последний бэкап:',
+    lastBackupOld: '🟡 Внимание: Последний бэкап создавался более 3 дней назад',
+    noBackupsAlert: '🔴 Бэкапы отсутствуют!',
+    autoBackupBeforeSync: 'Автоматически создать резервную копию перед запуском (Рекомендуется)',
+
+    // Import
+    importFromHoroshop: 'Импорт товаров из Хорошоп в Limansoft',
+    importMode: 'Режим импорта',
+    onlyNewItems: 'Только новые товары',
+    onlyNewItemsDesc: 'Добавить новые SKU без изменения существующих',
+    overwriteItems: 'Полное обновление (Перезапись)',
+    overwriteItemsDesc: 'Обновить существующие и добавить новые',
+    startImport: 'Начать импорт каталога',
+    importRunning: 'Импорт выполняется...',
+    importProgress: 'Обработано',
+    importCreated: 'Создано',
+    importUpdated: 'Обновлено',
+    importErrors: 'Ошибок',
+    overwriteConfirm:
+      '⚠️ Внимание! Вы выбрали режим перезаписи. Данные цен и складских остатков в учетной системе Limansoft будут заменены данными с сайта Хорошоп. Это действие невозможно отменить.',
+    overwriteCheckbox:
+      'Я осознаю риск замены цен и остатков в учетной базе',
+
+    // BullMQ Monitor
+    queueMonitor: 'Монитор очередей',
+    queueWaiting: 'Ожидание',
+    queueActive: 'Активные',
+    queueCompleted: 'Завершены',
+    queueFailed: 'С ошибкой',
+    retryFailed: 'Повторить упавшие',
+
+    // Prom
+    prom: 'Prom.ua',
+    promApiKey: 'API ключ Prom.ua',
+
+    // Rozetka
+    rozetka: 'Rozetka',
+    rozetkaClientId: 'Client ID',
+    rozetkaSecret: 'Client Secret',
+
+    // WooCommerce
+    woocommerce: 'WooCommerce',
+    woocommerceUrl: 'URL магазина',
+    woocommerceKey: 'Consumer Key',
+    woocommerceSecret: 'Consumer Secret',
+    downloadPlugin: 'Скачать WordPress-плагин (.zip)',
+
+    // Status badges
+    statusOk: 'OK',
+    statusError: 'Ошибка',
+    statusPending: 'Ожидание',
+    statusRunning: 'Выполняется',
+    statusOffline: 'Недоступен',
+    available: 'Доступно для подключения',
+  },
+
+  uk: {
+    // Загальні
+    appName: 'Liman Sync',
+    loading: 'Завантаження...',
+    save: 'Зберегти',
+    cancel: 'Скасувати',
+    delete: 'Видалити',
+    edit: 'Редагувати',
+    add: 'Додати',
+    confirm: 'Підтвердити',
+    close: 'Закрити',
+    yes: 'Так',
+    no: 'Ні',
+    error: 'Помилка',
+    success: 'Успішно',
+    warning: 'Увага',
+    copy: 'Копіювати',
+    copied: 'Скопійовано!',
+    download: 'Завантажити',
+    upload: 'Завантажити',
+    refresh: 'Оновити',
+    back: 'Назад',
+    next: 'Далі',
+    status: 'Статус',
+    actions: 'Дії',
+    search: 'Пошук...',
+    noData: 'Немає даних',
+
+    // Auth
+    login: 'Вхід',
+    logout: 'Вийти',
+    enterApiKey: 'Введіть API ключ',
+    apiKeyPlaceholder: 'liman-secret-key...',
+    loginButton: 'Увійти',
+    loginError: 'Невірний API ключ',
+    loginTitle: 'Ласкаво просимо',
+    loginSubtitle: 'Введіть ключ доступу для входу до панелі управління',
+    masterKeyHint: 'Для входу до панелі адміністратора використовуйте Master API Key',
+
+    // Navigation
+    superAdmin: 'Суперадмін',
+    clientPortal: 'Особистий кабінет',
+    tenants: 'Клієнти',
+    queues: 'Черги',
+    backups: 'Резервні копії',
+    settings: 'Налаштування',
+
+    // Super Admin
+    allTenants: 'Всі клієнти',
+    addTenant: 'Додати клієнта',
+    tenantId: 'ID клієнта',
+    tenantName: 'Назва магазину',
+    tenantStatus: 'Статус',
+    active: 'Активний',
+    inactive: 'Неактивний',
+    lastSync: 'Остання синхр.',
+    openPortal: 'Увійти як клієнт',
+    copyLink: 'Посилання клієнта',
+    rotateKey: 'Ротація ключа',
+    revealPassword: 'Показати пароль',
+    hidePassword: 'Сховати пароль',
+
+    // MariaDB
+    dbHost: 'Хост БД',
+    dbPort: 'Порт',
+    dbName: 'Назва бази даних',
+    dbUser: 'Користувач',
+    dbPassword: 'Пароль',
+    testConnection: 'Тест підключення',
+    testConnectionSuccess: 'Підключення успішне',
+    testConnectionFailed: 'Помилка підключення',
+    pingMs: 'Пінг',
+
+    // Horoshop
+    horoshop: 'Хорошоп',
+    horoshopDomain: 'Домен магазину',
+    horoshopLogin: 'Логін',
+    horoshopPassword: 'Пароль',
+    horoshopSync: 'Синхронізація',
+    syncPricesStock: 'Синхронізувати ціни та залишки',
+    xmlFeed: 'XML фід',
+    copyFeedLink: 'Скопіювати посилання на фід',
+    autoSync: 'Автосинхронізація',
+    syncInterval: 'Інтервал (хв)',
+    checkConnection: 'Перевірити зв\'язок',
+    lastSyncActivity: 'Останні події',
+
+    // Backups
+    createBackup: 'Створити резервну копію',
+    createBackupNow: 'Створити резервну копію зараз',
+    fastBackup: 'Швидкий (без фото)',
+    fullBackup: 'Повний (з фотографіями)',
+    restoreBackup: 'Відновити (Відкат)',
+    downloadBackup: 'Завантажити файл',
+    deleteBackup: 'Видалити',
+    backupCreatedAt: 'Дата створення',
+    backupSize: 'Розмір',
+    backupMode: 'Режим',
+    confirmRestore:
+      'Поточний стан бази буде перезаписано. Цю дію не можна скасувати. Продовжити?',
+    restoreWarning: '⚠️ Увага! Відновлення перезапише всі поточні дані бази.',
+    noBackups: 'Резервних копій немає',
+    backupRecommendation:
+      '🛡️ Рекомендація безпеки: Перед початком перезапису каталогу наполегливо рекомендується створити резервну копію.',
+    lastBackupFresh: '🟢 Останній бекап:',
+    lastBackupOld: '🟡 Увага: Останній бекап створювався більше 3 днів тому',
+    noBackupsAlert: '🔴 Бекапи відсутні!',
+    autoBackupBeforeSync: 'Автоматично створити резервну копію перед запуском (Рекомендовано)',
+
+    // Import
+    importFromHoroshop: 'Імпорт товарів з Хорошоп до Limansoft',
+    importMode: 'Режим імпорту',
+    onlyNewItems: 'Тільки нові товари',
+    onlyNewItemsDesc: 'Додати нові SKU без зміни існуючих',
+    overwriteItems: 'Повне оновлення (Перезапис)',
+    overwriteItemsDesc: 'Оновити існуючі та додати нові',
+    startImport: 'Почати імпорт каталогу',
+    importRunning: 'Імпорт виконується...',
+    importProgress: 'Оброблено',
+    importCreated: 'Створено',
+    importUpdated: 'Оновлено',
+    importErrors: 'Помилок',
+    overwriteConfirm:
+      '⚠️ Увага! Ви обрали режим перезапису. Дані цін та складських залишків в обліковій системі Limansoft будуть замінені даними з сайту Хорошоп. Цю дію не можна скасувати.',
+    overwriteCheckbox:
+      'Я усвідомлюю ризик заміни цін та залишків в обліковій базі',
+
+    // BullMQ Monitor
+    queueMonitor: 'Монітор черг',
+    queueWaiting: 'Очікування',
+    queueActive: 'Активні',
+    queueCompleted: 'Завершені',
+    queueFailed: 'З помилкою',
+    retryFailed: 'Повторити упавші',
+
+    // Prom
+    prom: 'Prom.ua',
+    promApiKey: 'API ключ Prom.ua',
+
+    // Rozetka
+    rozetka: 'Rozetka',
+    rozetkaClientId: 'Client ID',
+    rozetkaSecret: 'Client Secret',
+
+    // WooCommerce
+    woocommerce: 'WooCommerce',
+    woocommerceUrl: 'URL магазину',
+    woocommerceKey: 'Consumer Key',
+    woocommerceSecret: 'Consumer Secret',
+    downloadPlugin: 'Завантажити WordPress-плагін (.zip)',
+
+    // Status badges
+    statusOk: 'OK',
+    statusError: 'Помилка',
+    statusPending: 'Очікування',
+    statusRunning: 'Виконується',
+    statusOffline: 'Недоступний',
+    available: 'Доступно для підключення',
+  },
+} as const;
+
+export type Language = keyof typeof translations;
+export type TranslationKey = keyof (typeof translations)['ru'];

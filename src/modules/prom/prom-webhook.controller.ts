@@ -17,7 +17,8 @@ export class PromWebhookController {
   @Post('order')
   @Public()
   @ApiOperation({
-    summary: 'Вебхук приема заказов из Prom.ua (автоматическое списание остатка)',
+    summary:
+      'Вебхук приема заказов из Prom.ua (автоматическое списание остатка)',
     description:
       'Получает состав заказа из Prom.ua, уменьшает остаток в name2ost и фиксирует источник "prom.ua".',
   })
@@ -52,7 +53,12 @@ export class PromWebhookController {
       `🛒 [${tenantId}] Получен вебхук заказа №${payload?.order_id ?? 'N/A'} из Prom.ua: ${payload?.products?.length ?? 0} позиций`,
     );
 
-    const results: Array<{ tcod: number; requestedQty: number; oldStock: number; newStock: number }> = [];
+    const results: Array<{
+      tcod: number;
+      requestedQty: number;
+      oldStock: number;
+      newStock: number;
+    }> = [];
 
     if (Array.isArray(payload?.products)) {
       for (const prod of payload.products) {
@@ -61,7 +67,11 @@ export class PromWebhookController {
 
         if (!isNaN(tcod) && qty > 0) {
           try {
-            const deduction = await this.limanService.deductStock(tenant, tcod, qty);
+            const deduction = await this.limanService.deductStock(
+              tenant,
+              tcod,
+              qty,
+            );
             results.push({
               tcod,
               requestedQty: qty,
@@ -69,7 +79,10 @@ export class PromWebhookController {
               newStock: deduction.newStock,
             });
           } catch (err) {
-            this.logger.error(`Не удалось списать остаток для tcod=${tcod}:`, err);
+            this.logger.error(
+              `Не удалось списать остаток для tcod=${tcod}:`,
+              err,
+            );
           }
         }
       }

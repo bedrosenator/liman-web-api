@@ -14,6 +14,11 @@ import { AlertController } from './alert.controller';
     WebhookService,
     AlertService,
   ],
-  exports: [AlertService, AlertThrottlerService, TelegramService, WebhookService],
+  exports: [
+    AlertService,
+    AlertThrottlerService,
+    TelegramService,
+    WebhookService,
+  ],
 })
 export class AlertModule {}

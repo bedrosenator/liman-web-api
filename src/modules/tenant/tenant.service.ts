@@ -127,9 +127,12 @@ export class TenantService implements OnModuleInit {
 
     // Предотвращаем затирание реальных секретов маской '********'
     if (updates.dbPassword === '********') delete updates.dbPassword;
-    if (updates.woocommerceConsumerSecret === '********') delete updates.woocommerceConsumerSecret;
-    if (updates.rozetkaClientSecret === '********') delete updates.rozetkaClientSecret;
-    if (updates.horoshopPassword === '********') delete updates.horoshopPassword;
+    if (updates.woocommerceConsumerSecret === '********')
+      delete updates.woocommerceConsumerSecret;
+    if (updates.rozetkaClientSecret === '********')
+      delete updates.rozetkaClientSecret;
+    if (updates.horoshopPassword === '********')
+      delete updates.horoshopPassword;
 
     Object.assign(tenant, updates);
     return this.tenantRepository.save(tenant);

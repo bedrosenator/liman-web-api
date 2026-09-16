@@ -7,7 +7,13 @@ import {
   Body,
   Param,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiSecurity } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiSecurity,
+} from '@nestjs/swagger';
 import { TenantService } from './tenant.service';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
@@ -64,10 +70,17 @@ export class TenantController {
   @Post(':id/rotate-key')
   @ApiOperation({
     summary: 'Сгенерировать новый API Key для клиента (ротация ключа)',
-    description: 'Старый ключ инвалидируется немедленно. Используйте при утечке ключа.',
+    description:
+      'Старый ключ инвалидируется немедленно. Используйте при утечке ключа.',
   })
   @ApiParam({ name: 'id', example: 'columb' })
-  @ApiResponse({ status: 201, schema: { type: 'object', properties: { id: { type: 'string' }, apiKey: { type: 'string' } } } })
+  @ApiResponse({
+    status: 201,
+    schema: {
+      type: 'object',
+      properties: { id: { type: 'string' }, apiKey: { type: 'string' } },
+    },
+  })
   rotateKey(@Param('id') id: string) {
     return this.tenantService.rotateApiKey(id);
   }

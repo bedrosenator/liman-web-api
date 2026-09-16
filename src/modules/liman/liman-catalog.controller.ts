@@ -27,7 +27,9 @@ export class LimanCatalogController {
   ) {}
 
   @Get('ping')
-  @ApiOperation({ summary: 'Проверка соединения с MariaDB конкретного магазина' })
+  @ApiOperation({
+    summary: 'Проверка соединения с MariaDB конкретного магазина',
+  })
   @ApiParam({ name: 'tenantId', example: 'columb' })
   async ping(@Param('tenantId') tenantId: string) {
     const tenant = await this.tenantService.findOne(tenantId);
@@ -35,7 +37,9 @@ export class LimanCatalogController {
   }
 
   @Get('categories')
-  @ApiOperation({ summary: 'Получить дерево / список категорий из таблицы name' })
+  @ApiOperation({
+    summary: 'Получить дерево / список категорий из таблицы name',
+  })
   @ApiParam({ name: 'tenantId', example: 'columb' })
   @ApiResponse({ status: 200, type: [LimanCategoryDto] })
   async getCategories(@Param('tenantId') tenantId: string) {
@@ -44,13 +48,28 @@ export class LimanCatalogController {
   }
 
   @Get('products')
-  @ApiOperation({ summary: 'Получить список товаров с остатками и ценами (пагинация)' })
+  @ApiOperation({
+    summary: 'Получить список товаров с остатками и ценами (пагинация)',
+  })
   @ApiParam({ name: 'tenantId', example: 'columb' })
   @ApiQuery({ name: 'page', required: false, example: 1 })
   @ApiQuery({ name: 'limit', required: false, example: 50 })
-  @ApiQuery({ name: 'search', required: false, description: 'Поиск по названию или штрихкоду' })
-  @ApiQuery({ name: 'categoryGroup', required: false, description: 'Фильтр по коду категории' })
-  @ApiQuery({ name: 'onlyInStock', required: false, type: Boolean, description: 'Только в наличии' })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    description: 'Поиск по названию или штрихкоду',
+  })
+  @ApiQuery({
+    name: 'categoryGroup',
+    required: false,
+    description: 'Фильтр по коду категории',
+  })
+  @ApiQuery({
+    name: 'onlyInStock',
+    required: false,
+    type: Boolean,
+    description: 'Только в наличии',
+  })
   async getProducts(
     @Param('tenantId') tenantId: string,
     @Query('page') page?: string,

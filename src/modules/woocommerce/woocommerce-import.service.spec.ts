@@ -83,7 +83,7 @@ describe('WoocommerceImportService', () => {
         tcod: 7711,
         action: 'created',
       });
-      wooClient.updateProductById.mockResolvedValueOnce({} as any);
+      wooClient.updateProductById.mockResolvedValueOnce({});
 
       const result = await service.importProduct(mockTenant, wooProduct);
 
@@ -104,9 +104,13 @@ describe('WoocommerceImportService', () => {
       );
 
       // Verify Two-Way Sync closure: WooCommerce product SKU set to generated tcod
-      expect(wooClient.updateProductById).toHaveBeenCalledWith(mockTenant, 555, {
-        sku: '7711',
-      });
+      expect(wooClient.updateProductById).toHaveBeenCalledWith(
+        mockTenant,
+        555,
+        {
+          sku: '7711',
+        },
+      );
     });
   });
 
@@ -158,7 +162,10 @@ describe('WoocommerceImportService', () => {
         .mockResolvedValueOnce({ tcod: 20, action: 'created' });
 
       const onProgress = jest.fn();
-      const result = await service.importAllProducts(mockTenant, { limit: 10, onProgress });
+      const result = await service.importAllProducts(mockTenant, {
+        limit: 10,
+        onProgress,
+      });
 
       expect(result.totalProcessed).toBe(2);
       expect(result.created).toBe(1);

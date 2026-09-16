@@ -17,7 +17,15 @@ import { QUEUE_NAMES } from '../queue/queue.constants';
     }),
   ],
   controllers: [WoocommerceController],
-  providers: [WoocommerceApiClient, WoocommerceSyncService, WoocommerceImportService],
-  exports: [WoocommerceApiClient, WoocommerceSyncService, WoocommerceImportService],
+  providers: [
+    WoocommerceApiClient,
+    WoocommerceSyncService,
+    WoocommerceImportService,
+  ],
+  exports: [
+    WoocommerceApiClient,
+    WoocommerceSyncService,
+    WoocommerceImportService,
+  ],
 })
 export class WoocommerceModule {}

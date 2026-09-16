@@ -80,7 +80,9 @@ export class RozetkaAuthService {
       const expiresIn: number = content?.expires_in ?? 3600; // секунды
 
       if (!accessToken) {
-        throw new Error(`Не удалось извлечь access_token из ответа: ${JSON.stringify(response.data)}`);
+        throw new Error(
+          `Не удалось извлечь access_token из ответа: ${JSON.stringify(response.data)}`,
+        );
       }
 
       const expiresAt = Date.now() + expiresIn * 1000;

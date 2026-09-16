@@ -14,7 +14,10 @@ describe('AlertThrottlerService', () => {
           provide: ConfigService,
           useValue: {
             get: jest.fn((key: string) => {
-              if (key === 'ALERT_THROTTLE_MINUTES' || key === 'alerts.throttleMinutes') {
+              if (
+                key === 'ALERT_THROTTLE_MINUTES' ||
+                key === 'alerts.throttleMinutes'
+              ) {
                 return 10;
               }
               return undefined;

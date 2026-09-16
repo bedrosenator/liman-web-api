@@ -64,7 +64,7 @@ describe('LimanService', () => {
     });
 
     it('should reject malicious injection strings and return safe fallback', () => {
-      const malicious = "skl_k`; DROP TABLE name2; --";
+      const malicious = 'skl_k`; DROP TABLE name2; --';
       const result = (service as any).sanitizeIdentifier(malicious, 'skl_k');
       expect(result).toBe('skl_k');
     });
@@ -89,7 +89,9 @@ describe('LimanService', () => {
       expect(result.newStock).toBe(40);
       expect(result.deducted).toBe(10);
       expect(mockPool.query).toHaveBeenCalledWith(
-        expect.stringContaining('UPDATE `name2ost` SET `skl_k` = ? WHERE tcod = ?'),
+        expect.stringContaining(
+          'UPDATE `name2ost` SET `skl_k` = ? WHERE tcod = ?',
+        ),
         [40, 251],
       );
     });
@@ -140,7 +142,9 @@ describe('LimanService', () => {
     });
 
     it('should detect PNG mime type by magic bytes', async () => {
-      const pngBuffer = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+      const pngBuffer = Buffer.from([
+        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+      ]);
       mockPool.query.mockResolvedValueOnce([[{ photoData: pngBuffer }]]);
 
       const result = await service.getProductImage(mockTenant, 123, 1);
@@ -149,7 +153,9 @@ describe('LimanService', () => {
     });
 
     it('should detect WebP mime type by magic bytes', async () => {
-      const webpBuffer = Buffer.from([0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00]);
+      const webpBuffer = Buffer.from([
+        0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00,
+      ]);
       mockPool.query.mockResolvedValueOnce([[{ photoData: webpBuffer }]]);
 
       const result = await service.getProductImage(mockTenant, 123, 1);

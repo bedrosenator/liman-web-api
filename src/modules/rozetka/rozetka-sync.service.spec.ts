@@ -32,9 +32,17 @@ describe('RozetkaSyncService', () => {
   describe('syncPricesAndStocks', () => {
     it('should return 0 when catalog is empty', async () => {
       limanService.getProductCount.mockResolvedValue(0);
-      limanService.getProducts.mockResolvedValue({ items: [], total: 0, page: 1, limit: 100 });
+      limanService.getProducts.mockResolvedValue({
+        items: [],
+        total: 0,
+        page: 1,
+        limit: 100,
+      });
 
-      const result = await service.syncPricesAndStocks(mockTenant, 'http://localhost:3000');
+      const result = await service.syncPricesAndStocks(
+        mockTenant,
+        'http://localhost:3000',
+      );
       expect(result.itemsSynced).toBe(0);
       expect(result.errors).toBe(0);
       expect(rozetkaClient.massUpdateItems).not.toHaveBeenCalled();
@@ -44,9 +52,21 @@ describe('RozetkaSyncService', () => {
       limanService.getProductCount.mockResolvedValue(2);
       limanService.getProducts.mockResolvedValueOnce({
         items: [
-          { tcod: 101, name: 'Product 1', price: 150.5, stock: 10, isAvailable: true },
-          { tcod: 102, name: 'Product 2', price: 200, stock: 0, isAvailable: false },
-        ] as any,
+          {
+            tcod: 101,
+            name: 'Product 1',
+            price: 150.5,
+            stock: 10,
+            isAvailable: true,
+          },
+          {
+            tcod: 102,
+            name: 'Product 2',
+            price: 200,
+            stock: 0,
+            isAvailable: false,
+          },
+        ],
         total: 2,
         page: 1,
         limit: 100,
@@ -58,7 +78,10 @@ describe('RozetkaSyncService', () => {
         errorsCount: 0,
       });
 
-      const result = await service.syncPricesAndStocks(mockTenant, 'http://localhost:3000');
+      const result = await service.syncPricesAndStocks(
+        mockTenant,
+        'http://localhost:3000',
+      );
 
       expect(result.itemsSynced).toBe(2);
       expect(result.errors).toBe(0);
@@ -74,15 +97,28 @@ describe('RozetkaSyncService', () => {
     it('should count errors gracefully when API client fails', async () => {
       limanService.getProductCount.mockResolvedValue(1);
       limanService.getProducts.mockResolvedValueOnce({
-        items: [{ tcod: 101, name: 'Product 1', price: 100, stock: 5, isAvailable: true }] as any,
+        items: [
+          {
+            tcod: 101,
+            name: 'Product 1',
+            price: 100,
+            stock: 5,
+            isAvailable: true,
+          },
+        ],
         total: 1,
         page: 1,
         limit: 100,
       });
 
-      rozetkaClient.massUpdateItems.mockRejectedValue(new Error('Network error'));
+      rozetkaClient.massUpdateItems.mockRejectedValue(
+        new Error('Network error'),
+      );
 
-      const result = await service.syncPricesAndStocks(mockTenant, 'http://localhost:3000');
+      const result = await service.syncPricesAndStocks(
+        mockTenant,
+        'http://localhost:3000',
+      );
 
       expect(result.itemsSynced).toBe(0);
       expect(result.errors).toBe(1);
@@ -102,7 +138,14 @@ describe('RozetkaSyncService', () => {
 
     it('should process new orders and deduct stock in Limansoft', async () => {
       rozetkaClient.searchOrders.mockResolvedValue([
-        { id: 987654, status: 1, status_group: 1, amount: '300.00', cost: '300.00', created: '2026-09-07' },
+        {
+          id: 987654,
+          status: 1,
+          status_group: 1,
+          amount: '300.00',
+          cost: '300.00',
+          created: '2026-09-07',
+        },
       ]);
 
       rozetkaClient.getOrderDetails.mockResolvedValue({

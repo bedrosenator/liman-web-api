@@ -11,9 +11,9 @@ describe('TenantService', () => {
     repository = {
       find: jest.fn(),
       findOne: jest.fn(),
-      create: jest.fn((dto) => dto as any),
-      save: jest.fn((entity) => Promise.resolve(entity as any)),
-      remove: jest.fn((entity) => Promise.resolve(entity as any)),
+      create: jest.fn((dto) => dto),
+      save: jest.fn((entity) => Promise.resolve(entity)),
+      remove: jest.fn((entity) => Promise.resolve(entity)),
     } as any;
 
     service = new TenantService(repository);
@@ -26,7 +26,9 @@ describe('TenantService', () => {
 
       const result = await service.findAll();
       expect(result).toEqual(tenants);
-      expect(repository.find).toHaveBeenCalledWith({ order: { createdAt: 'DESC' } });
+      expect(repository.find).toHaveBeenCalledWith({
+        order: { createdAt: 'DESC' },
+      });
     });
   });
 
@@ -42,7 +44,9 @@ describe('TenantService', () => {
     it('should throw NotFoundException if tenant is not found', async () => {
       repository.findOne.mockResolvedValue(null);
 
-      await expect(service.findOne('non-existent')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('non-existent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -65,9 +69,9 @@ describe('TenantService', () => {
     it('should throw ConflictException if tenant id already exists', async () => {
       repository.findOne.mockResolvedValue({ id: 'existing' } as Tenant);
 
-      await expect(service.create({ id: 'existing', name: 'Dup' } as any)).rejects.toThrow(
-        ConflictException,
-      );
+      await expect(
+        service.create({ id: 'existing', name: 'Dup' } as any),
+      ).rejects.toThrow(ConflictException);
     });
   });
 
@@ -121,7 +125,7 @@ describe('TenantService', () => {
         woocommerceConsumerSecret: '********',
       };
 
-      const result = await service.update('columb', updateDto as any);
+      const result = await service.update('columb', updateDto);
       expect(result.name).toBe('Updated Name');
       expect(result.dbPassword).toBe('real-secret-password');
       expect(result.woocommerceConsumerSecret).toBe('real-cs-secret');

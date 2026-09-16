@@ -98,22 +98,83 @@
 
 ---
 
-## 🚀 4. План на Спринт 2
+### ✅ TASK-18: Веб-интерфейс React SPA (Vite 8 + React 19) и Nginx Static Serving
+- Инициализировано одностраничное веб-приложение в `client/` на стеке React 19 + TypeScript + Vite 8.
+- **Архитектура раздачи статики (Nginx)**:
+  - Раздача статики возложена на Nginx (`./docker/nginx.conf`) напрямую из `./public/app` (`try_files $uri $uri/ /index.html;`).
+  - Кэширование ассетов (`expires 1y; Cache-Control: public, immutable`) и gzip-компрессия.
+  - Node.js (NestJS) освобожден от раздачи статических файлов, предотвращая блокировку Event Loop.
+  - 3-уровневая конфигурация в `docker-compose.yml`: Nginx (порт 80) ➔ NestJS (порт 3000) ➔ Redis (порт 6379).
+- **Интернационализация (i18n)**:
+  - Полноценная поддержка двух языков: Русский (`ru`) и Украинский (`uk`), более 90 ключей локализации.
+  - Автоматическое определение языка браузера (`navigator.language`) и сохранение в `localStorage` (`liman_lang`).
+  - Интерактивный переключатель флагов в шапке (🇷🇺 RU / 🇺🇦 UK).
+- **Безопасность и авторизация**:
+  - `AuthContext` с ролями `superadmin` и `tenant`, хранение токена в `sessionStorage`.
+  - Бесшовный вход по Magic Link (`?token=...&tid=...`) с автоматической очисткой URL.
+  - Централизованный интерцептор Axios (`x-api-key`) с авто-логаутом и редиректом при 401/403.
+  - Корпоративный темный дизайн (Enterprise Dark Glassmorphism, CSS Custom Properties).
+- **Покрытие тестами**: 22 unit-теста на Vitest (`LanguageContext.test.tsx` — 13 тестов, `AuthGuard.test.tsx` — 9 тестов).
+
+### ✅ TASK-23: Система резервного копирования и отката БД (Backup & Disaster Recovery)
+- Реализован полнофункциональный модуль `BackupModule` (`src/modules/backup/`) для баз данных Limansoft.
+- **Два режима резервного копирования**:
+  - `fast`: критические таблицы каталога и остатков (`name2`, `name2ost`, `name`, `strihcod`), длительность 1–3 сек.
+  - `full`: полный дамп всех таблиц базы тенанта, включая бинарные BLOB-фотографии `namedesc`.
+- **Защита от параллельных мутаций (Redis Distributed Lock)**:
+  - Мьютекс на ключе `lock:tenant:{tenantId}:busy` (TTL 900с для бекапа, 1800с для отката).
+  - Возврат `409 Conflict`, если тенант занят синхронизацией, бекапом или восстановлением.
+  - Безопасное освобождение по UUID мьютекса в блоке `finally`.
+- **Потоковая компрессия и контроль целостности**:
+  - Потоковая выборка батчами по 500 строк, сжатие `zlib.createGzip()` без утечек RAM.
+  - Расчет SHA-256 хеша на лету и сохранение в `{filename}.meta.json`.
+  - Обязательная сверка контрольной суммы SHA-256 перед операцией отката (`restore`).
+- **Автоматическая ротация**: хранение не более 10 последних архивов на тенант, удаление старше 30 дней.
+- **REST API**: 5 эндпоинтов (создание, листинг, скачивание, откат, удаление).
+- **Покрытие тестами**: 24/24 unit-теста в `backup.service.spec.ts` (покрыты все сценарии: fast, full, блокировки, ротация, ошибки хеша, откат).
+
+---
+
+## 📈 3. Результаты тестов и метрики
+
+### Общая сводка автотестов:
+- **Backend (Jest):** 17 тестовых сьютов, **99 тестов passing** (100% успех).
+- **Frontend (Vitest):** 2 тестовых сьюта, **22 теста passing** (100% успех).
+- **Всего автоматических тестов:** **121 тест passing**.
+
+| Эндпоинт / Функция | Результат тестирования | Время ответа |
+|---|---|---|
+| `GET /api/v1/health` | HTTP 200 `status: ok` | < 1 ms |
+| `GET /api/v1/liman/columb/ping` | Подключение к MariaDB успешно | 12 ms |
+| `GET /api/v1/liman/columb/products?limit=2` | Выборка 5 768 товаров, фильтрация валидных строк | 15 ms |
+| `GET /api/v1/media/columb/products/251/1.jpg` | HTTP 200, Content-Type, ETag, Cache-Control | 2 ms |
+| `GET /api/v1/prom/columb/feed.xml` | Генерация XML фида 5 768 товаров | 428 ms |
+| `PATCH /api/v1/liman/columb/stock/251` | Изменение остатка `skl_k: 0 -> 42` | 5 ms |
+| `POST /api/v1/prom/columb/webhook/order` | Списание остатка по заказу `42 -> 40` | 6 ms |
+| `POST /api/v1/sync/columb/stock` | BullMQ постановка в очередь, retry policy | 4 ms |
+| `POST /api/v1/liman/columb/backups` (`fast`) | Потоковый gzip-дамп 4 таблиц + SHA256 + Redis lock | ~120 ms |
+| `POST /api/v1/liman/columb/backups/:file/restore` | Сверка SHA256 + атомарное исполнение дампа | ~180 ms |
+| `GET / (Nginx)` | Раздача index.html из статического тома SPA | < 1 ms |
+
+---
+
+## 🚀 4. План на Спринт 2 (Статус)
 
 1. **Безопасность и авторизация (Security & Auth):**
-   - Защита эндпоинтов Master API Key (`x-api-key`) и Tenant API Key.
-   - JWT Guard для панели управления.
-2. **WooCommerce Integration (TASK-12):**
-   - REST API клиент для WooCommerce v3 (`/wp-json/wc/v3`).
-   - Синхронизация каталога, остатков и цен.
-3. **Фирменный плагин WordPress/WooCommerce (`liman-sync-for-woocommerce`):**
-   - Отдельный готовый плагин для продажи / дистрибуции в магазины клиентов.
-   - Настройки подключения (API URL, API Key, Tenant ID, выбор цен и складов).
-   - Кнопка ручной синхронизации каталога.
-   - Автоматическая синхронизация по WP-Cron и Webhook при оформлении заказа в WooCommerce для мгновенного списания в Limansoft.
-4. **Rozetka Integration (TASK-11):**
-   - Генерация XML прайс-листа Rozetka и клиент Seller API.
-5. **Коммерческая защита и лицензирование плагина (TASK-16, Backlog):**
-   - Система `LicenseGuard` в NestJS (проверка активности подписки, срока действия, привязка к доменам магазина).
-   - Валидация лицензионного ключа (`License Key`) и отображение статуса подписки в админке WooCommerce.
-   - Приватный сервер обновлений (`Auto-Updater Engine`) для обновления плагина в 1 клик прямо из админки WordPress.
+   - ✅ Защита эндпоинтов Master API Key (`x-api-key`) и Tenant API Key (IDOR guard).
+   - ✅ JWT / Key Guard и ролевая изоляция для панели управления.
+2. **Frontend SPA & Infrastructure (TASK-18):**
+   - ✅ Выполнено: React 19 + Vite 8 SPA, Nginx Static Serving, i18n (RU/UK), Auth Guard, Magic Links.
+3. **Резервное копирование и откат БД (TASK-23):**
+   - ✅ Выполнено: BackupModule с режимами Fast/Full, потоковым Gzip, Redis Lock и SHA256 валидацией.
+4. **Мастер-панель управления тенантами (TASK-19):**
+   - Реализация интерфейса SuperAdmin (CRUD тенантов, тест подключения MariaDB, ротация ключей).
+5. **Клиентский портал и модули интеграций (TASK-20, TASK-21):**
+   - Интерфейс управления Хорошоп, Prom.ua, Rozetka, WooCommerce для клиентов.
+6. **Двусторонний импорт каталога Хорошоп ➔ Limansoft (TASK-22):**
+   - Режимы `skip_existing` и `overwrite`, предупреждение о бекапе, очередь BullMQ.
+7. **WooCommerce Integration & WordPress Plugin (TASK-12, TASK-16, TASK-17):**
+   - REST API клиент для WooCommerce v3.
+   - Фирменный плагин `liman-sync-for-woocommerce` с защитой лицензии и автообновлением.
+   - Двусторонний импорт каталога WooCommerce ➔ Limansoft.
+

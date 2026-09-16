@@ -1,6 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AlertPayload, ThrottledAlertRecord } from './interfaces/alert.interface';
+import {
+  AlertPayload,
+  ThrottledAlertRecord,
+} from './interfaces/alert.interface';
 
 export interface ThrottleCheckResult {
   shouldSend: boolean;
@@ -20,7 +23,8 @@ export class AlertThrottlerService {
       this.configService.get<string | number>('ALERT_THROTTLE_MINUTES') ??
       10;
     const minutes = Number(rawVal);
-    this.throttleMs = (isNaN(minutes) || minutes <= 0 ? 10 : minutes) * 60 * 1000;
+    this.throttleMs =
+      (isNaN(minutes) || minutes <= 0 ? 10 : minutes) * 60 * 1000;
   }
 
   /**

@@ -32,7 +32,11 @@ describe('HoroshopSyncService', () => {
       update: jest.fn().mockResolvedValue(mockTenant),
     };
 
-    service = new HoroshopSyncService(limanService, horoshopClient, tenantService);
+    service = new HoroshopSyncService(
+      limanService,
+      horoshopClient,
+      tenantService,
+    );
   });
 
   describe('syncPricesAndStocks', () => {
@@ -52,7 +56,9 @@ describe('HoroshopSyncService', () => {
         updated: 2,
       } as any);
 
-      const result = await service.syncPricesAndStocks(mockTenant, { batchSize: 100 });
+      const result = await service.syncPricesAndStocks(mockTenant, {
+        batchSize: 100,
+      });
 
       expect(result.processed).toBe(2);
       expect(result.updated).toBe(2);
@@ -75,9 +81,7 @@ describe('HoroshopSyncService', () => {
           orders: [
             {
               id: 'HORO-1001',
-              products: [
-                { article: '251', quantity: 2 },
-              ],
+              products: [{ article: '251', quantity: 2 }],
             },
           ],
         },

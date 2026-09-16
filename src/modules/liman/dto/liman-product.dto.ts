@@ -7,18 +7,30 @@ export class LimanCategoryDto {
   @ApiProperty({ example: 'Напои', description: 'Название категории' })
   name!: string;
 
-  @ApiPropertyOptional({ example: '100', description: 'Родительская категория' })
+  @ApiPropertyOptional({
+    example: '100',
+    description: 'Родительская категория',
+  })
   parent?: string | null;
 }
 
 export class LimanProductDto {
-  @ApiProperty({ example: 251, description: 'Уникальный артикул / код товара (tcod)' })
+  @ApiProperty({
+    example: 251,
+    description: 'Уникальный артикул / код товара (tcod)',
+  })
   tcod!: number;
 
-  @ApiPropertyOptional({ example: '5060466511019', description: 'Основной штрихкод (nnom)' })
+  @ApiPropertyOptional({
+    example: '5060466511019',
+    description: 'Основной штрихкод (nnom)',
+  })
   barcode?: string;
 
-  @ApiProperty({ example: 'Burn 0.25 Ж/Б Original', description: 'Наименование товара' })
+  @ApiProperty({
+    example: 'Burn 0.25 Ж/Б Original',
+    description: 'Наименование товара',
+  })
   name!: string;
 
   @ApiPropertyOptional({ example: '101', description: 'Код категории (group)' })
@@ -30,7 +42,10 @@ export class LimanProductDto {
   @ApiPropertyOptional({ example: 35.7, description: 'Цена закупки (cena1)' })
   purchasePrice?: number;
 
-  @ApiProperty({ example: 15.0, description: 'Остаток основного склада (skl_k)' })
+  @ApiProperty({
+    example: 15.0,
+    description: 'Остаток основного склада (skl_k)',
+  })
   stock!: number;
 
   @ApiProperty({ example: true, description: 'В наличии (stock > 0)' })
@@ -45,18 +60,29 @@ export class LimanProductDto {
   })
   imageUrls?: string[];
 
-  @ApiPropertyOptional({ description: 'Дополнительные штрихкоды из таблицы strihcod' })
+  @ApiPropertyOptional({
+    description: 'Дополнительные штрихкоды из таблицы strihcod',
+  })
   barcodes?: string[];
 }
 
 export class ExternalProductUpsertDto {
-  @ApiPropertyOptional({ example: '251', description: 'SKU из внешней системы' })
+  @ApiPropertyOptional({
+    example: '251',
+    description: 'SKU из внешней системы',
+  })
   sku?: string;
 
-  @ApiPropertyOptional({ example: '5060466511019', description: 'Штрихкод товара' })
+  @ApiPropertyOptional({
+    example: '5060466511019',
+    description: 'Штрихкод товара',
+  })
   barcode?: string;
 
-  @ApiProperty({ example: 'Burn 0.25 Ж/Б Original', description: 'Наименование товара' })
+  @ApiProperty({
+    example: 'Burn 0.25 Ж/Б Original',
+    description: 'Наименование товара',
+  })
   name!: string;
 
   @ApiPropertyOptional({ example: 47.0, description: 'Розничная цена (cena2)' })

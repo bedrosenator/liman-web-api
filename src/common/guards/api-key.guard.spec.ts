@@ -54,7 +54,9 @@ describe('ApiKeyGuard', () => {
     reflector.getAllAndOverride.mockReturnValue(false);
     const context = createMockContext({ headers: {} });
 
-    await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
+    await expect(guard.canActivate(context)).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('should allow access and set isMasterKey if valid master API key is provided', async () => {
@@ -175,6 +177,8 @@ describe('ApiKeyGuard', () => {
     };
     const context = createMockContext(req);
 
-    await expect(guard.canActivate(context)).rejects.toThrow('Неверный или отозванный API ключ');
+    await expect(guard.canActivate(context)).rejects.toThrow(
+      'Неверный или отозванный API ключ',
+    );
   });
 });

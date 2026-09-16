@@ -32,7 +32,9 @@ export class WooImportProcessor extends WorkerHost {
     durationMs: number;
   }> {
     const { tenantId, limit, page } = job.data;
-    this.logger.log(`⏳ [${tenantId}] Старт фонового импорта каталога WooCommerce (limit=${limit ?? 1000}, page=${page ?? 1})`);
+    this.logger.log(
+      `⏳ [${tenantId}] Старт фонового импорта каталога WooCommerce (limit=${limit ?? 1000}, page=${page ?? 1})`,
+    );
 
     const startTime = Date.now();
 
@@ -62,15 +64,22 @@ export class WooImportProcessor extends WorkerHost {
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      this.logger.error(`❌ [${tenantId}] Ошибка фонового импорта каталога WooCommerce: ${errorMsg}`, error instanceof Error ? error.stack : undefined);
+      this.logger.error(
+        `❌ [${tenantId}] Ошибка фонового импорта каталога WooCommerce: ${errorMsg}`,
+        error instanceof Error ? error.stack : undefined,
+      );
 
       void this.alertService?.sendCritical(
         'bullmq',
         `Сбой фонового импорта WooCommerce [${tenantId}]`,
         `Фоновая задача импорта каталога WooCommerce завершилась с ошибкой: ${errorMsg}`,
-        error instanceof Error ? error.stack ?? error.message : String(error),
+        error instanceof Error ? (error.stack ?? error.message) : String(error),
         tenantId,
-        { jobId: job.id, queue: QUEUE_NAMES.IMPORT_WOO_CATALOG, attemptsMade: job.attemptsMade },
+        {
+          jobId: job.id,
+          queue: QUEUE_NAMES.IMPORT_WOO_CATALOG,
+          attemptsMade: job.attemptsMade,
+        },
       );
 
       throw error;

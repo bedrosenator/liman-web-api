@@ -29,7 +29,10 @@ describe('AllExceptionsFilter', () => {
   });
 
   it('should format HttpException correctly with given status code', () => {
-    const exception = new HttpException('Bad Request Sample', HttpStatus.BAD_REQUEST);
+    const exception = new HttpException(
+      'Bad Request Sample',
+      HttpStatus.BAD_REQUEST,
+    );
 
     filter.catch(exception, mockArgumentsHost);
 
@@ -52,12 +55,16 @@ describe('AllExceptionsFilter', () => {
 
     filter.catch(exception, mockArgumentsHost);
 
-    expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+    expect(mockResponse.status).toHaveBeenCalledWith(
+      HttpStatus.INTERNAL_SERVER_ERROR,
+    );
     expect(mockResponse.json).toHaveBeenCalledWith(
       expect.objectContaining({
         success: false,
         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-        error: { message: 'Внутренняя ошибка сервера. Обратитесь к администратору.' },
+        error: {
+          message: 'Внутренняя ошибка сервера. Обратитесь к администратору.',
+        },
       }),
     );
 
@@ -72,7 +79,9 @@ describe('AllExceptionsFilter', () => {
 
     filter.catch(exception, mockArgumentsHost);
 
-    expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+    expect(mockResponse.status).toHaveBeenCalledWith(
+      HttpStatus.INTERNAL_SERVER_ERROR,
+    );
     expect(mockResponse.json).toHaveBeenCalledWith(
       expect.objectContaining({
         success: false,

@@ -8,7 +8,8 @@ const WOO_CHUNK_SIZE = 50; // WooCommerce batch max 100, используем 50
 
 export type SyncStatus = 'idle' | 'running' | 'completed' | 'error';
 
-export type SyncPhase = 'init' | 'checking_existing' | 'syncing' | 'completed' | 'error';
+export type SyncPhase =
+  'init' | 'checking_existing' | 'syncing' | 'completed' | 'error';
 
 export interface SyncProgressState {
   tenantId: string;
@@ -135,11 +136,16 @@ export class WoocommerceSyncService {
   async syncFullCatalog(
     tenant: Tenant,
     baseUrl: string,
-    options?: { limit?: number; onProgress?: (current: number, total: number) => void },
+    options?: {
+      limit?: number;
+      onProgress?: (current: number, total: number) => void;
+    },
   ): Promise<{ synced: number; errors: number; durationMs: number }> {
     const startTime = Date.now();
     const totalCount = await this.limanService.getProductCount(tenant);
-    const targetTotal = options?.limit ? Math.min(options.limit, totalCount) : totalCount;
+    const targetTotal = options?.limit
+      ? Math.min(options.limit, totalCount)
+      : totalCount;
 
     const state: SyncProgressState = {
       tenantId: tenant.id,
@@ -207,12 +213,19 @@ export class WoocommerceSyncService {
             `Ошибка пакетного обновления товаров (стр. ${page}): ${err instanceof Error ? err.message : String(err)}`,
             err instanceof Error ? err.stack : undefined,
             tenant.id,
-            { page, chunkSize: wooProducts.length, targetUrl: tenant.woocommerceUrl },
+            {
+              page,
+              chunkSize: wooProducts.length,
+              targetUrl: tenant.woocommerceUrl,
+            },
           );
         }
 
         const processed = synced + errors;
-        const pct = targetTotal > 0 ? Math.min(100, Math.round((processed / targetTotal) * 100)) : 100;
+        const pct =
+          targetTotal > 0
+            ? Math.min(100, Math.round((processed / targetTotal) * 100))
+            : 100;
         state.phase = 'syncing';
         state.current = processed;
         state.synced = synced;
@@ -270,7 +283,11 @@ export class WoocommerceSyncService {
     const skuMap = await this.wooClient.getSkuToIdMap(tenant);
 
     for (let page = 1; page <= pages; page++) {
-      const { items } = await this.limanService.getProducts(tenant, { page, limit: WOO_CHUNK_SIZE, baseUrl });
+      const { items } = await this.limanService.getProducts(tenant, {
+        page,
+        limit: WOO_CHUNK_SIZE,
+        baseUrl,
+      });
       if (!items.length) break;
 
       const wooUpdates: WooProduct[] = items.map((p) => ({

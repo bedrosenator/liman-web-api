@@ -2,7 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { Response } from 'express';
 import { LimanService } from '../liman/liman.service';
 import { Tenant } from '../tenant/tenant.entity';
-import { escapeXml, wrapCdata, formatYmlDate } from '../../common/utils/xml.utils';
+import {
+  escapeXml,
+  wrapCdata,
+  formatYmlDate,
+} from '../../common/utils/xml.utils';
 
 /**
  * Сервис генерации XML-фида для Rozetka Marketplace
@@ -24,10 +28,12 @@ export class RozetkaFeedService {
    * Потоковая отдача XML-фида для Rozetka
    * GET /api/v1/rozetka/:tenantId/feed.xml
    */
-  async streamFeed(tenant: Tenant, baseUrl: string, res: Response): Promise<void> {
-    this.logger.log(
-      `📡 [${tenant.id}] Начало генерации Rozetka XML фида...`,
-    );
+  async streamFeed(
+    tenant: Tenant,
+    baseUrl: string,
+    res: Response,
+  ): Promise<void> {
+    this.logger.log(`📡 [${tenant.id}] Начало генерации Rozetka XML фида...`);
 
     const dateStr = formatYmlDate();
     const shopName = escapeXml(tenant.name);
@@ -139,9 +145,7 @@ export class RozetkaFeedService {
         res.write(
           `        <param name="Наявність">${item.isAvailable ? 'В наявності' : 'Немає в наявності'}</param>\n`,
         );
-        res.write(
-          `        <param name="Кількість">${stockQty}</param>\n`,
-        );
+        res.write(`        <param name="Кількість">${stockQty}</param>\n`);
         if (item.barcode) {
           res.write(
             `        <param name="Штрихкод">${escapeXml(item.barcode)}</param>\n`,

@@ -23,7 +23,10 @@ export class HoroshopFeedController {
       'Этот URL указывается в админ-панели Хорошоп в настройках регулярного импорта фида.',
   })
   @ApiParam({ name: 'tenantId', example: 'columb' })
-  @ApiResponse({ status: 200, description: 'XML фид каталога (application/xml)' })
+  @ApiResponse({
+    status: 200,
+    description: 'XML фид каталога (application/xml)',
+  })
   async getFeed(
     @Param('tenantId') tenantId: string,
     @Req() req: Request,

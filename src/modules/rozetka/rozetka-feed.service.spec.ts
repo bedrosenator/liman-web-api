@@ -56,7 +56,10 @@ describe('RozetkaFeedService', () => {
             isAvailable: true,
             categoryGroup: '101',
             barcode: '482000000001',
-            imageUrls: ['https://example.com/img1.jpg', 'https://example.com/img2.jpg'],
+            imageUrls: [
+              'https://example.com/img1.jpg',
+              'https://example.com/img2.jpg',
+            ],
             description: '<p>Special description</p>',
           },
         ],
@@ -91,7 +94,10 @@ describe('RozetkaFeedService', () => {
 
     await service.streamFeed(mockTenant, 'http://localhost:3000', mockRes);
 
-    expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Type', 'application/xml; charset=utf-8');
+    expect(mockRes.setHeader).toHaveBeenCalledWith(
+      'Content-Type',
+      'application/xml; charset=utf-8',
+    );
     expect(mockRes.setHeader).toHaveBeenCalledWith(
       'Content-Disposition',
       'inline; filename="rozetka_feed_columb.xml"',
@@ -108,7 +114,9 @@ describe('RozetkaFeedService', () => {
 
     // Categories
     expect(fullXml).toContain('<category id="10">Electronics</category>');
-    expect(fullXml).toContain('<category id="101" parentId="10">Smartphones</category>');
+    expect(fullXml).toContain(
+      '<category id="101" parentId="10">Smartphones</category>',
+    );
 
     // Offer
     expect(fullXml).toContain('<offer id="1001" available="true">');
@@ -119,8 +127,12 @@ describe('RozetkaFeedService', () => {
     expect(fullXml).toContain('<vendor>Columb Shop</vendor>');
     expect(fullXml).toContain('<stock_quantity>15</stock_quantity>');
     expect(fullXml).toContain('<vendorCode>482000000001</vendorCode>');
-    expect(fullXml).toContain('<picture>https://example.com/img1.jpg</picture>');
-    expect(fullXml).toContain('<picture>https://example.com/img2.jpg</picture>');
+    expect(fullXml).toContain(
+      '<picture>https://example.com/img1.jpg</picture>',
+    );
+    expect(fullXml).toContain(
+      '<picture>https://example.com/img2.jpg</picture>',
+    );
     expect(fullXml).toContain('<![CDATA[<p>Special description</p>]]>');
     expect(fullXml).toContain('<param name="Наявність">В наявності</param>');
     expect(fullXml).toContain('<param name="Кількість">15</param>');

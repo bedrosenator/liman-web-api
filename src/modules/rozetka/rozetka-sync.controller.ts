@@ -64,7 +64,10 @@ export class RozetkaSyncController {
       'батчами по 100 товаров через официальный endpoint PUT /items/mass-update.',
   })
   @ApiParam({ name: 'tenantId', example: 'columb' })
-  @ApiResponse({ status: 202, description: 'Синхронизация завершена, результат в теле ответа' })
+  @ApiResponse({
+    status: 202,
+    description: 'Синхронизация завершена, результат в теле ответа',
+  })
   async syncPricesStocks(
     @Param('tenantId') tenantId: string,
     @Req() req: Request,
@@ -109,7 +112,8 @@ export class RozetkaSyncController {
    */
   @Post('webhook/order')
   @ApiOperation({
-    summary: 'Webhook новых заказов от Rozetka (автоматическое списание остатка)',
+    summary:
+      'Webhook новых заказов от Rozetka (автоматическое списание остатка)',
     description:
       'Принимает уведомления о заказах Rozetka. ' +
       'Для каждой позиции заказа уменьшает остаток в name2ost в базе Limansoft.',
@@ -144,7 +148,12 @@ export class RozetkaSyncController {
     @Body()
     payload: {
       order_id?: number;
-      items?: Array<{ article?: string; quantity?: number; title?: string; price?: number }>;
+      items?: Array<{
+        article?: string;
+        quantity?: number;
+        title?: string;
+        price?: number;
+      }>;
       products?: Array<{ article?: string; quantity?: number }>;
     },
   ) {
@@ -170,7 +179,11 @@ export class RozetkaSyncController {
 
       if (!isNaN(tcod) && tcod > 0 && qty > 0) {
         try {
-          const deduction = await this.limanService.deductStock(tenant, tcod, qty);
+          const deduction = await this.limanService.deductStock(
+            tenant,
+            tcod,
+            qty,
+          );
           results.push({
             tcod,
             requestedQty: qty,

@@ -22,7 +22,12 @@ export interface RozetkaOrderSyncResult {
   errors: number;
   orders: Array<{
     orderId: number;
-    items: Array<{ tcod: number; qty: number; oldStock: number; newStock: number }>;
+    items: Array<{
+      tcod: number;
+      qty: number;
+      oldStock: number;
+      newStock: number;
+    }>;
   }>;
 }
 
@@ -92,7 +97,10 @@ export class RozetkaSyncService {
         itemsSynced += result.updated;
         errors += result.errorsCount;
       } catch (err) {
-        this.logger.error(`❌ [${tenant.id}] Ошибка mass-update (стр. ${page}):`, err);
+        this.logger.error(
+          `❌ [${tenant.id}] Ошибка mass-update (стр. ${page}):`,
+          err,
+        );
         errors += massUpdateItems.length;
 
         void this.alertService?.sendCritical(
@@ -134,14 +142,18 @@ export class RozetkaSyncService {
 
     try {
       // Ищем заказы со статусом 1 (Новые)
-      const newOrders = await this.rozetkaClient.searchOrders(tenant, { status: 1 });
+      const newOrders = await this.rozetkaClient.searchOrders(tenant, {
+        status: 1,
+      });
 
       if (!newOrders.length) {
         this.logger.log(`ℹ️ [${tenant.id}] Новых заказов Rozetka не найдено`);
         return result;
       }
 
-      this.logger.log(`📥 [${tenant.id}] Найдено новых заказов: ${newOrders.length}`);
+      this.logger.log(
+        `📥 [${tenant.id}] Найдено новых заказов: ${newOrders.length}`,
+      );
 
       for (const orderSummary of newOrders) {
         try {
@@ -173,7 +185,11 @@ export class RozetkaSyncService {
 
             if (!isNaN(tcod) && tcod > 0 && qty > 0) {
               try {
-                const deduction = await this.limanService.deductStock(tenant, tcod, qty);
+                const deduction = await this.limanService.deductStock(
+                  tenant,
+                  tcod,
+                  qty,
+                );
                 deductedList.push({
                   tcod,
                   qty,
@@ -214,7 +230,10 @@ export class RozetkaSyncService {
         }
       }
     } catch (err) {
-      this.logger.error(`❌ [${tenant.id}] Ошибка синхронизации заказов Rozetka:`, err);
+      this.logger.error(
+        `❌ [${tenant.id}] Ошибка синхронизации заказов Rozetka:`,
+        err,
+      );
       result.errors++;
     }
 

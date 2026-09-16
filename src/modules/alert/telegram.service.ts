@@ -22,9 +22,9 @@ export class TelegramService {
 
     this.isConfigured = Boolean(
       this.botToken &&
-        this.chatId &&
-        this.botToken !== 'mock' &&
-        this.botToken !== 'YOUR_BOT_TOKEN',
+      this.chatId &&
+      this.botToken !== 'mock' &&
+      this.botToken !== 'YOUR_BOT_TOKEN',
     );
 
     if (!this.isConfigured) {
@@ -59,7 +59,11 @@ export class TelegramService {
       ? `<b>[Tenant: ${this.escapeHtml(payload.tenantId)}]</b> `
       : '<b>[System]</b> ';
 
-    const timeStr = (payload.timestamp || new Date()).toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
+    const timeStr =
+      (payload.timestamp || new Date())
+        .toISOString()
+        .replace('T', ' ')
+        .substring(0, 19) + ' UTC';
 
     let html = `${icon} <b>[${payload.level}]</b> ${tenantTag}<b>${this.escapeHtml(payload.title)}</b>\n\n`;
     html += `🕒 <b>Время:</b> <code>${timeStr}</code>\n`;
@@ -117,7 +121,9 @@ export class TelegramService {
       return { success: true };
     } catch (err: any) {
       const errorMsg = err.response?.data?.description || err.message;
-      this.logger.error(`❌ Не удалось отправить алерт в Telegram: ${errorMsg}`);
+      this.logger.error(
+        `❌ Не удалось отправить алерт в Telegram: ${errorMsg}`,
+      );
       return { success: false, error: errorMsg };
     }
   }

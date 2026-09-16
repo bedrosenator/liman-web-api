@@ -42,7 +42,9 @@ export class WoocommerceImportService {
   /**
    * Скачать фотографии товара по публичным URL из WooCommerce
    */
-  private async downloadImages(images?: Array<{ src: string }>): Promise<Buffer[]> {
+  private async downloadImages(
+    images?: Array<{ src: string }>,
+  ): Promise<Buffer[]> {
     if (!images || !images.length) return [];
 
     const buffers: Buffer[] = [];
@@ -59,7 +61,9 @@ export class WoocommerceImportService {
           buffers.push(Buffer.from(res.data));
         }
       } catch (err) {
-        this.logger.warn(`⚠️ Не удалось скачать фото ${img.src}: ${err instanceof Error ? err.message : err}`);
+        this.logger.warn(
+          `⚠️ Не удалось скачать фото ${img.src}: ${err instanceof Error ? err.message : err}`,
+        );
       }
     }
 
@@ -90,7 +94,10 @@ export class WoocommerceImportService {
   /**
    * Импортировать один товар из WooCommerce в Limansoft MariaDB
    */
-  async importProduct(tenant: Tenant, wooProduct: WooProduct): Promise<SingleProductImportResult> {
+  async importProduct(
+    tenant: Tenant,
+    wooProduct: WooProduct,
+  ): Promise<SingleProductImportResult> {
     const productId = wooProduct.id;
     const productName = (wooProduct.name || `Woo Product #${productId}`).trim();
 
@@ -101,7 +108,9 @@ export class WoocommerceImportService {
       // 2. Извлекаем цену и остаток
       const rawPrice = wooProduct.regular_price || (wooProduct as any).price;
       const price = rawPrice ? parseFloat(String(rawPrice)) : undefined;
-      const stock = wooProduct.manage_stock ? (wooProduct.stock_quantity ?? 0) : undefined;
+      const stock = wooProduct.manage_stock
+        ? (wooProduct.stock_quantity ?? 0)
+        : undefined;
       const categoryName = wooProduct.categories?.[0]?.name;
       const barcode = this.extractBarcode(wooProduct);
 
@@ -113,17 +122,27 @@ export class WoocommerceImportService {
         price: price !== undefined && !isNaN(price) ? price : 0,
         stock: stock !== undefined && !isNaN(stock) ? stock : 0,
         categoryName,
-        description: wooProduct.description || wooProduct.short_description || undefined,
+        description:
+          wooProduct.description || wooProduct.short_description || undefined,
         photos,
       };
 
       // 4. Выполняем атомарный Upsert в MariaDB
-      const result = await this.limanService.upsertProductFromExternal(tenant, upsertData);
+      const result = await this.limanService.upsertProductFromExternal(
+        tenant,
+        upsertData,
+      );
 
       // 5. Замыкаем цикл: если товар был новым без SKU или со строковым SKU — обновляем SKU в WooCommerce на полученный tcod
       let skuUpdated = false;
-      const isNumericSku = wooProduct.sku && !isNaN(parseInt(wooProduct.sku, 10));
-      if (productId && (!wooProduct.sku || !isNumericSku || parseInt(wooProduct.sku, 10) !== result.tcod)) {
+      const isNumericSku =
+        wooProduct.sku && !isNaN(parseInt(wooProduct.sku, 10));
+      if (
+        productId &&
+        (!wooProduct.sku ||
+          !isNumericSku ||
+          parseInt(wooProduct.sku, 10) !== result.tcod)
+      ) {
         try {
           await this.wooClient.updateProductById(tenant, productId, {
             sku: String(result.tcod),
@@ -149,7 +168,10 @@ export class WoocommerceImportService {
       };
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
-      this.logger.error(`❌ [${tenant.id}] Ошибка импорта товара #${productId} ("${productName}"):`, err);
+      this.logger.error(
+        `❌ [${tenant.id}] Ошибка импорта товара #${productId} ("${productName}"):`,
+        err,
+      );
 
       void this.alertService?.sendCritical(
         'woocommerce',
@@ -171,7 +193,10 @@ export class WoocommerceImportService {
   /**
    * Импортировать товар по WooCommerce ID
    */
-  async importProductById(tenant: Tenant, productId: number): Promise<SingleProductImportResult> {
+  async importProductById(
+    tenant: Tenant,
+    productId: number,
+  ): Promise<SingleProductImportResult> {
     const wooProduct = await this.wooClient.getProductById(tenant, productId);
     if (!wooProduct) {
       return {
@@ -203,9 +228,16 @@ export class WoocommerceImportService {
     let created = 0;
     let updated = 0;
     let errors = 0;
-    const items: Array<{ id?: number; tcod?: number; name?: string; action?: string }> = [];
+    const items: Array<{
+      id?: number;
+      tcod?: number;
+      name?: string;
+      action?: string;
+    }> = [];
 
-    this.logger.log(`📥 [${tenant.id}] Старт пакетного импорта товаров из WooCommerce (${tenant.woocommerceUrl})`);
+    this.logger.log(
+      `📥 [${tenant.id}] Старт пакетного импорта товаров из WooCommerce (${tenant.woocommerceUrl})`,
+    );
 
     const MAX_REPORT_ITEMS = 200;
     let itemsTruncated = false;
@@ -218,7 +250,9 @@ export class WoocommerceImportService {
       try {
         products = await this.wooClient.getProducts(tenant, page, chunkSize);
       } catch (err) {
-        this.logger.error(`Ошибка загрузки страницы ${page} из WooCommerce: ${err}`);
+        this.logger.error(
+          `Ошибка загрузки страницы ${page} из WooCommerce: ${err}`,
+        );
         break;
       }
 

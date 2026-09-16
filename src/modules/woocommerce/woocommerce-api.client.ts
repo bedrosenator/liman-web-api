@@ -64,7 +64,11 @@ export class WoocommerceApiClient {
    * @returns AxiosInstance, настроенный на endpoint /wp-json/wc/v3
    */
   private createClient(tenant: Tenant): AxiosInstance {
-    if (!tenant.woocommerceUrl || !tenant.woocommerceConsumerKey || !tenant.woocommerceConsumerSecret) {
+    if (
+      !tenant.woocommerceUrl ||
+      !tenant.woocommerceConsumerKey ||
+      !tenant.woocommerceConsumerSecret
+    ) {
       throw new NotFoundException(
         `Тенант "${tenant.id}" не имеет настроек WooCommerce. Укажите woocommerceUrl, woocommerceConsumerKey и woocommerceConsumerSecret.`,
       );
@@ -104,16 +108,24 @@ export class WoocommerceApiClient {
     return client;
   }
 
-  private readonly skuMapCache = new Map<string, { map: Map<string, number>; expiresAt: number }>();
+  private readonly skuMapCache = new Map<
+    string,
+    { map: Map<string, number>; expiresAt: number }
+  >();
   private static readonly SKU_MAP_TTL_MS = 10 * 60 * 1000; // 10 минут
 
   /**
    * Получить карту всех существующих SKU -> WooCommerce ID с кэшированием в памяти
    */
-  async getSkuToIdMap(tenant: Tenant, forceRefresh = false): Promise<Map<string, number>> {
+  async getSkuToIdMap(
+    tenant: Tenant,
+    forceRefresh = false,
+  ): Promise<Map<string, number>> {
     const cached = this.skuMapCache.get(tenant.id);
     if (!forceRefresh && cached && cached.expiresAt > Date.now()) {
-      this.logger.log(`🔍 [${tenant.id}] Использован кэш SKU map (${cached.map.size} товаров)`);
+      this.logger.log(
+        `🔍 [${tenant.id}] Использован кэш SKU map (${cached.map.size} товаров)`,
+      );
       return cached.map;
     }
 
@@ -142,7 +154,9 @@ export class WoocommerceApiClient {
         if (items.length < 100) break;
         page++;
       } catch (err) {
-        this.logger.warn(`Не удалось загрузить страницу ${page} для SKU map: ${err}`);
+        this.logger.warn(
+          `Не удалось загрузить страницу ${page} для SKU map: ${err}`,
+        );
         break;
       }
     }
@@ -152,7 +166,9 @@ export class WoocommerceApiClient {
       expiresAt: Date.now() + WoocommerceApiClient.SKU_MAP_TTL_MS,
     });
 
-    this.logger.log(`🔍 [${tenant.id}] Найдено ${skuMap.size} товаров с SKU в WooCommerce (сохранено в кэш)`);
+    this.logger.log(
+      `🔍 [${tenant.id}] Найдено ${skuMap.size} товаров с SKU в WooCommerce (сохранено в кэш)`,
+    );
     return skuMap;
   }
 
@@ -170,7 +186,8 @@ export class WoocommerceApiClient {
     const toUpdate: WooProduct[] = [];
 
     for (const p of products) {
-      const existingId = p.id ?? (p.sku && skuMap ? skuMap.get(p.sku) : undefined);
+      const existingId =
+        p.id ?? (p.sku && skuMap ? skuMap.get(p.sku) : undefined);
       if (existingId) {
         toUpdate.push({ ...p, id: existingId });
       } else {
@@ -201,7 +218,9 @@ export class WoocommerceApiClient {
     } catch (error) {
       this.logger.error(
         `❌ WooCommerce batch upsert ошибка [${tenant.id}]:`,
-        axios.isAxiosError(error) ? (error.response?.data ?? error.message) : error,
+        axios.isAxiosError(error)
+          ? (error.response?.data ?? error.message)
+          : error,
       );
       throw error;
     }
@@ -223,10 +242,15 @@ export class WoocommerceApiClient {
   /**
    * Найти товар по SKU (наш tcod)
    */
-  async getProductBySku(tenant: Tenant, sku: string): Promise<WooProduct | null> {
+  async getProductBySku(
+    tenant: Tenant,
+    sku: string,
+  ): Promise<WooProduct | null> {
     const client = this.createClient(tenant);
     try {
-      const response = await client.get('/products', { params: { sku, per_page: 1 } });
+      const response = await client.get('/products', {
+        params: { sku, per_page: 1 },
+      });
       const products = response.data as WooProduct[];
       return products.length > 0 ? products[0] : null;
     } catch {
@@ -243,7 +267,9 @@ export class WoocommerceApiClient {
       const response = await client.get(`/products/${id}`);
       return response.data as WooProduct;
     } catch (err) {
-      this.logger.warn(`Не удалось загрузить товар ID=${id} из WooCommerce: ${err}`);
+      this.logger.warn(
+        `Не удалось загрузить товар ID=${id} из WooCommerce: ${err}`,
+      );
       return null;
     }
   }
@@ -270,7 +296,11 @@ export class WoocommerceApiClient {
   /**
    * Получить список заказов
    */
-  async getOrders(tenant: Tenant, status?: string, perPage = 10): Promise<WooOrder[]> {
+  async getOrders(
+    tenant: Tenant,
+    status?: string,
+    perPage = 10,
+  ): Promise<WooOrder[]> {
     const client = this.createClient(tenant);
     const params: Record<string, string | number> = { per_page: perPage };
     if (status) params.status = status;
@@ -281,11 +311,13 @@ export class WoocommerceApiClient {
   /**
    * Проверить подключение к WooCommerce
    */
-  async testConnection(tenant: Tenant): Promise<{ success: boolean; version?: string; message: string }> {
+  async testConnection(
+    tenant: Tenant,
+  ): Promise<{ success: boolean; version?: string; message: string }> {
     try {
       const client = this.createClient(tenant);
       const response = await client.get('/system_status');
-      const version = (response.data as any)?.environment?.version ?? 'unknown';
+      const version = response.data?.environment?.version ?? 'unknown';
       return {
         success: true,
         version,

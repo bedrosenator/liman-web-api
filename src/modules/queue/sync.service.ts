@@ -1,7 +1,11 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
-import { QUEUE_NAMES, SyncStockJobData, ImportWooCatalogJobData } from './queue.constants';
+import {
+  QUEUE_NAMES,
+  SyncStockJobData,
+  ImportWooCatalogJobData,
+} from './queue.constants';
 import { TenantService } from '../tenant/tenant.service';
 
 @Injectable()
@@ -18,7 +22,9 @@ export class SyncService {
 
   async triggerStockSync(tenantId: string, targetPlatform: 'prom' = 'prom') {
     const tenant = await this.tenantService.findOne(tenantId);
-    this.logger.log(`📥 Постановка в очередь BullMQ задачи синхронизации остатков для [${tenant.id}]`);
+    this.logger.log(
+      `📥 Постановка в очередь BullMQ задачи синхронизации остатков для [${tenant.id}]`,
+    );
 
     const job = await this.stockQueue.add(
       'sync-stock-job',
@@ -49,7 +55,8 @@ export class SyncService {
   async getJobStatus(queueName: string, jobId: string) {
     let queue: Queue | null = null;
     if (queueName === QUEUE_NAMES.SYNC_STOCK) queue = this.stockQueue;
-    if (queueName === QUEUE_NAMES.IMPORT_WOO_CATALOG) queue = this.wooImportQueue as unknown as Queue;
+    if (queueName === QUEUE_NAMES.IMPORT_WOO_CATALOG)
+      queue = this.wooImportQueue;
 
     if (!queue) {
       throw new NotFoundException(`Очередь "${queueName}" не поддерживается`);
@@ -57,7 +64,9 @@ export class SyncService {
 
     const job = await queue.getJob(jobId);
     if (!job) {
-      throw new NotFoundException(`Задача с ID "${jobId}" не найдена в очереди "${queueName}"`);
+      throw new NotFoundException(
+        `Задача с ID "${jobId}" не найдена в очереди "${queueName}"`,
+      );
     }
 
     const state = await job.getState();

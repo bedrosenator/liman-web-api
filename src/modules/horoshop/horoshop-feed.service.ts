@@ -2,7 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { Response } from 'express';
 import { LimanService } from '../liman/liman.service';
 import { Tenant } from '../tenant/tenant.entity';
-import { escapeXml, wrapCdata, formatYmlDate } from '../../common/utils/xml.utils';
+import {
+  escapeXml,
+  wrapCdata,
+  formatYmlDate,
+} from '../../common/utils/xml.utils';
 
 /**
  * Сервис генерации потокового XML/YML фида для магазина на платформе Хорошоп
@@ -17,7 +21,11 @@ export class HoroshopFeedService {
    * Потоковая отдача XML-фида для Хорошоп
    * GET /api/v1/horoshop/:tenantId/feed.xml
    */
-  async streamFeed(tenant: Tenant, baseUrl: string, res: Response): Promise<void> {
+  async streamFeed(
+    tenant: Tenant,
+    baseUrl: string,
+    res: Response,
+  ): Promise<void> {
     this.logger.log(`📡 [${tenant.id}] Начало генерации Хорошоп XML фида...`);
 
     const dateStr = formatYmlDate();
@@ -45,7 +53,9 @@ export class HoroshopFeedService {
     const categories = await this.limanService.getCategories(tenant);
     res.write('    <categories>\n');
     for (const cat of categories) {
-      const parentAttr = cat.parent ? ` parentId="${escapeXml(cat.parent)}"` : '';
+      const parentAttr = cat.parent
+        ? ` parentId="${escapeXml(cat.parent)}"`
+        : '';
       res.write(
         `      <category id="${escapeXml(cat.group)}"${parentAttr}>${escapeXml(cat.name)}</category>\n`,
       );
@@ -77,22 +87,30 @@ export class HoroshopFeedService {
             : `${baseUrl}/api/v1/media/${tenant.id}/products/${product.tcod}/0.jpg`;
         const price = product.price > 0 ? product.price : 0.01;
 
-        res.write(`      <offer id="${product.tcod}" available="${available}">\n`);
+        res.write(
+          `      <offer id="${product.tcod}" available="${available}">\n`,
+        );
         res.write(`        <name>${escapeXml(product.name)}</name>\n`);
         res.write(`        <price>${price.toFixed(2)}</price>\n`);
         res.write('        <currencyId>UAH</currencyId>\n');
 
         if (product.categoryGroup) {
-          res.write(`        <categoryId>${escapeXml(product.categoryGroup)}</categoryId>\n`);
+          res.write(
+            `        <categoryId>${escapeXml(product.categoryGroup)}</categoryId>\n`,
+          );
         }
 
         res.write(`        <picture>${escapeXml(photoUrl)}</picture>\n`);
         res.write(`        <vendorCode>${product.tcod}</vendorCode>\n`);
         res.write(`        <article>${product.tcod}</article>\n`);
-        res.write(`        <stock_quantity>${Math.max(0, Math.floor(product.stock))}</stock_quantity>\n`);
+        res.write(
+          `        <stock_quantity>${Math.max(0, Math.floor(product.stock))}</stock_quantity>\n`,
+        );
 
         if (product.barcode) {
-          res.write(`        <barcode>${escapeXml(product.barcode)}</barcode>\n`);
+          res.write(
+            `        <barcode>${escapeXml(product.barcode)}</barcode>\n`,
+          );
         }
 
         const desc = product.description || product.name;

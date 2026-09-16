@@ -58,7 +58,9 @@ export class TenantConnectionManager implements OnApplicationShutdown {
     return pool;
   }
 
-  async testConnection(tenant: Tenant): Promise<{ success: boolean; message: string; pingMs?: number }> {
+  async testConnection(
+    tenant: Tenant,
+  ): Promise<{ success: boolean; message: string; pingMs?: number }> {
     const startTime = Date.now();
     try {
       const pool = this.getPool(tenant);
@@ -72,7 +74,8 @@ export class TenantConnectionManager implements OnApplicationShutdown {
         pingMs,
       };
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Ошибка соединения с БД';
+      const errorMsg =
+        error instanceof Error ? error.message : 'Ошибка соединения с БД';
       this.logger.error(
         `❌ Ошибка подключения к MariaDB тенанта "${tenant.id}":`,
         error instanceof Error ? error.message : error,
@@ -105,7 +108,9 @@ export class TenantConnectionManager implements OnApplicationShutdown {
   }
 
   async onApplicationShutdown() {
-    this.logger.log('🛑 Закрытие всех пулов соединений с базами данных клиентов...');
+    this.logger.log(
+      '🛑 Закрытие всех пулов соединений с базами данных клиентов...',
+    );
     for (const [tenantId, pool] of this.pools.entries()) {
       try {
         await pool.end();

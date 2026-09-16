@@ -1,5 +1,11 @@
 import { Controller, Get, Param, Query, Req, Res } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiParam, ApiQuery, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 import { RozetkaFeedService } from './rozetka-feed.service';
@@ -28,7 +34,8 @@ export class RozetkaFeedController {
   @ApiQuery({
     name: 'baseUrl',
     required: false,
-    description: 'Кастомный публичный URL для ссылок на картинки (например, https://my-domain.com)',
+    description:
+      'Кастомный публичный URL для ссылок на картинки (например, https://my-domain.com)',
   })
   @ApiResponse({ status: 200, description: 'XML фид (application/xml)' })
   async getFeed(
@@ -45,4 +52,3 @@ export class RozetkaFeedController {
     await this.feedService.streamFeed(tenant, baseUrl, res);
   }
 }
-

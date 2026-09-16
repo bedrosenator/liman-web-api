@@ -29,7 +29,9 @@ describe('AlertService', () => {
         {
           provide: WebhookService,
           useValue: {
-            sendAlert: jest.fn().mockResolvedValue({ success: true, skipped: true }),
+            sendAlert: jest
+              .fn()
+              .mockResolvedValue({ success: true, skipped: true }),
           },
         },
       ],
@@ -102,7 +104,11 @@ describe('AlertService', () => {
       suppressedCount: 0,
     });
 
-    await alertService.sendWarning('rozetka', 'Low stock', 'Item 123 has 1 left');
+    await alertService.sendWarning(
+      'rozetka',
+      'Low stock',
+      'Item 123 has 1 left',
+    );
     expect(telegramService.sendAlert).toHaveBeenCalledWith(
       expect.objectContaining({
         level: 'WARNING',
@@ -111,7 +117,11 @@ describe('AlertService', () => {
       0,
     );
 
-    await alertService.sendInfo('woocommerce', 'Sync finished', '10 items updated');
+    await alertService.sendInfo(
+      'woocommerce',
+      'Sync finished',
+      '10 items updated',
+    );
     expect(telegramService.sendAlert).toHaveBeenCalledWith(
       expect.objectContaining({
         level: 'INFO',

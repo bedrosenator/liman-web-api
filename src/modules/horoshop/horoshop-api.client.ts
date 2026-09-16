@@ -28,7 +28,9 @@ export class HoroshopApiClient {
    * Базовый URL API конкретного тенанта
    */
   private getBaseUrl(tenant: Tenant): string {
-    const raw = (tenant.horoshopDomain || '').replace(/^https?:\/\//, '').replace(/\/+$/, '');
+    const raw = (tenant.horoshopDomain || '')
+      .replace(/^https?:\/\//, '')
+      .replace(/\/+$/, '');
     return `https://${raw}/api`;
   }
 
@@ -52,17 +54,26 @@ export class HoroshopApiClient {
       },
     };
 
+    const body =
+      typeof data === 'object' && data !== null ? { token, ...data } : data;
+
     try {
-      const response = await this.http.post<T>(url, data, config);
+      const response = await this.http.post<T>(url, body, config);
       return response.data;
     } catch (error: any) {
       if (error.response?.status === 401 && retryOn401) {
-        this.logger.warn(`[${tenant.id}] 401 Unauthorized от Horoshop API. Обновляем токен и повторяем...`);
+        this.logger.warn(
+          `[${tenant.id}] 401 Unauthorized от Horoshop API. Обновляем токен и повторяем...`,
+        );
         this.authService.clearToken(tenant.id);
         const newToken = await this.authService.getToken(tenant, true);
         config.headers!['Authorization'] = `Bearer ${newToken}`;
         config.headers!['X-Auth-Token'] = newToken;
-        const retryResponse = await this.http.post<T>(url, data, config);
+        const retryBody =
+          typeof data === 'object' && data !== null
+            ? { token: newToken, ...data }
+            : data;
+        const retryResponse = await this.http.post<T>(url, retryBody, config);
         return retryResponse.data;
       }
 
@@ -74,7 +85,8 @@ export class HoroshopApiClient {
       );
 
       throw new HttpException(
-        responseData?.message || `Ошибка Horoshop API (${status}): ${error.message}`,
+        responseData?.message ||
+          `Ошибка Horoshop API (${status}): ${error.message}`,
         status,
       );
     }
@@ -167,12 +179,14 @@ export class HoroshopApiClient {
       products: items.map((item) => ({
         article: String(item.article),
         price: item.price,
-        remains: item.stock,
-        presence: item.stock > 0,
+        quantity: Math.max(0, item.stock),
+        presence: item.stock > 0 ? 1 : 2,
       })),
     };
 
-    this.logger.log(`📤 [${tenant.id}] Отправка ${items.length} позиций в Horoshop API (/catalog/import/)`);
+    this.logger.log(
+      `📤 [${tenant.id}] Отправка ${items.length} позиций в Horoshop API (/catalog/import/)`,
+    );
     const response = await this.request(tenant, 'catalog/import/', payload);
 
     return {
@@ -190,7 +204,9 @@ export class HoroshopApiClient {
     filter: { date_from?: string; status?: string; limit?: number } = {},
   ): Promise<any> {
     if (this.isMockMode(tenant)) {
-      this.logger.log(`🧪 [${tenant.id}] MOCK: симуляция получения заказов из Хорошоп`);
+      this.logger.log(
+        `🧪 [${tenant.id}] MOCK: симуляция получения заказов из Хорошоп`,
+      );
       return {
         status: 'OK',
         response: {

@@ -73,9 +73,13 @@ describe('WoocommerceController', () => {
 
   describe('handleProductWebhook', () => {
     it('should return 200 with error message when tenant is not found (anti-loop protection for WordPress)', async () => {
-      tenantService.findOne.mockRejectedValueOnce(new NotFoundException('Tenant not found'));
+      tenantService.findOne.mockRejectedValueOnce(
+        new NotFoundException('Tenant not found'),
+      );
 
-      const response = await controller.handleProductWebhook('unknown-tenant', { product_id: 123 });
+      const response = await controller.handleProductWebhook('unknown-tenant', {
+        product_id: 123,
+      });
 
       expect(response).toEqual({
         success: false,
@@ -109,7 +113,10 @@ describe('WoocommerceController', () => {
       });
 
       expect(tenantService.findOne).toHaveBeenCalledWith('columb');
-      expect(importService.importProductById).toHaveBeenCalledWith(mockTenant, 456);
+      expect(importService.importProductById).toHaveBeenCalledWith(
+        mockTenant,
+        456,
+      );
       expect(response).toEqual({
         tenantId: 'columb',
         success: true,

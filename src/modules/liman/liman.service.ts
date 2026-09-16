@@ -2,7 +2,11 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import mysql from 'mysql2/promise';
 import { Tenant } from '../tenant/tenant.entity';
 import { TenantConnectionManager } from './tenant-connection-manager.service';
-import { LimanCategoryDto, LimanProductDto, ExternalProductUpsertDto } from './dto/liman-product.dto';
+import {
+  LimanCategoryDto,
+  LimanProductDto,
+  ExternalProductUpsertDto,
+} from './dto/liman-product.dto';
 
 interface RawCategoryRow extends mysql.RowDataPacket {
   group: string;
@@ -58,14 +62,14 @@ export const NAMEDESC_PHOTO_COLUMNS = [
 export class LimanService {
   private readonly logger = new Logger(LimanService.name);
 
-  constructor(
-    private readonly connectionManager: TenantConnectionManager,
-  ) {}
+  constructor(private readonly connectionManager: TenantConnectionManager) {}
 
   /**
    * Проверить доступность MariaDB базы данных тенанта
    */
-  async ping(tenant: Tenant): Promise<{ success: boolean; message: string; pingMs?: number }> {
+  async ping(
+    tenant: Tenant,
+  ): Promise<{ success: boolean; message: string; pingMs?: number }> {
     return this.connectionManager.testConnection(tenant);
   }
 
@@ -95,7 +99,10 @@ export class LimanService {
   /**
    * Защита от SQL-инъекций через динамические имена колонок (Identifier Whitelist/Sanitization)
    */
-  private sanitizeIdentifier(name: string | undefined | null, fallback: string): string {
+  private sanitizeIdentifier(
+    name: string | undefined | null,
+    fallback: string,
+  ): string {
     if (!name || typeof name !== 'string') return fallback;
     const clean = name.trim();
     // Разрешаем только латинские буквы, цифры и знак подчеркивания длиной от 1 до 32 символов
@@ -118,13 +125,17 @@ export class LimanService {
    */
   async getProductCount(
     tenant: Tenant,
-    options?: { search?: string; categoryGroup?: string; onlyInStock?: boolean },
+    options?: {
+      search?: string;
+      categoryGroup?: string;
+      onlyInStock?: boolean;
+    },
   ): Promise<number> {
     const pool = this.connectionManager.getPool(tenant);
     const stockCol = this.sanitizeIdentifier(tenant.stockColumn, 'skl_k');
     const params: (string | number)[] = [];
     const whereClauses: string[] = [
-      '(n2.del IS NULL OR n2.del != \'t\')',
+      "(n2.del IS NULL OR n2.del != 't')",
       'n2.tcod IS NOT NULL',
       'n2.tcod > 0',
       "(n2.name IS NOT NULL AND n2.name != '')",
@@ -142,7 +153,9 @@ export class LimanService {
       whereClauses.push(`COALESCE(ost.\`${stockCol}\`, 0) > 0`);
     }
 
-    const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
+    const whereSql = whereClauses.length
+      ? `WHERE ${whereClauses.join(' AND ')}`
+      : '';
 
     const [rows] = await pool.query<mysql.RowDataPacket[]>(
       `SELECT COUNT(*) as total 
@@ -169,7 +182,12 @@ export class LimanService {
       onlyInStock?: boolean;
       baseUrl?: string;
     },
-  ): Promise<{ items: LimanProductDto[]; total: number; page: number; limit: number }> {
+  ): Promise<{
+    items: LimanProductDto[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const pool = this.connectionManager.getPool(tenant);
     const page = Math.max(1, options.page ?? 1);
     const limit = Math.min(500, Math.max(1, options.limit ?? 50));
@@ -179,7 +197,7 @@ export class LimanService {
     const stockCol = this.sanitizeIdentifier(tenant.stockColumn, 'skl_k');
 
     const whereClauses: string[] = [
-      '(n2.del IS NULL OR n2.del != \'t\')',
+      "(n2.del IS NULL OR n2.del != 't')",
       'n2.tcod IS NOT NULL',
       'n2.tcod > 0',
       "(n2.name IS NOT NULL AND n2.name != '')",
@@ -202,7 +220,9 @@ export class LimanService {
       whereClauses.push(`COALESCE(ost.\`${stockCol}\`, 0) > 0`);
     }
 
-    const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
+    const whereSql = whereClauses.length
+      ? `WHERE ${whereClauses.join(' AND ')}`
+      : '';
 
     const total = await this.getProductCount(tenant, options);
 
@@ -237,11 +257,26 @@ export class LimanService {
 
     const items: LimanProductDto[] = rows.map((r) => {
       const imageUrls: string[] = [];
-      if (r.has_photo1) imageUrls.push(`${baseUrl}/api/v1/media/${tenant.id}/products/${r.tcod}/1.jpg`);
-      if (r.has_photo2) imageUrls.push(`${baseUrl}/api/v1/media/${tenant.id}/products/${r.tcod}/2.jpg`);
-      if (r.has_photo3) imageUrls.push(`${baseUrl}/api/v1/media/${tenant.id}/products/${r.tcod}/3.jpg`);
-      if (r.has_photo4) imageUrls.push(`${baseUrl}/api/v1/media/${tenant.id}/products/${r.tcod}/4.jpg`);
-      if (r.has_photo5) imageUrls.push(`${baseUrl}/api/v1/media/${tenant.id}/products/${r.tcod}/5.jpg`);
+      if (r.has_photo1)
+        imageUrls.push(
+          `${baseUrl}/api/v1/media/${tenant.id}/products/${r.tcod}/1.jpg`,
+        );
+      if (r.has_photo2)
+        imageUrls.push(
+          `${baseUrl}/api/v1/media/${tenant.id}/products/${r.tcod}/2.jpg`,
+        );
+      if (r.has_photo3)
+        imageUrls.push(
+          `${baseUrl}/api/v1/media/${tenant.id}/products/${r.tcod}/3.jpg`,
+        );
+      if (r.has_photo4)
+        imageUrls.push(
+          `${baseUrl}/api/v1/media/${tenant.id}/products/${r.tcod}/4.jpg`,
+        );
+      if (r.has_photo5)
+        imageUrls.push(
+          `${baseUrl}/api/v1/media/${tenant.id}/products/${r.tcod}/5.jpg`,
+        );
 
       let descriptionText: string | undefined = undefined;
       if (r.description) {
@@ -276,7 +311,11 @@ export class LimanService {
   /**
    * Получить один товар по артикулу tcod
    */
-  async getProductByTcod(tenant: Tenant, tcod: number, baseUrl?: string): Promise<LimanProductDto> {
+  async getProductByTcod(
+    tenant: Tenant,
+    tcod: number,
+    baseUrl?: string,
+  ): Promise<LimanProductDto> {
     const pool = this.connectionManager.getPool(tenant);
     const priceCol = this.sanitizeIdentifier(tenant.priceColumn, 'cena2');
     const stockCol = this.sanitizeIdentifier(tenant.stockColumn, 'skl_k');
@@ -306,28 +345,49 @@ export class LimanService {
     );
 
     if (!rows.length) {
-      throw new NotFoundException(`Товар с кодом ${tcod} не найден в БД Limansoft`);
+      throw new NotFoundException(
+        `Товар с кодом ${tcod} не найден в БД Limansoft`,
+      );
     }
 
     const r = rows[0];
     const originUrl = baseUrl ?? 'http://localhost:3000';
     const imageUrls: string[] = [];
-    if (r.has_photo1) imageUrls.push(`${originUrl}/api/v1/media/${tenant.id}/products/${r.tcod}/1.jpg`);
-    if (r.has_photo2) imageUrls.push(`${originUrl}/api/v1/media/${tenant.id}/products/${r.tcod}/2.jpg`);
-    if (r.has_photo3) imageUrls.push(`${originUrl}/api/v1/media/${tenant.id}/products/${r.tcod}/3.jpg`);
-    if (r.has_photo4) imageUrls.push(`${originUrl}/api/v1/media/${tenant.id}/products/${r.tcod}/4.jpg`);
-    if (r.has_photo5) imageUrls.push(`${originUrl}/api/v1/media/${tenant.id}/products/${r.tcod}/5.jpg`);
+    if (r.has_photo1)
+      imageUrls.push(
+        `${originUrl}/api/v1/media/${tenant.id}/products/${r.tcod}/1.jpg`,
+      );
+    if (r.has_photo2)
+      imageUrls.push(
+        `${originUrl}/api/v1/media/${tenant.id}/products/${r.tcod}/2.jpg`,
+      );
+    if (r.has_photo3)
+      imageUrls.push(
+        `${originUrl}/api/v1/media/${tenant.id}/products/${r.tcod}/3.jpg`,
+      );
+    if (r.has_photo4)
+      imageUrls.push(
+        `${originUrl}/api/v1/media/${tenant.id}/products/${r.tcod}/4.jpg`,
+      );
+    if (r.has_photo5)
+      imageUrls.push(
+        `${originUrl}/api/v1/media/${tenant.id}/products/${r.tcod}/5.jpg`,
+      );
 
     // Получить штрихкоды из strihcod
     const [barcodeRows] = await pool.query<mysql.RowDataPacket[]>(
       'SELECT nnom FROM `strihcod` WHERE tcod = ?',
       [tcod],
     );
-    const extraBarcodes = barcodeRows.map((b) => String(b.nnom).trim()).filter(Boolean);
+    const extraBarcodes = barcodeRows
+      .map((b) => String(b.nnom).trim())
+      .filter(Boolean);
 
     let descText: string | undefined = undefined;
     if (r.description) {
-      descText = Buffer.isBuffer(r.description) ? r.description.toString('utf8') : String(r.description);
+      descText = Buffer.isBuffer(r.description)
+        ? r.description.toString('utf8')
+        : String(r.description);
     }
 
     const stock = Number(r.stock ?? 0);
@@ -388,13 +448,27 @@ export class LimanService {
     let mimeType = 'image/jpeg';
     if (buffer.length > 4) {
       // PNG: 89 50 4E 47
-      if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) {
+      if (
+        buffer[0] === 0x89 &&
+        buffer[1] === 0x50 &&
+        buffer[2] === 0x4e &&
+        buffer[3] === 0x47
+      ) {
         mimeType = 'image/png';
-      // GIF: 47 49 46
-      } else if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46) {
+        // GIF: 47 49 46
+      } else if (
+        buffer[0] === 0x47 &&
+        buffer[1] === 0x49 &&
+        buffer[2] === 0x46
+      ) {
         mimeType = 'image/gif';
-      // WebP (RIFF): 52 49 46 46
-      } else if (buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46) {
+        // WebP (RIFF): 52 49 46 46
+      } else if (
+        buffer[0] === 0x52 &&
+        buffer[1] === 0x49 &&
+        buffer[2] === 0x46 &&
+        buffer[3] === 0x46
+      ) {
         mimeType = 'image/webp';
       }
     }
@@ -420,7 +494,12 @@ export class LimanService {
     tenant: Tenant,
     tcod: number,
     newStock: number,
-  ): Promise<{ success: boolean; tcod: number; oldStock: number; newStock: number }> {
+  ): Promise<{
+    success: boolean;
+    tcod: number;
+    oldStock: number;
+    newStock: number;
+  }> {
     const pool = this.connectionManager.getPool(tenant);
     const stockCol = this.sanitizeIdentifier(tenant.stockColumn, 'skl_k');
 
@@ -474,7 +553,13 @@ export class LimanService {
     tenant: Tenant,
     tcod: number,
     quantity: number,
-  ): Promise<{ success: boolean; tcod: number; oldStock: number; newStock: number; deducted: number }> {
+  ): Promise<{
+    success: boolean;
+    tcod: number;
+    oldStock: number;
+    newStock: number;
+    deducted: number;
+  }> {
     const pool = this.connectionManager.getPool(tenant);
     const stockCol = this.sanitizeIdentifier(tenant.stockColumn, 'skl_k');
 
@@ -583,7 +668,9 @@ export class LimanService {
   ): Promise<string> {
     const pool = this.connectionManager.getPool(tenant);
     if (categoryGroup && categoryGroup.trim()) {
-      return categoryGroup.trim().substring(0, LIMAN_LIMITS.CATEGORY_GROUP_MAX_LEN);
+      return categoryGroup
+        .trim()
+        .substring(0, LIMAN_LIMITS.CATEGORY_GROUP_MAX_LEN);
     }
     if (categoryName && categoryName.trim()) {
       const [rows] = await pool.query<mysql.RowDataPacket[]>(
@@ -614,7 +701,9 @@ export class LimanService {
     description?: string,
   ): Promise<void> {
     const descBuffer = description ? Buffer.from(description, 'utf8') : null;
-    const photoSlots = NAMEDESC_PHOTO_COLUMNS.map((_, i) => photos?.[i] ?? null);
+    const photoSlots = NAMEDESC_PHOTO_COLUMNS.map(
+      (_, i) => photos?.[i] ?? null,
+    );
 
     const [rows] = await conn.query<mysql.RowDataPacket[]>(
       'SELECT `index` FROM `namedesc` WHERE tcod = ? LIMIT 1',
@@ -640,11 +729,18 @@ export class LimanService {
 
       if (updates.length > 0) {
         params.push(tcod);
-        await conn.query(`UPDATE \`namedesc\` SET ${updates.join(', ')} WHERE tcod = ?`, params);
+        await conn.query(
+          `UPDATE \`namedesc\` SET ${updates.join(', ')} WHERE tcod = ?`,
+          params,
+        );
       }
     } else {
-      const columns = ['tcod', ...NAMEDESC_PHOTO_COLUMNS, 'description'].map((c) => `\`${c}\``).join(', ');
-      const placeholders = Array(NAMEDESC_PHOTO_COLUMNS.length + 2).fill('?').join(', ');
+      const columns = ['tcod', ...NAMEDESC_PHOTO_COLUMNS, 'description']
+        .map((c) => `\`${c}\``)
+        .join(', ');
+      const placeholders = Array(NAMEDESC_PHOTO_COLUMNS.length + 2)
+        .fill('?')
+        .join(', ');
 
       await conn.query(
         `INSERT INTO \`namedesc\` (${columns}) VALUES (${placeholders})`,
@@ -669,7 +765,10 @@ export class LimanService {
       [tcod, clean],
     );
     if (rows.length === 0) {
-      await conn.query('INSERT INTO `strihcod` (tcod, nnom) VALUES (?, ?)', [tcod, clean]);
+      await conn.query('INSERT INTO `strihcod` (tcod, nnom) VALUES (?, ?)', [
+        tcod,
+        clean,
+      ]);
     }
   }
 
@@ -729,7 +828,10 @@ export class LimanService {
     }
 
     updateParams.push(tcod);
-    await conn.query(`UPDATE \`name2\` SET ${updateFields.join(', ')} WHERE tcod = ?`, updateParams);
+    await conn.query(
+      `UPDATE \`name2\` SET ${updateFields.join(', ')} WHERE tcod = ?`,
+      updateParams,
+    );
   }
 
   /**
@@ -757,15 +859,25 @@ export class LimanService {
         nextTcod = Number(maxRows[0]?.nextTcod ?? 1);
 
         await conn.query(
-          `INSERT INTO \`name2\` (tcod, name, \`group\`, cena1, cena2, nnom, del, vid, date)
-           VALUES (?, ?, ?, ?, ?, ?, NULL, 0, ?)`,
-          [nextTcod, name, categoryGroup, purchasePrice, retailPrice, barcode || null, currentDate],
+          `INSERT INTO \`name2\` (tcod, name, \`group\`, cena1, cena2, nnom, del, date)
+           VALUES (?, ?, ?, ?, ?, ?, NULL, ?)`,
+          [
+            nextTcod,
+            name,
+            categoryGroup,
+            purchasePrice,
+            retailPrice,
+            barcode || null,
+            currentDate,
+          ],
         );
         return nextTcod;
       } catch (err: any) {
         retries--;
         if (err?.code === 'ER_DUP_ENTRY' && retries > 0) {
-          this.logger.warn(`⚠️ Конфликт tcod=${nextTcod}, повтор попытки (осталось ${retries})...`);
+          this.logger.warn(
+            `⚠️ Конфликт tcod=${nextTcod}, повтор попытки (осталось ${retries})...`,
+          );
           continue;
         }
         throw err;
@@ -825,10 +937,20 @@ export class LimanService {
     const pool = this.connectionManager.getPool(tenant);
     const existingTcod = await this.resolveExistingProductTcod(tenant, data);
 
-    const categoryGroup = await this.resolveCategoryGroup(tenant, data.categoryGroup, data.categoryName);
+    const categoryGroup = await this.resolveCategoryGroup(
+      tenant,
+      data.categoryGroup,
+      data.categoryName,
+    );
     const currentDate = new Date().toISOString().slice(0, 10);
-    const truncatedName = (data.name || 'Товар без названия').trim().substring(0, LIMAN_LIMITS.NAME_MAX_LEN);
-    const barcode = (data.barcode || (data.sku && isNaN(Number(data.sku)) ? data.sku : '') || '')
+    const truncatedName = (data.name || 'Товар без названия')
+      .trim()
+      .substring(0, LIMAN_LIMITS.NAME_MAX_LEN);
+    const barcode = (
+      data.barcode ||
+      (data.sku && isNaN(Number(data.sku)) ? data.sku : '') ||
+      ''
+    )
       .trim()
       .substring(0, LIMAN_LIMITS.BARCODE_MAX_LEN);
 
@@ -842,12 +964,31 @@ export class LimanService {
       if (existingTcod) {
         tcod = existingTcod;
         action = 'updated';
-        await this.updateProductMaster(conn, tenant, tcod, truncatedName, categoryGroup, barcode, data);
-        this.logger.log(`🔄 [${tenant.id}] Обновлен товар tcod=${tcod} ("${truncatedName}")`);
+        await this.updateProductMaster(
+          conn,
+          tenant,
+          tcod,
+          truncatedName,
+          categoryGroup,
+          barcode,
+          data,
+        );
+        this.logger.log(
+          `🔄 [${tenant.id}] Обновлен товар tcod=${tcod} ("${truncatedName}")`,
+        );
       } else {
         action = 'created';
-        tcod = await this.insertProductMaster(conn, truncatedName, categoryGroup, barcode, currentDate, data);
-        this.logger.log(`✨ [${tenant.id}] Создан новый товар tcod=${tcod} ("${truncatedName}")`);
+        tcod = await this.insertProductMaster(
+          conn,
+          truncatedName,
+          categoryGroup,
+          barcode,
+          currentDate,
+          data,
+        );
+        this.logger.log(
+          `✨ [${tenant.id}] Создан новый товар tcod=${tcod} ("${truncatedName}")`,
+        );
       }
 
       // Единая точка синхронизации зависимых таблиц (DRY)

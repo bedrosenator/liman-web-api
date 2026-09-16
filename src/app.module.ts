@@ -15,6 +15,7 @@ import { WoocommerceModule } from './modules/woocommerce/woocommerce.module';
 import { RozetkaModule } from './modules/rozetka/rozetka.module';
 import { HoroshopModule } from './modules/horoshop/horoshop.module';
 import { AlertModule } from './modules/alert/alert.module';
+import { BackupModule } from './modules/backup/backup.module';
 import { ApiKeyGuard } from './common/guards/api-key.guard';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 
@@ -52,6 +53,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
     RozetkaModule,
     HoroshopModule,
     AlertModule,
+    BackupModule,
   ],
   controllers: [AppController],
   providers: [

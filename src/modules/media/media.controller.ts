@@ -1,11 +1,4 @@
-import {
-  Controller,
-  Get,
-  Param,
-  Res,
-  Req,
-  ParseIntPipe,
-} from '@nestjs/common';
+import { Controller, Get, Param, Res, Req, ParseIntPipe } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
 import type { Response, Request } from 'express';
 import crypto from 'node:crypto';
@@ -50,8 +43,15 @@ export class MediaController {
   })
   @ApiParam({ name: 'tenantId', example: 'columb' })
   @ApiParam({ name: 'tcod', example: 251 })
-  @ApiParam({ name: 'photoIndex', example: 1, description: 'Номер фото от 1 до 5' })
-  @ApiResponse({ status: 200, description: 'Бинарное изображение (JPEG / PNG / WEBP)' })
+  @ApiParam({
+    name: 'photoIndex',
+    example: 1,
+    description: 'Номер фото от 1 до 5',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Бинарное изображение (JPEG / PNG / WEBP)',
+  })
   @ApiResponse({ status: 304, description: 'Не изменялось (ETag match)' })
   async getProductPhoto(
     @Param('tenantId') tenantId: string,
@@ -87,10 +87,7 @@ export class MediaController {
     }
 
     // Рассчитываем ETag
-    const hash = crypto
-      .createHash('md5')
-      .update(result.data)
-      .digest('hex');
+    const hash = crypto.createHash('md5').update(result.data).digest('hex');
     const etag = `"${hash}"`;
 
     if (req.headers['if-none-match'] === etag) {

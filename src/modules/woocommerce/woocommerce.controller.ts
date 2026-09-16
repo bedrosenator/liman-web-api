@@ -11,7 +11,14 @@ import {
   HttpStatus,
   Optional,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiParam, ApiBody, ApiResponse, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiParam,
+  ApiBody,
+  ApiResponse,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import type { Request } from 'express';
@@ -41,7 +48,9 @@ export class WoocommerceController {
   ) {}
 
   @Get('ping')
-  @ApiOperation({ summary: 'Проверить подключение к WooCommerce магазину тенанта' })
+  @ApiOperation({
+    summary: 'Проверить подключение к WooCommerce магазину тенанта',
+  })
   @ApiParam({ name: 'tenantId', example: 'columb' })
   async ping(@Param('tenantId') tenantId: string) {
     const tenant = await this.tenantService.findOne(tenantId);
@@ -49,7 +58,9 @@ export class WoocommerceController {
   }
 
   @Get('sync/status')
-  @ApiOperation({ summary: 'Получить текущий статус и прогресс синхронизации каталога' })
+  @ApiOperation({
+    summary: 'Получить текущий статус и прогресс синхронизации каталога',
+  })
   @ApiParam({ name: 'tenantId', example: 'columb' })
   getSyncStatus(@Param('tenantId') tenantId: string) {
     return this.syncService.getSyncStatus(tenantId);
@@ -66,19 +77,22 @@ export class WoocommerceController {
   @ApiQuery({
     name: 'limit',
     required: false,
-    description: 'Ограничить количество выгружаемых товаров (например, 10 или 50 для проверки).',
+    description:
+      'Ограничить количество выгружаемых товаров (например, 10 или 50 для проверки).',
     example: 50,
   })
   @ApiQuery({
     name: 'async',
     required: false,
-    description: 'Запустить асинхронно в фоне (по умолчанию true для полного каталога)',
+    description:
+      'Запустить асинхронно в фоне (по умолчанию true для полного каталога)',
     example: 'true',
   })
   @ApiQuery({
     name: 'imageBaseUrl',
     required: false,
-    description: 'Базовый URL для ссылок на изображения (переопределяет авто-определение из request.host). Нужен если WooCommerce в Docker и API на хосте.',
+    description:
+      'Базовый URL для ссылок на изображения (переопределяет авто-определение из request.host). Нужен если WooCommerce в Docker и API на хосте.',
     example: 'http://172.20.0.1:3000',
   })
   @ApiResponse({ status: 202, description: 'Синхронизация запущена' })
@@ -92,15 +106,21 @@ export class WoocommerceController {
     const tenant = await this.tenantService.findOne(tenantId);
     const baseUrl = imageBaseUrl ?? `${req.protocol}://${req.get('host')}`;
     const limitNum = limit ? parseInt(limit, 10) : undefined;
-    const isAsync = asyncParam === 'false' ? false : (!limitNum || limitNum > 100);
+    const isAsync =
+      asyncParam === 'false' ? false : !limitNum || limitNum > 100;
 
     if (isAsync) {
       // Фоновый запуск: не подвешивает HTTP-соединение WordPress / cURL
       setImmediate(async () => {
         try {
-          await this.syncService.syncFullCatalog(tenant, baseUrl, { limit: limitNum });
+          await this.syncService.syncFullCatalog(tenant, baseUrl, {
+            limit: limitNum,
+          });
         } catch (err) {
-          this.logger.error(`❌ [${tenantId}] Сбой фоновой синхронизации в WooCommerce:`, err);
+          this.logger.error(
+            `❌ [${tenantId}] Сбой фоновой синхронизации в WooCommerce:`,
+            err,
+          );
         }
       });
 
@@ -109,12 +129,15 @@ export class WoocommerceController {
         tenantId,
         target: tenant.woocommerceUrl,
         imageBaseUrl: baseUrl,
-        message: 'Синхронізація повного каталогу успішно запущена у фоновому режимі',
+        message:
+          'Синхронізація повного каталогу успішно запущена у фоновому режимі',
         async: true,
       };
     }
 
-    const result = await this.syncService.syncFullCatalog(tenant, baseUrl, { limit: limitNum });
+    const result = await this.syncService.syncFullCatalog(tenant, baseUrl, {
+      limit: limitNum,
+    });
 
     return {
       success: true,
@@ -129,7 +152,8 @@ export class WoocommerceController {
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({
     summary: 'Синхронизировать только цены и остатки в WooCommerce',
-    description: 'Быстрое обновление stock_quantity и regular_price без полного пересоздания товаров.',
+    description:
+      'Быстрое обновление stock_quantity и regular_price без полного пересоздания товаров.',
   })
   @ApiParam({ name: 'tenantId', example: 'columb' })
   async syncStock(@Param('tenantId') tenantId: string, @Req() req: Request) {
@@ -149,7 +173,8 @@ export class WoocommerceController {
   @Public()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Вебхук: приём заказа из WooCommerce → мгновенное списание остатка в Limansoft',
+    summary:
+      'Вебхук: приём заказа из WooCommerce → мгновенное списание остатка в Limansoft',
     description:
       'Плагин WooCommerce отправляет этот запрос при оформлении заказа. Остатки списываются из name2ost и фиксируется источник "woocommerce".',
   })
@@ -204,7 +229,11 @@ export class WoocommerceController {
 
       if (!isNaN(tcod) && tcod > 0 && qty > 0) {
         try {
-          const deduction = await this.limanService.deductStock(tenant, tcod, qty);
+          const deduction = await this.limanService.deductStock(
+            tenant,
+            tcod,
+            qty,
+          );
           results.push({
             tcod,
             productName: item.name ?? `tcod: ${tcod}`,
@@ -213,7 +242,10 @@ export class WoocommerceController {
             newStock: deduction.newStock,
           });
         } catch (err) {
-          this.logger.error(`Не удалось списать остаток для tcod=${tcod}:`, err);
+          this.logger.error(
+            `Не удалось списать остаток для tcod=${tcod}:`,
+            err,
+          );
           void this.alertService?.sendCritical(
             'woocommerce',
             `Ошибка списания остатка WooCommerce [${tenantId}]`,
@@ -238,7 +270,8 @@ export class WoocommerceController {
   @Post('import/products')
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({
-    summary: 'Запустить пакетный импорт каталога WooCommerce → Limansoft MariaDB (Pull, async)',
+    summary:
+      'Запустить пакетный импорт каталога WooCommerce → Limansoft MariaDB (Pull, async)',
     description:
       'Ставит задачу в очередь BullMQ и возвращает jobId немедленно. Для отслеживания прогресса — GET /sync/jobs/import-woo-catalog/:jobId.',
   })
@@ -255,7 +288,10 @@ export class WoocommerceController {
     description: 'Начальная страница пагинации WooCommerce (по умолчанию 1)',
     example: 1,
   })
-  @ApiResponse({ status: 202, description: 'Задача импорта поставлена в очередь, возвращён jobId' })
+  @ApiResponse({
+    status: 202,
+    description: 'Задача импорта поставлена в очередь, возвращён jobId',
+  })
   async importCatalog(
     @Param('tenantId') tenantId: string,
     @Query('limit') limit?: string,
@@ -278,7 +314,9 @@ export class WoocommerceController {
       },
     );
 
-    this.logger.log(`📥 [${tenantId}] Задача импорта WooCommerce каталога поставлена в очередь: jobId=${job.id}`);
+    this.logger.log(
+      `📥 [${tenantId}] Задача импорта WooCommerce каталога поставлена в очередь: jobId=${job.id}`,
+    );
 
     return {
       success: true,
@@ -294,7 +332,8 @@ export class WoocommerceController {
   @Public()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Вебхук: приём нового или изменённого товара из WordPress плагина (Push)',
+    summary:
+      'Вебхук: приём нового или изменённого товара из WordPress плагина (Push)',
     description:
       'Вызывается плагином limansoft-sync при хуках woocommerce_new_product / woocommerce_update_product. Загружает карточку, скачивает медиа и обновляет MariaDB.',
   })
@@ -325,15 +364,24 @@ export class WoocommerceController {
     try {
       tenant = await this.tenantService.findOne(tenantId);
     } catch {
-      this.logger.warn(`⚠️ Вебхук товара #${productId}: тенант "${tenantId}" не найден`);
-      return { success: false, tenantId, message: `Тенант "${tenantId}" не найден` };
+      this.logger.warn(
+        `⚠️ Вебхук товара #${productId}: тенант "${tenantId}" не найден`,
+      );
+      return {
+        success: false,
+        tenantId,
+        message: `Тенант "${tenantId}" не найден`,
+      };
     }
 
     this.logger.log(
       `📦 [${tenantId}] Вебхук товара #${productId} (${payload?.event || 'update'}) из WooCommerce`,
     );
 
-    const result = await this.importService.importProductById(tenant, productId);
+    const result = await this.importService.importProductById(
+      tenant,
+      productId,
+    );
 
     return {
       tenantId,

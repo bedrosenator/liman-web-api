@@ -1,7 +1,10 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import { LimanService } from '../liman/liman.service';
 import { Tenant } from '../tenant/tenant.entity';
-import { HoroshopApiClient, HoroshopStockPriceItem } from './horoshop-api.client';
+import {
+  HoroshopApiClient,
+  HoroshopStockPriceItem,
+} from './horoshop-api.client';
 import { TenantService } from '../tenant/tenant.service';
 import { AlertService } from '../alert/alert.service';
 
@@ -33,7 +36,9 @@ export class HoroshopSyncService {
     const batchSize = options.batchSize || 100;
     const errors: string[] = [];
 
-    this.logger.log(`🚀 [${tenant.id}] Начало синхронизации остатков и цен в Хорошоп...`);
+    this.logger.log(
+      `🚀 [${tenant.id}] Начало синхронизации остатков и цен в Хорошоп...`,
+    );
 
     let page = 1;
     let processed = 0;
@@ -145,7 +150,9 @@ export class HoroshopSyncService {
     }>;
   }> {
     const statusFilter = options.status || 'new';
-    this.logger.log(`📥 [${tenant.id}] Опрос заказов Хорошоп (статус: ${statusFilter})...`);
+    this.logger.log(
+      `📥 [${tenant.id}] Опрос заказов Хорошоп (статус: ${statusFilter})...`,
+    );
 
     const ordersResponse = await this.horoshopClient.getOrders(tenant, {
       status: statusFilter,
@@ -171,7 +178,9 @@ export class HoroshopSyncService {
       if (!orderId) continue;
 
       if (!this.markOrderProcessed(tenant.id, orderId)) {
-        this.logger.log(`⏭️ [${tenant.id}] Заказ №${orderId} уже был списан ранее. Пропускаем.`);
+        this.logger.log(
+          `⏭️ [${tenant.id}] Заказ №${orderId} уже был списан ранее. Пропускаем.`,
+        );
         skippedOrders++;
         continue;
       }
@@ -184,7 +193,11 @@ export class HoroshopSyncService {
 
         if (!isNaN(tcod) && tcod > 0 && qty > 0) {
           try {
-            const deduction = await this.limanService.deductStock(tenant, tcod, qty);
+            const deduction = await this.limanService.deductStock(
+              tenant,
+              tcod,
+              qty,
+            );
 
             itemsDeducted.push({
               orderId,

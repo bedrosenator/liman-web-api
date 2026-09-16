@@ -15,12 +15,28 @@ export class TestAlertDto {
 
   @ApiPropertyOptional({
     description: 'Источник сбоя',
-    enum: ['mariadb', 'bullmq', 'prom', 'rozetka', 'woocommerce', 'horoshop', 'system'],
+    enum: [
+      'mariadb',
+      'bullmq',
+      'prom',
+      'rozetka',
+      'woocommerce',
+      'horoshop',
+      'system',
+    ],
     default: 'system',
     example: 'system',
   })
   @IsOptional()
-  @IsEnum(['mariadb', 'bullmq', 'prom', 'rozetka', 'woocommerce', 'horoshop', 'system'])
+  @IsEnum([
+    'mariadb',
+    'bullmq',
+    'prom',
+    'rozetka',
+    'woocommerce',
+    'horoshop',
+    'system',
+  ])
   source?: AlertSource = 'system';
 
   @ApiPropertyOptional({

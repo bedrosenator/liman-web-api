@@ -1,5 +1,10 @@
 import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiSecurity } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiSecurity,
+} from '@nestjs/swagger';
 import { AlertService } from './alert.service';
 import { AlertThrottlerService } from './alert-throttler.service';
 import { TestAlertDto } from './dto/test-alert.dto';
@@ -30,7 +35,8 @@ export class AlertController {
       source: dto.source || 'system',
       tenantId: dto.tenantId || 'columb',
       title: dto.title || 'Тестовый сигнал системы мониторинга',
-      message: dto.message || 'Проверка доставки уведомлений в Telegram и Webhook',
+      message:
+        dto.message || 'Проверка доставки уведомлений в Telegram и Webhook',
       errorDetails: dto.errorDetails,
       timestamp: new Date(),
     });
@@ -45,7 +51,8 @@ export class AlertController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Сбросить кэш троттлинга алертов',
-    description: 'Сбрасывает все временные счетчики подавления дубликатов для тестирования.',
+    description:
+      'Сбрасывает все временные счетчики подавления дубликатов для тестирования.',
   })
   @ApiResponse({
     status: 200,

@@ -1,5 +1,11 @@
 import { Controller, Post, Get, Param, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiParam, ApiQuery, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { SyncService } from './sync.service';
 
 @ApiTags('Sync Jobs')
@@ -9,10 +15,16 @@ export class SyncJobsController {
 
   @Post(':tenantId/stock')
   @ApiOperation({
-    summary: 'Запустить фоновую синхронизацию остатков и цен через очередь BullMQ',
+    summary:
+      'Запустить фоновую синхронизацию остатков и цен через очередь BullMQ',
   })
   @ApiParam({ name: 'tenantId', example: 'columb' })
-  @ApiQuery({ name: 'platform', required: false, example: 'prom', enum: ['prom', 'rozetka', 'woocommerce'] })
+  @ApiQuery({
+    name: 'platform',
+    required: false,
+    example: 'prom',
+    enum: ['prom', 'rozetka', 'woocommerce'],
+  })
   @ApiResponse({ status: 202, description: 'Задача поставлена в очередь' })
   async triggerStockSync(
     @Param('tenantId') tenantId: string,

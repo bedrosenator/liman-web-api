@@ -45,7 +45,9 @@ export class WebhookService {
         timeout: 5000,
       });
 
-      this.logger.log(`🌐 Алерт успешно отправлен на Webhook: ${this.webhookUrl}`);
+      this.logger.log(
+        `🌐 Алерт успешно отправлен на Webhook: ${this.webhookUrl}`,
+      );
       return { success: true };
     } catch (err: any) {
       const errorMsg = err.response?.data || err.message;

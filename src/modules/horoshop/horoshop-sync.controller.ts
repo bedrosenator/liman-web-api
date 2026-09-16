@@ -67,7 +67,8 @@ export class HoroshopSyncController {
   @ApiQuery({
     name: 'limit',
     required: false,
-    description: 'Ограничить количество обрабатываемых товаров (для тестирования)',
+    description:
+      'Ограничить количество обрабатываемых товаров (для тестирования)',
     example: 50,
   })
   @ApiResponse({ status: 202, description: 'Синхронизация завершена' })
@@ -78,7 +79,9 @@ export class HoroshopSyncController {
     const tenant = await this.tenantService.findOne(tenantId);
     const limit = limitStr ? parseInt(limitStr, 10) : undefined;
 
-    const result = await this.syncService.syncPricesAndStocks(tenant, { limit });
+    const result = await this.syncService.syncPricesAndStocks(tenant, {
+      limit,
+    });
 
     return {
       success: true,
@@ -94,7 +97,8 @@ export class HoroshopSyncController {
   @Get('orders')
   @ApiOperation({
     summary: 'Получить список заказов из Хорошоп',
-    description: 'Запрашивает список заказов через /api/orders/get/ магазина Хорошоп.',
+    description:
+      'Запрашивает список заказов через /api/orders/get/ магазина Хорошоп.',
   })
   @ApiParam({ name: 'tenantId', example: 'columb' })
   @ApiQuery({ name: 'status', required: false, example: 'new' })
@@ -117,7 +121,8 @@ export class HoroshopSyncController {
   @Post('sync/orders')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Опрос новых заказов Хорошоп и списание остатков (Polling для тарифов без вебхуков)',
+    summary:
+      'Опрос новых заказов Хорошоп и списание остатков (Polling для тарифов без вебхуков)',
     description:
       'Запрашивает новые заказы через /api/orders/get/ Хорошоп. Для каждого нового заказа с дедупликацией ' +
       'уменьшает остаток товаров в базе данных Limansoft (name2ost). Заказы, списанные ранее, повторно не списываются.',
@@ -167,7 +172,11 @@ export class HoroshopSyncController {
           items: {
             type: 'object',
             properties: {
-              article: { type: 'string', example: '251', description: 'tcod товара в Limansoft' },
+              article: {
+                type: 'string',
+                example: '251',
+                description: 'tcod товара в Limansoft',
+              },
               quantity: { type: 'number', example: 1 },
               price: { type: 'number', example: 150 },
             },
@@ -186,8 +195,13 @@ export class HoroshopSyncController {
     this.logger.log(`🛒 [${tenantId}] Вебхук заказа Хорошоп №${orderId}`);
 
     // Проверяем дедупликацию, если ID известен
-    if (orderId !== 'N/A' && !this.syncService.markOrderProcessed(tenantId, orderId)) {
-      this.logger.log(`⏭️ [${tenantId}] Вебхук: заказ №${orderId} уже был списан ранее.`);
+    if (
+      orderId !== 'N/A' &&
+      !this.syncService.markOrderProcessed(tenantId, orderId)
+    ) {
+      this.logger.log(
+        `⏭️ [${tenantId}] Вебхук: заказ №${orderId} уже был списан ранее.`,
+      );
       return {
         success: true,
         orderId,
@@ -205,7 +219,8 @@ export class HoroshopSyncController {
     }> = [];
 
     // Извлекаем позиции заказа: payload может содержать products, items, или line_items
-    const lineItems: any[] = payload?.products || payload?.items || payload?.line_items || [];
+    const lineItems: any[] =
+      payload?.products || payload?.items || payload?.line_items || [];
 
     for (const item of lineItems) {
       // Артикул = tcod
@@ -215,7 +230,11 @@ export class HoroshopSyncController {
 
       if (!isNaN(tcod) && tcod > 0 && qty > 0) {
         try {
-          const deduction = await this.limanService.deductStock(tenant, tcod, qty);
+          const deduction = await this.limanService.deductStock(
+            tenant,
+            tcod,
+            qty,
+          );
 
           results.push({
             tcod,
