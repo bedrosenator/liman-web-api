@@ -4,14 +4,15 @@ import { LayoutDashboard, Store, Database, Settings, LogOut, Zap } from 'lucide-
 import { useLanguage } from '@/context/LanguageContext';
 import { useAuth } from '@/context/AuthContext';
 import { LanguageSelector } from '@/components/LanguageSelector';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 interface LayoutProps {
   children: ReactNode;
 }
 
 /**
- * Главный Layout в тёмном Enterprise-стиле.
- * Содержит: шапку с лого, переключатель языка, боковую навигацию и основной контент.
+ * Главный Layout в Enterprise-стиле.
+ * Содержит: шапку с лого, переключатель темы и языка, боковую навигацию и основной контент.
  */
 export function Layout({ children }: LayoutProps) {
   const { t } = useLanguage();
@@ -55,6 +56,7 @@ export function Layout({ children }: LayoutProps) {
         </div>
 
         <div className="layout-header__actions">
+          <ThemeToggle />
           <LanguageSelector />
 
           <div className="layout-header__status" id="api-status">
@@ -68,6 +70,8 @@ export function Layout({ children }: LayoutProps) {
             onClick={handleLogout}
             aria-label={t('logout')}
             title={t('logout')}
+            data-tooltip={t('logout')}
+            data-tooltip-pos="bottom"
           >
             <LogOut size={16} />
             <span>{t('logout')}</span>
@@ -80,9 +84,15 @@ export function Layout({ children }: LayoutProps) {
         <nav className="layout-sidebar" id="sidebar-nav" aria-label="Main navigation">
           <ul className="sidebar-nav">
             {navItems.map((item) => {
-              const isActive =
-                item.to === location.pathname ||
-                (item.to !== '/superadmin' && location.pathname.startsWith(item.to));
+              const isRootSuperAdmin = item.to === '/superadmin';
+              const isRootPortal = tenantId && item.to === `/portal/${tenantId}`;
+              
+              const isActive = isRootSuperAdmin
+                ? location.pathname === '/superadmin' || location.pathname === '/superadmin/'
+                : isRootPortal
+                ? location.pathname === `/portal/${tenantId}` || location.pathname === `/portal/${tenantId}/`
+                : location.pathname.startsWith(item.to);
+
               return (
                 <li key={item.to}>
                   <Link

@@ -71,6 +71,7 @@ export const backupApi = {
 
 export const tenantsApi = {
   list: () => apiClient.get('/admin/tenants'),
+  get: (id: string) => apiClient.get(`/admin/tenants/${id}`),
   create: (data: unknown) => apiClient.post('/admin/tenants', data),
   update: (id: string, data: unknown) => apiClient.patch(`/admin/tenants/${id}`, data),
   delete: (id: string) => apiClient.delete(`/admin/tenants/${id}`),
@@ -80,9 +81,20 @@ export const tenantsApi = {
   rotateKey: (id: string) => apiClient.post(`/admin/tenants/${id}/rotate-key`),
 };
 
+export const adminApi = {
+  getOverview: () => apiClient.get('/admin/overview'),
+  getQueues: () => apiClient.get('/admin/queues'),
+  retryFailedQueues: (queueName: string) =>
+    apiClient.post(`/admin/queues/${queueName}/retry-failed`),
+};
+
 export const horoshopApi = {
   ping: (tenantId: string) => apiClient.get(`/horoshop/${tenantId}/ping`),
-  syncStock: (tenantId: string) => apiClient.post(`/horoshop/${tenantId}/sync`),
+  syncPricesStocks: (tenantId: string, limit?: number) =>
+    apiClient.post(`/horoshop/${tenantId}/sync/prices-stocks${limit ? `?limit=${limit}` : ''}`),
+  getActivity: (tenantId: string) => apiClient.get(`/horoshop/${tenantId}/activity`),
+  saveSettings: (tenantId: string, data: unknown) =>
+    apiClient.patch(`/admin/tenants/${tenantId}`, data),
   importCatalog: (
     tenantId: string,
     payload: {

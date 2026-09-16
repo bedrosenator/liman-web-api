@@ -52,6 +52,16 @@ export class HoroshopSyncController {
     return { tenantId, ...result };
   }
 
+  @Get('activity')
+  @ApiOperation({
+    summary: 'Получить журнал активности и событий интеграции с Хорошоп',
+  })
+  @ApiParam({ name: 'tenantId', example: 'columb' })
+  @ApiResponse({ status: 200, description: 'Список последних событий' })
+  getActivity(@Param('tenantId') tenantId: string) {
+    return this.syncService.getActivities(tenantId);
+  }
+
   /**
    * Ручной запуск синхронизации цен и остатков → Horoshop API
    */

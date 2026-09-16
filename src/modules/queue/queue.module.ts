@@ -6,6 +6,7 @@ import { StockSyncProcessor } from './sync-queue.processor';
 import { WooImportProcessor } from './woo-import.processor';
 import { SyncService } from './sync.service';
 import { SyncJobsController } from './sync-jobs.controller';
+import { AdminQueuesController } from './admin-queues.controller';
 import { LimanModule } from '../liman/liman.module';
 import { TenantModule } from '../tenant/tenant.module';
 import { PromModule } from '../prom/prom.module';
@@ -35,7 +36,7 @@ import { WoocommerceModule } from '../woocommerce/woocommerce.module';
     PromModule,
     WoocommerceModule,
   ],
-  controllers: [SyncJobsController],
+  controllers: [SyncJobsController, AdminQueuesController],
   providers: [SyncService, StockSyncProcessor, WooImportProcessor],
   exports: [SyncService, BullModule],
 })

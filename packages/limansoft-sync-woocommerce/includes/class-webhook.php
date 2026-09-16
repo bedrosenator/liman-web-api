@@ -124,12 +124,26 @@ class LSW_Webhook {
         }
     }
 
+    /** @var bool Флаг приостановки вебхуков во время пакетных операций импорта/синхронизации */
+    public static $suspended = false;
+
+    public static function suspend(): void {
+        self::$suspended = true;
+    }
+
+    public static function resume(): void {
+        self::$suspended = false;
+    }
+
     /**
      * Обработка создания нового товара
      *
      * @param int $product_id
      */
     public function handle_new_product( int $product_id ): void {
+        if ( self::$suspended ) {
+            return;
+        }
         $this->notify_product_change( $product_id, 'created' );
     }
 
@@ -139,6 +153,9 @@ class LSW_Webhook {
      * @param int $product_id
      */
     public function handle_update_product( int $product_id ): void {
+        if ( self::$suspended ) {
+            return;
+        }
         $this->notify_product_change( $product_id, 'updated' );
     }
 

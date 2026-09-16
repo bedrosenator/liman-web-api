@@ -2,7 +2,7 @@
 
 - **ID:** TASK-18
 - **Эпик:** Web Admin & Client Portal
-- **Статус:** Backlog
+- **Статус:** Done
 - **Приоритет:** High
 - **Исполнитель:** Frontend & Full-Stack Architect
 
@@ -79,16 +79,16 @@
 ---
 
 ## ✅ Критерии приемки (Definition of Done)
-- [ ] Инициализирован проект `client/` на React + Vite + TypeScript.
-- [ ] Настроена сборка в директорию `public/app`.
-- [ ] Разработан конфиг `docker/nginx.conf` для прямой раздачи статики с диска (gzip, кэширование, 0% нагрузки на Event Loop Node.js).
-- [ ] Добавлен сервис Nginx в `docker-compose.yml` в качестве reverse proxy.
-- [ ] Внедрен LanguageContext (RU по умолчанию, автоопределение UK, сохранение в localStorage).
-- [ ] Добавлен переключатель языка (RU / UK) в шапку интерфейса.
-- [ ] Внедрена дизайн-система Limansoft Enterprise Dark с иконками Lucide и Toast-нотификациями.
-- [ ] Реализовано строгое разделение маршрутов `/superadmin` и `/portal/:tenantId`.
-- [ ] Реализован экран авторизации и поддержка безопасных Magic-ссылок входа.
-- [ ] Настроен Axios-интерцептор с автоматической подстановкой `x-api-key` и перехватом 401/403.
-- [ ] Настроена тестовая среда Vitest + React Testing Library.
-- [ ] Написаны unit-тесты для `LanguageContext`, роут-гардов и интерцептора API.
-- [ ] Все тесты успешно проходят по команде `npm run test`.
+- [x] Инициализирован проект `client/` на React + Vite + TypeScript.
+- [x] Настроена сборка в директорию `public/app`.
+- [x] Разработан конфиг `docker/nginx.conf` для прямой раздачи статики с диска (gzip, кэширование, 0% нагрузки на Event Loop Node.js).
+- [x] Добавлен сервис Nginx в `docker-compose.yml` в качестве reverse proxy.
+- [x] Внедрен LanguageContext (RU по умолчанию, автоопределение UK, сохранение в localStorage).
+- [x] Добавлен переключатель языка (RU / UK) в шапку интерфейса.
+- [x] Внедрена дизайн-система Limansoft Enterprise Dark с иконками Lucide и Toast-нотификациями.
+- [x] Реализовано строгое разделение маршрутов `/superadmin` и `/portal/:tenantId`.
+- [x] Реализован экран авторизации и поддержка безопасных Magic-ссылок входа.
+- [x] Настроен Axios-интерцептор с автоматической подстановкой `x-api-key` и перехватом 401/403.
+- [x] Настроена тестовая среда Vitest + React Testing Library.
+- [x] Написаны unit-тесты для `LanguageContext`, роут-гардов и интерцептора API.
+- [x] Все тесты успешно проходят по команде `npm run test`.

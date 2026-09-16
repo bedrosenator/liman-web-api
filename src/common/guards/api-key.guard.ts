@@ -82,9 +82,17 @@ export class ApiKeyGuard implements CanActivate {
         );
       }
 
-      // Ограничение доступа к эндпоинтам управления тенантами (/api/v1/tenants):
-      // Обычный ключ тенанта НЕ может просматривать всех клиентов, создавать или удалять тенантов
+      // Ограничение доступа к эндпоинтам управления тенантами (/api/v1/tenants) и админки (/api/v1/admin):
+      // Обычный ключ тенанта НЕ может иметь доступ к админке или чужим клиентам
       const path = request.path || request.url;
+      if (path.includes('/api/v1/admin')) {
+        this.logger.warn(
+          `⛔ [Privilege Escalation Предотвращен] Тенант "${tenant.id}" попытался получить доступ к админ-эндпоинту ${path}`,
+        );
+        throw new UnauthorizedException(
+          'Панель администратора доступна только по Master API Key',
+        );
+      }
       if (path.includes('/api/v1/tenants')) {
         // Разрешаем тенанту только чтение или обновление своего собственного профиля (/tenants/:id где id === tenant.id)
         const targetId = request.params?.id;

@@ -3,7 +3,7 @@
     'use strict';
 
     // ====================================================================
-    // Утиліти
+    // Утилиты
     // ====================================================================
 
     function setConnectionStatus(type, message) {
@@ -27,8 +27,28 @@
         $('#lsw-progress-text').text(text);
     }
 
+    function appendToConsole(text) {
+        const $console = $('#lsw-console');
+        $console.append(text + "\n");
+        $console.scrollTop($console[0].scrollHeight);
+    }
+
+    function refreshConsoleLogs(callback) {
+        $.post(lsw_ajax.ajax_url, {
+            action: 'lsw_get_logs',
+            nonce:  lsw_ajax.nonce
+        }).done(function (res) {
+            if (res.success && Array.isArray(res.data.logs)) {
+                const $console = $('#lsw-console');
+                $console.text(res.data.logs.join("\n"));
+                $console.scrollTop($console[0].scrollHeight);
+            }
+            if (callback) callback();
+        });
+    }
+
     // ====================================================================
-    // Показати/сховати пароль
+    // Показать/скрыть пароль
     // ====================================================================
     $(document).on('click', '.lsw-toggle-password', function () {
         const target = $(this).data('target');
@@ -37,7 +57,7 @@
     });
 
     // ====================================================================
-    // Toggle авто-синхронізації → вмикає/вимикає select інтервалу
+    // Toggle авто-синхронизации и прямого подключения к БД
     // ====================================================================
     $('#lsw-auto-sync').on('change', function () {
         const $row = $('#lsw-interval-row');
@@ -46,8 +66,13 @@
         $('#lsw-sync-interval').prop('disabled', !enabled);
     });
 
+    $('#lsw-direct-db').on('change', function () {
+        const enabled = $(this).is(':checked');
+        $('#lsw-db-fields').toggleClass('lsw-disabled', !enabled);
+    });
+
     // ====================================================================
-    // Зберегти налаштування (AJAX)
+    // Сохранить настройки (AJAX)
     // ====================================================================
     $('#lsw-settings-form').on('submit', function (e) {
         e.preventDefault();
@@ -57,23 +82,30 @@
         $btn.html('⏳ ' + lsw_ajax.strings.saving).prop('disabled', true);
 
         const data = {
-            action: 'lsw_save_settings',
-            nonce:  lsw_ajax.nonce,
-            api_url:          $('#lsw-api-url').val().trim(),
-            api_key:          $('#lsw-api-key').val().trim(),
-            tenant_id:        $('#lsw-tenant-id').val().trim(),
-            price_column:     $('#lsw-price-column').val(),
-            stock_column:     $('#lsw-stock-column').val(),
-            sync_interval:    $('#lsw-sync-interval').val(),
+            action:              'lsw_save_settings',
+            nonce:               lsw_ajax.nonce,
+            api_url:             $('#lsw-api-url').val().trim(),
+            api_key:             $('#lsw-api-key').val().trim(),
+            tenant_id:           $('#lsw-tenant-id').val().trim(),
+            price_column:        $('#lsw-price-column').val(),
+            stock_column:        $('#lsw-stock-column').val(),
+            sync_interval:       $('#lsw-sync-interval').val(),
+            db_host:             $('#lsw-db-host').val().trim(),
+            db_name:             $('#lsw-db-name').val().trim(),
+            db_user:             $('#lsw-db-user').val().trim(),
+            db_pass:             $('#lsw-db-pass').val(),
         };
 
         if ($('#lsw-auto-sync').is(':checked')) {
             data.auto_sync_enabled = '1';
         }
-
         if ($('#lsw-auto-update-product').is(':checked')) {
             data.auto_update_product = '1';
         }
+        if ($('#lsw-direct-db').is(':checked')) {
+            data.direct_db_enabled = '1';
+        }
+        data.update_stock_enabled = $('input[name="update_stock_enabled"]:checked').val() || '1';
 
         $.post(lsw_ajax.ajax_url, data)
             .done(function (res) {
@@ -83,18 +115,14 @@
                         $btn.html(originalText);
                     }, 2500);
 
-                    // Оновити cron-статус
                     if (res.data && res.data.cron_status) {
                         updateCronStatus(res.data.cron_status);
                     }
 
-                    // Активувати кнопку синхронізації
                     $('#lsw-sync-now').prop('disabled', false).removeAttr('title');
                 } else {
                     $btn.html(lsw_ajax.strings.error + ': ' + (res.data || '?')).prop('disabled', false);
-                    setTimeout(function () {
-                        $btn.html(originalText);
-                    }, 3000);
+                    setTimeout(function () { $btn.html(originalText); }, 3000);
                 }
             })
             .fail(function () {
@@ -120,7 +148,7 @@
     }
 
     // ====================================================================
-    // Перевірити підключення до API
+    // Проверить подключение к API
     // ====================================================================
     $('#lsw-test-connection').on('click', function () {
         const $btn = $(this);
@@ -133,190 +161,214 @@
         })
             .done(function (res) {
                 if (res.success) {
-                    setConnectionStatus('success', '✅ ' + res.message);
+                    setConnectionStatus('success', '✅ ' + res.data.message);
                 } else {
-                    setConnectionStatus('error', '❌ ' + res.message);
+                    setConnectionStatus('error', '❌ ' + (res.data && res.data.message ? res.data.message : lsw_ajax.strings.error));
                 }
             })
             .fail(function () {
-                setConnectionStatus('error', lsw_ajax.strings.conn_failed);
+                setConnectionStatus('error', '❌ ' + (lsw_ajax.strings.conn_failed || 'Помилка підключення'));
             })
             .always(function () {
-                $btn.prop('disabled', false).html(lsw_ajax.strings.test_conn);
+                $btn.prop('disabled', false).html('🔍 ' + (lsw_ajax.strings.test_conn || 'Перевірити підключення'));
             });
     });
 
     // ====================================================================
-    // Синхронізувати зараз & Live Polling
+    // Проверить подключение к базе данных Limansoft (Direct DB)
     // ====================================================================
-    let pollTimer = null;
+    $('#lsw-test-db-connection').on('click', function () {
+        const $btn = $(this);
+        const originalText = $btn.html();
+        $btn.prop('disabled', true).html('⏳ ' + (lsw_ajax.strings.testing_db || 'Перевірка зв\'язку з БД Limansoft...'));
 
-    function getLocalizedProgressMessage(info) {
-        if (!info) return '';
-        if (info.localized_message) {
-            return info.localized_message;
-        }
-        if (info.phase === 'checking_existing' || (info.message && info.message.indexOf('Перевірка існуючих товарів') !== -1)) {
-            return lsw_ajax.strings.checking_existing || info.message;
-        }
-        if (info.phase === 'init' || (info.message && info.message.indexOf('Ініціалізація') !== -1)) {
-            return lsw_ajax.strings.init_sync || info.message;
-        }
-        if (info.phase === 'syncing' && lsw_ajax.strings.sync_progress) {
-            const pct = Math.min(100, Math.max(0, info.percent || 0));
-            return lsw_ajax.strings.sync_progress
-                .replace('%1$d', info.synced || 0)
-                .replace('%2$d', info.total || 0)
-                .replace('%3$d', pct);
-        }
-        if (info.status === 'completed' && lsw_ajax.strings.sync_done_detail) {
-            let sec = Math.round((info.durationMs || 0) / 1000);
-            let synced = info.synced || 0;
-            let errors = info.errors || 0;
-            if (!sec && info.message) {
-                const match = info.message.match(/(\d+)\s*сек/);
-                if (match) sec = parseInt(match[1], 10);
-            }
-            return lsw_ajax.strings.sync_done_detail
-                .replace('%1$d', synced)
-                .replace('%2$d', errors)
-                .replace('%3$d', sec);
-        }
-        if (info.message && info.message.indexOf('Синхронізацію успішно завершено') !== -1 && lsw_ajax.strings.sync_done_detail) {
-            const match = info.message.match(/Оновлено:\s*(\d+),\s*помилок:\s*(\d+)\s*за\s*(\d+)\s*сек/);
-            if (match) {
-                return lsw_ajax.strings.sync_done_detail
-                    .replace('%1$d', match[1])
-                    .replace('%2$d', match[2])
-                    .replace('%3$d', match[3]);
-            }
-        }
-        return info.message || '';
-    }
-
-    function startStatusPolling() {
-        if (pollTimer) {
-            clearInterval(pollTimer);
-        }
-
-        const $btn = $('#lsw-sync-now');
-        const $wrap = $('#lsw-progress-wrap');
-        const $result = $('#lsw-sync-result');
-
-        $btn.prop('disabled', true).html('⏳ ' + lsw_ajax.strings.syncing);
-        $wrap.show();
-
-        pollTimer = setInterval(function () {
-            $.post(lsw_ajax.ajax_url, {
-                action: 'lsw_sync_status',
-                nonce:  lsw_ajax.nonce,
-            })
-                .done(function (res) {
-                    if (!res.success || !res.data) {
-                        return;
-                    }
-
-                    const info = res.data;
-                    const pct = Math.min(100, Math.max(0, info.percent || 0));
-                    const message = getLocalizedProgressMessage(info);
-
-                    if (info.status === 'running') {
-                        setProgress(pct, message || (lsw_ajax.strings.syncing + ' ' + pct + '%'));
-                    } else if (info.status === 'completed') {
-                        clearInterval(pollTimer);
-                        pollTimer = null;
-                        setProgress(100, lsw_ajax.strings.done);
-
-                        setTimeout(function () {
-                            $wrap.hide();
-                            const finalMsg = message || lsw_ajax.strings.sync_completed;
-                            const prefix = finalMsg.indexOf('🎉') === -1 ? '🎉 ' : '';
-                            showResult($result, true, prefix + finalMsg);
-                            $btn.prop('disabled', false).html(lsw_ajax.strings.sync_now);
-
-                            // Оновити блок останньої синхронізації
-                            const $lastSync = $('.lsw-last-sync span');
-                            if ($lastSync.length) {
-                                $lastSync
-                                    .removeClass('lsw-error')
-                                    .addClass('lsw-ok')
-                                    .text(new Date().toLocaleTimeString() + ' — ' + finalMsg);
-                            }
-                        }, 600);
-                    } else if (info.status === 'error') {
-                        clearInterval(pollTimer);
-                        pollTimer = null;
-                        $wrap.hide();
-                        showResult($result, false, '❌ ' + (info.message || lsw_ajax.strings.sync_failed));
-                        $btn.prop('disabled', false).html(lsw_ajax.strings.sync_now);
-                    }
-                })
-                .fail(function () {
-                    // Мережевий збій при опитуванні — пробуємо далі
-                });
-        }, 2000);
-    }
-
-    // Перевіряємо при завантаженні сторінки, чи не триває синхронізація прямо зараз
-    if ($('#lsw-sync-now').length) {
         $.post(lsw_ajax.ajax_url, {
-            action: 'lsw_sync_status',
+            action: 'lsw_test_db_connection',
             nonce:  lsw_ajax.nonce,
-        }).done(function (res) {
-            if (res.success && res.data && res.data.status === 'running') {
-                startStatusPolling();
-            }
-        });
-    }
+        })
+            .done(function (res) {
+                if (res.success) {
+                    alert('✅ ' + res.data.message);
+                    appendToConsole('✅ БД Limansoft: ' + res.data.message);
+                } else {
+                    alert('❌ ' + (res.data && res.data.message ? res.data.message : (lsw_ajax.strings.error || 'Помилка')));
+                    appendToConsole('❌ БД Limansoft: ' + (res.data && res.data.message ? res.data.message : (lsw_ajax.strings.error || 'Помилка')));
+                }
+            })
+            .fail(function () {
+                alert(lsw_ajax.strings.network_error || '❌ Помилка надсилання запиту');
+            })
+            .always(function () {
+                $btn.prop('disabled', false).html(originalText);
+            });
+    });
 
+    // ====================================================================
+    // Синхронизация каталога через API
+    // ====================================================================
     $('#lsw-sync-now').on('click', function () {
         if (!confirm(lsw_ajax.strings.confirm_sync)) {
             return;
         }
 
         const $btn = $(this);
-        const $wrap = $('#lsw-progress-wrap');
-        const $result = $('#lsw-sync-result');
-
+        const originalText = $btn.html();
         $btn.prop('disabled', true).html('⏳ ' + lsw_ajax.strings.syncing);
-        $result.hide();
-        $wrap.show();
-        setProgress(5, lsw_ajax.strings.init_sync);
 
         $.post(lsw_ajax.ajax_url, {
-            action: 'lsw_sync_now',
+            action: 'lsw_run_api_sync',
             nonce:  lsw_ajax.nonce,
         })
             .done(function (res) {
-                if (!res.success) {
-                    $wrap.hide();
-                    showResult($result, false, '❌ ' + (res.data ? res.data.message : lsw_ajax.strings.unknown_error));
-                    $btn.prop('disabled', false).html(lsw_ajax.strings.sync_now);
-                    return;
-                }
-
-                // Перевіряємо, чи запущено асинхронно
-                const data = res.data && res.data.data ? res.data.data : {};
-                if (data.async) {
-                    setProgress(10, lsw_ajax.strings.sync_bg_track);
-                    startStatusPolling();
+                if (res.success) {
+                    alert('✅ ' + res.data.message);
                 } else {
-                    setProgress(100, lsw_ajax.strings.done);
-                    const finalMsg = (res.data ? getLocalizedProgressMessage(res.data) : '') || (res.data && res.data.message ? res.data.message : lsw_ajax.strings.done);
-                    const prefix = finalMsg.indexOf('🎉') === -1 ? '🎉 ' : '';
-                    setTimeout(function () {
-                        $wrap.hide();
-                        showResult($result, true, prefix + finalMsg);
-                        $btn.prop('disabled', false).html(lsw_ajax.strings.sync_now);
-                    }, 500);
+                    alert('❌ ' + (res.data ? res.data.message : (lsw_ajax.strings.error || 'Помилка')));
                 }
+                refreshConsoleLogs();
             })
-            .fail(function (xhr) {
-                $wrap.hide();
-                const errMsg = xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : lsw_ajax.strings.network_err;
-                showResult($result, false, '❌ ' + errMsg);
-                $btn.prop('disabled', false).html(lsw_ajax.strings.sync_now);
+            .fail(function () {
+                alert(lsw_ajax.strings.network_error || '❌ Помилка мережі при синхронізації');
+            })
+            .always(function () {
+                $btn.prop('disabled', false).html(originalText);
             });
+    });
+
+    // ====================================================================
+    // Полный импорт товаров из БД Limansoft (с вариациями)
+    // ====================================================================
+    $('#lsw-import-tobacco').on('click', function () {
+        if (!confirm(lsw_ajax.strings.confirm_tobacco)) {
+            return;
+        }
+
+        const $btn = $(this);
+        const originalText = $btn.html();
+        $btn.prop('disabled', true).html('⏳ ' + (lsw_ajax.strings.importing || 'Виконується імпорт товарів з БД Limansoft...'));
+
+        $.post(lsw_ajax.ajax_url, {
+            action: 'lsw_run_tobacco_migration',
+            nonce:  lsw_ajax.nonce,
+        })
+            .done(function (res) {
+                if (res.success) {
+                    alert('✅ ' + res.data.message);
+                } else {
+                    alert('❌ ' + (res.data ? res.data.message : (lsw_ajax.strings.error || 'Помилка')));
+                }
+                refreshConsoleLogs();
+            })
+            .fail(function () {
+                alert(lsw_ajax.strings.network_error || '❌ Помилка мережі при імпорті');
+            })
+            .always(function () {
+                $btn.prop('disabled', false).html(originalText);
+            });
+    });
+
+    // ====================================================================
+    // Быстрый синк цен и остатков
+    // ====================================================================
+    $('#lsw-fast-stock-sync').on('click', function () {
+        const $btn = $(this);
+        const originalText = $btn.html();
+        $btn.prop('disabled', true).html('⏳ ' + (lsw_ajax.strings.updating_prices || 'Оновлення цін та залишків...'));
+
+        $.post(lsw_ajax.ajax_url, {
+            action: 'lsw_run_stock_sync',
+            nonce:  lsw_ajax.nonce,
+        })
+            .done(function (res) {
+                if (res.success) {
+                    alert('✅ ' + res.data.message);
+                } else {
+                    alert('❌ ' + (res.data ? res.data.message : (lsw_ajax.strings.error || 'Помилка')));
+                }
+                refreshConsoleLogs();
+            })
+            .fail(function () {
+                alert(lsw_ajax.strings.network_error || '❌ Помилка мережі при синхронізації');
+            })
+            .always(function () {
+                $btn.prop('disabled', false).html(originalText);
+            });
+    });
+
+    // ====================================================================
+    // Запуск Веб-Паука (обогащение описаний и фото)
+    // ====================================================================
+    $('#lsw-web-spider').on('click', function () {
+        if (!confirm(lsw_ajax.strings.confirm_spider)) {
+            return;
+        }
+
+        const $btn = $(this);
+        const originalText = $btn.html();
+        $btn.prop('disabled', true).html('⏳ Веб-Паук...');
+
+        $.post(lsw_ajax.ajax_url, {
+            action: 'lsw_run_web_spider',
+            nonce:  lsw_ajax.nonce,
+        })
+            .done(function (res) {
+                if (res.success) {
+                    alert('✅ ' + res.data.message);
+                } else {
+                    alert('❌ ' + (res.data ? res.data.message : (lsw_ajax.strings.error || 'Помилка')));
+                }
+                refreshConsoleLogs();
+            })
+            .fail(function () {
+                alert(lsw_ajax.strings.network_error || '❌ Помилка мережі при запуску Веб-Паука');
+            })
+            .always(function () {
+                $btn.prop('disabled', false).html(originalText);
+            });
+    });
+
+    // ====================================================================
+    // Удаление дубликатов
+    // ====================================================================
+    $('#lsw-cleanup-dups').on('click', function () {
+        if (!confirm(lsw_ajax.strings.confirm_cleanup)) {
+            return;
+        }
+
+        const $btn = $(this);
+        const originalText = $btn.html();
+        $btn.prop('disabled', true).html('⏳ ' + (lsw_ajax.strings.cleaning_dups || 'Очищення дублікатів...'));
+
+        $.post(lsw_ajax.ajax_url, {
+            action: 'lsw_run_cleanup_duplicates',
+            nonce:  lsw_ajax.nonce,
+        })
+            .done(function (res) {
+                if (res.success) {
+                    alert('✅ ' + res.data.message);
+                } else {
+                    alert('❌ ' + (res.data ? res.data.message : (lsw_ajax.strings.error || 'Помилка')));
+                }
+                refreshConsoleLogs();
+            })
+            .fail(function () {
+                alert(lsw_ajax.strings.network_error || '❌ Помилка мережі при очищенні дублікатів');
+            })
+            .always(function () {
+                $btn.prop('disabled', false).html(originalText);
+            });
+    });
+
+    // ====================================================================
+    // Очистка логов консоли
+    // ====================================================================
+    $('#lsw-clear-logs').on('click', function () {
+        $.post(lsw_ajax.ajax_url, {
+            action: 'lsw_clear_logs',
+            nonce:  lsw_ajax.nonce,
+        }).done(function () {
+            $('#lsw-console').text(lsw_ajax.strings.log_cleared || 'Лог очищено.');
+        });
     });
 
 })(jQuery);

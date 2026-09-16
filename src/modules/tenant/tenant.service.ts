@@ -125,14 +125,19 @@ export class TenantService implements OnModuleInit {
     const tenant = await this.findOne(id);
     const updates = { ...updateTenantDto };
 
-    // Предотвращаем затирание реальных секретов маской '********'
-    if (updates.dbPassword === '********') delete updates.dbPassword;
-    if (updates.woocommerceConsumerSecret === '********')
+    // Предотвращаем затирание реальных секретов маской '********' или '••••••••'
+    const isMasked = (val?: string | null) => val === '********' || val === '••••••••';
+    if (isMasked(updates.dbPassword)) delete updates.dbPassword;
+    if (isMasked(updates.woocommerceConsumerSecret))
       delete updates.woocommerceConsumerSecret;
-    if (updates.rozetkaClientSecret === '********')
+    if (isMasked(updates.rozetkaClientSecret))
       delete updates.rozetkaClientSecret;
-    if (updates.horoshopPassword === '********')
+    if (isMasked(updates.horoshopPassword))
       delete updates.horoshopPassword;
+    if (isMasked(updates.promApiKey))
+      delete updates.promApiKey;
+    if (isMasked(updates.apiKey))
+      delete updates.apiKey;
 
     Object.assign(tenant, updates);
     return this.tenantRepository.save(tenant);

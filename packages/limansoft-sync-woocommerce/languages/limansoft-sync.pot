@@ -2,82 +2,15 @@
 # This file is distributed under the GPL-2.0+.
 msgid ""
 msgstr ""
-"Project-Id-Version: Limansoft Sync for WooCommerce 1.2.0\n"
+"Project-Id-Version: Limansoft Sync for WooCommerce 2.0.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/limansoft-sync-woocommerce\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
+"POT-Creation-Date: 2026-09-16T16:10:00+00:00\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-13T13:50:00+00:00\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"X-Generator: WP-CLI 2.11.0\n"
 "X-Domain: limansoft-sync\n"
 
-msgid "Limansoft Sync for WooCommerce"
-msgstr ""
-
-msgid "Limansoft Sync"
-msgstr ""
-
-msgid "🔌 Підключення до Limansoft API"
-msgstr ""
-
-msgid "Статус підключення невідомий"
-msgstr ""
-
-msgid "🌐 API Налаштування"
-msgstr ""
-
-msgid "API URL"
-msgstr ""
-
-msgid "URL вашого liman-web-api сервісу (без / на кінці)"
-msgstr ""
-
-msgid "Tenant ID"
-msgstr ""
-
-msgid "API Key"
-msgstr ""
-
-msgid "Перевірити підключення"
-msgstr ""
-
-msgid "🔍 Перевірити підключення"
-msgstr ""
-
-msgid "📦 Дані товарів"
-msgstr ""
-
-msgid "Прайс-колонка"
-msgstr ""
-
-msgid "Склад"
-msgstr ""
-
-msgid "Роздріб"
-msgstr ""
-
-msgid "Основний склад"
-msgstr ""
-
-msgid "Транзит"
-msgstr ""
-
-msgid "Роздрібний склад"
-msgstr ""
-
-msgid "⏰ Автоматична синхронізація"
-msgstr ""
-
-msgid "Увімкнути автоматичну синхронізацію по розкладу"
-msgstr ""
-
-msgid "При вимкненні — WP-Cron задача скасовується. Ручна синхронізація та вебхуки продовжують працювати."
-msgstr ""
-
-msgid "Інтервал оновлення"
+msgid "1 година"
 msgstr ""
 
 msgid "15 хвилин"
@@ -86,154 +19,16 @@ msgstr ""
 msgid "30 хвилин"
 msgstr ""
 
-msgid "1 година"
+msgid "API Key"
 msgstr ""
 
-msgid "Кожні 15 хвилин (Limansoft)"
+msgid "API URL"
 msgstr ""
 
-msgid "Кожні 30 хвилин (Limansoft)"
+msgid "Limansoft Sync"
 msgstr ""
 
-msgid "Щогодини (Limansoft)"
-msgstr ""
-
-msgid "Наступний запуск: через %s"
-msgstr ""
-
-msgid "🛑 Розклад вимкнено"
-msgstr ""
-
-msgid "Розклад вимкнено"
-msgstr ""
-
-msgid "Автоматично передавати створені/змінені товари до Limansoft (Two-Way Sync)"
-msgstr ""
-
-msgid "При створенні або редагуванні товару в WooCommerce плагін миттєво відправляє вебхук до Liman Web API для оновлення облікової бази MariaDB."
-msgstr ""
-
-msgid "💾 Зберегти налаштування"
-msgstr ""
-
-msgid "Зберегти налаштування"
-msgstr ""
-
-msgid "🔄 Синхронізація"
-msgstr ""
-
-msgid "Завантажити весь каталог товарів з Limansoft до WooCommerce прямо зараз."
-msgstr ""
-
-msgid "🚀 Синхронізувати зараз"
-msgstr ""
-
-msgid "Синхронізувати зараз"
-msgstr ""
-
-msgid "Остання синхронізація:"
-msgstr ""
-
-msgid "ℹ Інформація"
-msgstr ""
-
-msgid "SKU"
-msgstr ""
-
-msgid "tcod з Limansoft"
-msgstr ""
-
-msgid "Ціна"
-msgstr ""
-
-msgid "Залишок"
-msgstr ""
-
-msgid "Зображення"
-msgstr ""
-
-msgid "стримінг через media API"
-msgstr ""
-
-msgid "Вебхук замовлень"
-msgstr ""
-
-msgid "автоматичне списання залишків"
-msgstr ""
-
-msgid "Документація: %s"
-msgstr ""
-
-msgid "Перевіряємо підключення..."
-msgstr ""
-
-msgid "Синхронізуємо товари..."
-msgstr ""
-
-msgid "Зберігаємо..."
-msgstr ""
-
-msgid "✅ Налаштування збережено!"
-msgstr ""
-
-msgid "Налаштування збережено"
-msgstr ""
-
-msgid "❌ Помилка"
-msgstr ""
-
-msgid "Запустити повну синхронізацію каталогу? Це може зайняти кілька хвилин."
-msgstr ""
-
-msgid "❌ Не вдалося зв'язатися з сервером"
-msgstr ""
-
-msgid "Ініціалізація синхронізації..."
-msgstr ""
-
-msgid "Синхронізацію запущено у фоні. Відстеження прогресу..."
-msgstr ""
-
-msgid "Помилка з'єднання"
-msgstr ""
-
-msgid "Готово!"
-msgstr ""
-
-msgid "Синхронізацію успішно завершено!"
-msgstr ""
-
-msgid "Помилка синхронізації"
-msgstr ""
-
-msgid "Невідома помилка"
-msgstr ""
-
-msgid "Немає прав"
-msgstr ""
-
-msgid "Підключено до Limansoft API v%s"
-msgstr ""
-
-msgid "Помилка підключення (HTTP %d)"
-msgstr ""
-
-msgid "Плагін не налаштовано. Заповніть API URL, API Key та Tenant ID."
-msgstr ""
-
-msgid "Плагін не налаштовано."
-msgstr ""
-
-msgid "Синхронізовано %1$d товарів (помилок: %2$d) за %3$d мс"
-msgstr ""
-
-msgid "Помилка синхронізації (HTTP %1$d): %2$s"
-msgstr ""
-
-msgid "Помилка перевірки статусу (HTTP %d)"
-msgstr ""
-
-msgid "Оновлено %1$d товарів (помилок: %2$d)"
+msgid "Limansoft Sync for WooCommerce"
 msgstr ""
 
 msgid "Limansoft: залишки успішно списано (%d позицій)"
@@ -242,11 +37,308 @@ msgstr ""
 msgid "Limansoft: ❌ Помилка при списанні залишків. Перевірте логи."
 msgstr ""
 
-msgid "Перевірка існуючих товарів у WooCommerce..."
+msgid "Polylang"
 msgstr ""
 
-msgid "Синхронізовано %1$d з %2$d товарів (%3$d%%)..."
+msgid "SKU"
+msgstr ""
+
+msgid "Tenant ID"
+msgstr ""
+
+msgid "URL вашого сервісу liman-web-api (без / на кінці)"
+msgstr ""
+
+msgid "media API (Liman Web API)"
+msgstr ""
+
+msgid "tcod з Limansoft"
+msgstr ""
+
+msgid "Імпорт товарів з БД Limansoft завершено!"
+msgstr ""
+
+msgid "Інтервал оновлення"
+msgstr ""
+
+msgid "Автоматично передавати створені/змінені товари до Limansoft (Two-Way Sync)"
+msgstr ""
+
+msgid "Веб-Паук завершив роботу. Обогащено %d товарів!"
+msgstr ""
+
+msgid "Вебхук замовлень"
+msgstr ""
+
+msgid "Вебхук товарів"
+msgstr ""
+
+msgid "Ви впевнені, що хочете видалити дублікати товарів та варіацій?"
+msgstr ""
+
+msgid "Видалено %d дублікатів товарів."
+msgstr ""
+
+msgid "Видалити дублікати в каталозі WooCommerce"
+msgstr ""
+
+msgid "Визначає мову створюваних товарів. Опція Polylang створює дві пов'язані картки товару, якщо в системі активовано плагін Polylang."
+msgstr ""
+
+msgid "Виконується імпорт товарів з БД Limansoft..."
+msgstr ""
+
+msgid "Використовувати пряме підключення до бази даних Limansoft"
+msgstr ""
+
+msgid "Вимкнено (тільки ціни)"
+msgstr ""
+
+msgid "Готово!"
+msgstr ""
+
+msgid "Двомовний (Polylang UK+RU)"
+msgstr ""
+
+msgid "Двомовний каталог (Polylang: UK + RU)"
+msgstr ""
+
+msgid "Дозволяє вимкнути перезапис залишків у WooCommerce при синхронізації з обліковою базою."
+msgstr ""
+
+msgid "Документація: %s"
+msgstr ""
+
+msgid "Залишок"
+msgstr ""
+
+msgid "Запустити Веб-Паук (Фото та описи)"
+msgstr ""
+
+msgid "Запустити повний імпорт товарів з БД Limansoft з угрупованням варіацій?"
+msgstr ""
+
+msgid "Запустити повну синхронізацію каталогу через API? Це може зайняти кілька хвилин."
+msgstr ""
+
+msgid "Зберегти налаштування"
+msgstr ""
+
+msgid "Зберігаємо..."
+msgstr ""
+
+msgid "Зображення"
+msgstr ""
+
+msgid "Кожні 15 хвилин (Limansoft)"
+msgstr ""
+
+msgid "Кожні 30 хвилин (Limansoft)"
+msgstr ""
+
+msgid "Користувач БД"
+msgstr ""
+
+msgid "Лог очищено."
+msgstr ""
+
+msgid "Лог порожній. Запустіть операцію синхронізації або імпорту."
+msgstr ""
+
+msgid "Логи очищено"
+msgstr ""
+
+msgid "Мова каталогу"
+msgstr ""
+
+msgid "Мова каталогу товарів у WooCommerce:"
+msgstr ""
+
+msgid "Налаштування успішно збережено"
+msgstr ""
+
+msgid "Наступний запуск: через %s"
+msgstr ""
+
+msgid "Не оновлювати залишки (оновлювати тільки ціни)"
+msgstr ""
+
+msgid "Немає прав"
+msgstr ""
+
+msgid "Оновлення залишків при синхронізації:"
+msgstr ""
+
+msgid "Оновлення цін та залишків..."
+msgstr ""
+
+msgid "Оновлювати залишки товарів (за замовчуванням)"
+msgstr ""
+
+msgid "Основний склад"
+msgstr ""
+
+msgid "Остання синхронізація:"
+msgstr ""
+
+msgid "Очистити лог"
+msgstr ""
+
+msgid "Очищення дублікатів..."
+msgstr ""
+
+msgid "Пароль БД"
+msgstr ""
+
+msgid "Перевірити зв'язок з БД Limansoft"
+msgstr ""
+
+msgid "Перевірити підключення до API"
+msgstr ""
+
+msgid "Перевірка зв'язку з БД Limansoft..."
+msgstr ""
+
+msgid "Перевіряємо підключення..."
+msgstr ""
+
+msgid "Плагін не налаштовано."
+msgstr ""
+
+msgid "Плагін не налаштовано. Заповніть API URL, API Key та Tenant ID."
+msgstr ""
+
+msgid "Повна синхронізація через Liman API"
+msgstr ""
+
+msgid "Повний імпорт товарів з БД Limansoft"
+msgstr ""
+
+msgid "Помилка перевірки статусу (HTTP %d)"
+msgstr ""
+
+msgid "Помилка підключення (HTTP %d)"
+msgstr ""
+
+msgid "Помилка підключення до БД Limansoft (%s / %s)"
+msgstr ""
+
+msgid "Помилка синхронізації (HTTP %1$d): %2$s"
+msgstr ""
+
+msgid "Прайс-колонка"
+msgstr ""
+
+msgid "При створенні або редагуванні товару в WooCommerce плагін миттєво відправляє вебхук до Liman Web API для оновлення облікової бази даних."
+msgstr ""
+
+msgid "Пряме підключення до БД Limansoft вимкнено в налаштуваннях"
+msgstr ""
+
+msgid "Підключення безпосередньо до сервера бази даних програми Limansoft (таблиці name2, name, strihcod) для швидкого оновлення цін та залишків."
+msgstr ""
+
+msgid "Підключено до Limansoft API v%s"
+msgstr ""
+
+msgid "Роздріб"
+msgstr ""
+
+msgid "Роздрібний склад"
+msgstr ""
+
+msgid "Розклад вимкнено"
 msgstr ""
 
 msgid "Синхронізацію успішно завершено! Оновлено: %1$d, помилок: %2$d за %3$d сек."
+msgstr ""
+
+msgid "Синхронізація повного каталогу успішно запущена у фоновому режимі"
+msgstr ""
+
+msgid "Синхронізовано залишки та ціни для %d товарів!"
+msgstr ""
+
+msgid "Синхронізуємо товари..."
+msgstr ""
+
+msgid "Склад"
+msgstr ""
+
+msgid "Статус підключення невідомий"
+msgstr ""
+
+msgid "Транзит"
+msgstr ""
+
+msgid "Тільки російська"
+msgstr ""
+
+msgid "Тільки українська"
+msgstr ""
+
+msgid "Тільки українська (основна мова, за замовчуванням)"
+msgstr ""
+
+msgid "Увімкнути автоматичну синхронізацію по розкладу (WP-Cron)"
+msgstr ""
+
+msgid "Успішно підключено до БД Limansoft (%s / %s)"
+msgstr ""
+
+msgid "Хост БД (з портом)"
+msgstr ""
+
+msgid "Ціна"
+msgstr ""
+
+msgid "Швидке оновлення цін і залишків (Direct DB)"
+msgstr ""
+
+msgid "Щогодини (Limansoft)"
+msgstr ""
+
+msgid "автоматичне списання залишків"
+msgstr ""
+
+msgid "двосторонній імпорт у БД Limansoft"
+msgstr ""
+
+msgid "ℹ Інформація про інтеграцію"
+msgstr ""
+
+msgid "⏰ Автоматична синхронізація та Two-Way Sync"
+msgstr ""
+
+msgid "✅ Налаштування збережено!"
+msgstr ""
+
+msgid "❌ Помилка"
+msgstr ""
+
+msgid "❌ Помилка мережі при запиті"
+msgstr ""
+
+msgid "🌐 Налаштування API (liman-web-api)"
+msgstr ""
+
+msgid "📋 Консоль та журнал виконання операцій"
+msgstr ""
+
+msgid "📦 Дані товарів"
+msgstr ""
+
+msgid "🔌 Підключення до Limansoft (API та База Даних)"
+msgstr ""
+
+msgid "🔍 Перевірити підключення"
+msgstr ""
+
+msgid "🗄 Пряме підключення до облікової БД Limansoft (Direct DB)"
+msgstr ""
+
+msgid "🚀 Пульт керування синхронізацією"
+msgstr ""
+
+msgid "🚀 Синхронізувати зараз"
 msgstr ""
