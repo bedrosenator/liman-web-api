@@ -68,6 +68,9 @@ export class Tenant {
 
   // Horoshop (Cartum) API credentials
   @Column({ type: 'varchar', length: 255, nullable: true })
+  horoshopShopTitle?: string | null; // e.g. "Columb Shop" from Horoshop
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
   horoshopDomain?: string | null; // e.g. "myshop.horoshop.ua" or "myshop.com.ua"
 
   @Column({ type: 'varchar', length: 255, nullable: true })
@@ -78,6 +81,12 @@ export class Tenant {
 
   @Column({ type: 'boolean', default: false })
   horoshopExportEnabled!: boolean;
+
+  @Column({ type: 'boolean', default: true })
+  horoshopOrderWebhookEnabled!: boolean; // Webhook for auto-deducting stock on Horoshop order
+
+  @Column({ type: 'boolean', default: false })
+  horoshopProductCreationWebhookEnabled!: boolean; // Webhook/trigger on new product creation
 
   @Column({ type: 'integer', default: 15 })
   horoshopSyncIntervalMinutes!: number;

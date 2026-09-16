@@ -44,7 +44,10 @@ export class TenantService implements OnModuleInit {
       this.logger.log('🌱 Инициализация дефолтного тенанта "columb"...');
       const columb = this.tenantRepository.create({
         id: 'columb',
-        name: 'Columb Shop (Локальная MariaDB)',
+        name: 'Columb Shop',
+        horoshopShopTitle: 'Columb Shop',
+        horoshopOrderWebhookEnabled: true,
+        horoshopProductCreationWebhookEnabled: false,
         dbHost: process.env.DEV_LIMAN_DB_HOST ?? '127.0.0.1',
         dbPort: parseInt(process.env.DEV_LIMAN_DB_PORT ?? '3306', 10),
         dbName: process.env.DEV_LIMAN_DB_NAME ?? 'columbDB',
@@ -58,6 +61,12 @@ export class TenantService implements OnModuleInit {
       });
       await this.tenantRepository.save(columb);
       this.logger.log('✅ Дефолтный тенант "columb" создан успешно');
+    } else if (existing.name === 'Columb Shop (Локальная MariaDB)') {
+      existing.name = 'Columb Shop';
+      if (!existing.horoshopShopTitle) {
+        existing.horoshopShopTitle = 'Columb Shop';
+      }
+      await this.tenantRepository.save(existing);
     }
   }
 

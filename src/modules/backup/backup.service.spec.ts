@@ -251,6 +251,8 @@ describe('BackupService', () => {
       const olderTime = new Date(Date.now() - 5000);
       fs.utimesSync(fp1, olderTime, olderTime);
 
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
       await service.createBackup('test-tenant', 'fast');
 
       const list = await service.listBackups('test-tenant');

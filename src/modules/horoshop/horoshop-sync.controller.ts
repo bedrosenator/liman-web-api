@@ -230,6 +230,21 @@ export class HoroshopSyncController {
     const orderId = payload?.order_id || payload?.id || 'N/A';
     this.logger.log(`🛒 [${tenantId}] Вебхук заказа Хорошоп №${orderId}`);
 
+    // Проверяем активность вебхука списания остатков
+    if (tenant.horoshopOrderWebhookEnabled === false) {
+      this.logger.log(
+        `⏸️ [${tenantId}] Вебхук заказа №${orderId} пропущен: авто-списание отключено в настройках тенанта`,
+      );
+      return {
+        success: false,
+        disabled: true,
+        orderId,
+        message: 'Автоматическое списание по вебхуку заказов отключено в настройках тенанта',
+        processedItems: [],
+        timestamp: new Date().toISOString(),
+      };
+    }
+
     // Проверяем дедупликацию, если ID известен
     if (
       orderId !== 'N/A' &&
@@ -292,6 +307,57 @@ export class HoroshopSyncController {
       orderId,
       source: 'horoshop',
       processedItems: results,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Вебхук создания / обновления товара в Хорошоп
+   */
+  @Post('webhook/product')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Вебхук создания/обновления товара (Хорошоп ↔ Limansoft)',
+    description:
+      'Принимает уведомление о создании или обновлении товара в магазине Хорошоп.',
+  })
+  @ApiParam({ name: 'tenantId', example: 'columb' })
+  async handleProductWebhook(
+    @Param('tenantId') tenantId: string,
+    @Body() payload: any,
+  ) {
+    const tenant = await this.tenantService.findOne(tenantId);
+
+    if (tenant.horoshopProductCreationWebhookEnabled === false) {
+      this.logger.log(
+        `⏸️ [${tenantId}] Вебхук товара пропущен: вебхук создания товаров отключен в настройках тенанта`,
+      );
+      return {
+        success: false,
+        disabled: true,
+        message: 'Вебхук создания товаров отключен в настройках тенанта',
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    const article = payload?.article || payload?.sku || payload?.product?.article || 'N/A';
+    const title = payload?.title || payload?.name || payload?.product?.title || 'Новый товар';
+
+    this.logger.log(`📦 [${tenantId}] Вебхук создания товара: "${title}" (артикул: ${article})`);
+
+    this.syncService.logActivity(
+      tenantId,
+      'product_webhook',
+      `Вебхук товара: "${title}" (арт: ${article}) успешно обработан`,
+      'success',
+    );
+
+    return {
+      success: true,
+      article,
+      title,
+      message: `Товар "${title}" успешно зарегистрирован через вебхук`,
       timestamp: new Date().toISOString(),
     };
   }

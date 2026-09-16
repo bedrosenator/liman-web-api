@@ -2,8 +2,8 @@
 
 - **ID:** TASK-21
 - **Эпик:** Web Admin & Client Portal
-- **Статус:** Backlog
-- **Приоритет:** Medium
+- **Статус:** To Do (В очереди на реализацию) 🎯
+- **Приоритет:** High (Очередь #1)
 - **Исполнитель:** Frontend & Integration Agent
 
 ---

@@ -2,9 +2,11 @@
 
 - **ID:** TASK-17
 - **Эпик:** WooCommerce Интеграция & Двусторонняя синхронизация
-- **Статус:** Backlog
+- **Статус:** Backlog (Очередь #2, частично реализовано в TASK-14 и TASK-24)
 - **Приоритет:** Medium
 - **Исполнитель:** Full-Stack & Integration Agent
+
+> **Примечание о готовности:** Ядро двухстороннего импорта каталога из WooCommerce в `name2`, `name2ost`, `namedesc` (включая скачивание фото в BLOB) и эндпоинты `POST /woocommerce/:tenantId/import/products` уже реализованы в **TASK-14**. В плагине WordPress в **TASK-24** также созданы классы `class-migrator.php` и `class-direct-db.php`. В рамках TASK-17 основной фокус — разработка пользовательского интерфейса (кнопка, модальное окно выбора режима, AJAX progress-bar) в панели WordPress.
 
 ---
 

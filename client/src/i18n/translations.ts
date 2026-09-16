@@ -92,6 +92,15 @@ export const translations = {
     interval60Min: '60 мин',
     checkConnection: 'Проверить связь',
     lastSyncActivity: 'Последние события',
+    orderWebhook: 'Списание при покупке (Вебхук заказов)',
+    orderWebhookDesc: 'Мгновенное уменьшение остатков в Limansoft при оформлении заказа в Хорошоп',
+    productWebhook: 'Вебхук создания товара',
+    productWebhookDesc: 'Автоматическая регистрация и отправка новинок при создании',
+    webhookUrl: 'URL вебхука',
+    copyWebhookUrl: 'Скопировать URL вебхука',
+    exportToHoroshop: 'Экспорт каталога в Хорошоп',
+    exportCatalogBtn: 'Экспорт товаров в Хорошоп (без фида)',
+    exportSuccess: 'Каталог успешно экспортирован в Хорошоп',
 
     // Backups
     createBackup: 'Создать резервную копию',
@@ -290,6 +299,15 @@ export const translations = {
     interval60Min: '60 хв',
     checkConnection: 'Перевірити зв\'язок',
     lastSyncActivity: 'Останні події',
+    orderWebhook: 'Списання при покупці (Вебхук замовлень)',
+    orderWebhookDesc: 'Миттєве зменшення залишків у Limansoft при оформленні замовлення в Хорошоп',
+    productWebhook: 'Вебхук створення товару',
+    productWebhookDesc: 'Автоматична реєстрація та відправка новинок при створенні',
+    webhookUrl: 'URL вебхука',
+    copyWebhookUrl: 'Скопіювати URL вебхука',
+    exportToHoroshop: 'Експорт каталогу в Хорошоп',
+    exportCatalogBtn: 'Експорт товарів у Хорошоп (без фіда)',
+    exportSuccess: 'Каталог успішно експортовано в Хорошоп',
 
     // Backups
     createBackup: 'Створити резервну копію',

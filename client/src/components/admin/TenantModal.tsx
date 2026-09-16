@@ -558,7 +558,7 @@ export function TenantModal({ isOpen, onClose, onSaved, tenant }: TenantModalPro
                 </div>
               </div>
 
-              <div className="form-group form-group--full mt-2">
+              <div className="form-group form-group--full mt-2 space-y-2">
                 <label className="checkbox-label">
                   <input
                     type="checkbox"
@@ -566,6 +566,24 @@ export function TenantModal({ isOpen, onClose, onSaved, tenant }: TenantModalPro
                     onChange={(e) => handleChange('horoshopExportEnabled', e.target.checked)}
                   />
                   <span>{t('autoSync')} Хорошоп</span>
+                </label>
+
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={formData.horoshopOrderWebhookEnabled ?? true}
+                    onChange={(e) => handleChange('horoshopOrderWebhookEnabled', e.target.checked)}
+                  />
+                  <span>{t('orderWebhook')}</span>
+                </label>
+
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={formData.horoshopProductCreationWebhookEnabled || false}
+                    onChange={(e) => handleChange('horoshopProductCreationWebhookEnabled', e.target.checked)}
+                  />
+                  <span>{t('productWebhook')}</span>
                 </label>
               </div>
             </div>

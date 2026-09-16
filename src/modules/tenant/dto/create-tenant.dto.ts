@@ -223,6 +223,14 @@ export class CreateTenantDto {
   rozetkaExportEnabled?: boolean;
 
   @ApiPropertyOptional({
+    description: 'Название магазина Хорошоп',
+    example: 'Columb Shop',
+  })
+  @IsString()
+  @IsOptional()
+  horoshopShopTitle?: string;
+
+  @ApiPropertyOptional({
     description:
       'Домен магазина Хорошоп (например: myshop.horoshop.ua или myshop.com.ua)',
     example: 'myshop.horoshop.ua',
@@ -255,6 +263,22 @@ export class CreateTenantDto {
   @IsBoolean()
   @IsOptional()
   horoshopExportEnabled?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Включить вебхук списания остатков при покупке/заказе',
+    default: true,
+  })
+  @IsBoolean()
+  @IsOptional()
+  horoshopOrderWebhookEnabled?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Включить вебхук создания/выгрузки новых товаров',
+    default: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  horoshopProductCreationWebhookEnabled?: boolean;
 
   @ApiPropertyOptional({
     description: 'Интервал синхронизации с Хорошоп (в минутах)',

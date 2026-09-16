@@ -24,15 +24,17 @@ import {
   AlertCircle,
   RefreshCw,
   Download,
+  Upload,
 } from 'lucide-react';
 
 export function ClientPortalPage() {
   const { t, language } = useLanguage();
   const { tenantId = 'columb' } = useParams<{ tenantId: string }>();
 
+  // Tenant state
   const [tenant, setTenant] = useState<any | null>(null);
 
-  // Health states (3-Point Health Bar)
+  // Statuses
   const [mariadbStatus, setMariadbStatus] = useState<{
     loading: boolean;
     success?: boolean;
@@ -42,23 +44,23 @@ export function ClientPortalPage() {
 
   const [horoshopStatus, setHoroshopStatus] = useState<{
     loading: boolean;
-    success?: boolean;
+    connected?: boolean;
     domain?: string;
-    message?: string;
+    authStatus?: string;
   }>({ loading: true });
 
   // Sync Action State
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState<number | null>(null);
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [syncReport, setSyncReport] = useState<{
     success: boolean;
     message: string;
-    updated?: number;
-    processed?: number;
   } | null>(null);
 
-  // Settings Form State
+  // Import Modal State (TASK-22)
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
+  // Form State
   const [domain, setDomain] = useState('');
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
@@ -66,6 +68,10 @@ export function ClientPortalPage() {
   const [isRevealingPassword, setIsRevealingPassword] = useState(false);
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
   const [syncInterval, setSyncInterval] = useState(15);
+  const [orderWebhookEnabled, setOrderWebhookEnabled] = useState(true);
+  const [productWebhookEnabled, setProductWebhookEnabled] = useState(false);
+  const [isOrderWebhookCopied, setIsOrderWebhookCopied] = useState(false);
+  const [isProductWebhookCopied, setIsProductWebhookCopied] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
@@ -87,6 +93,8 @@ export function ClientPortalPage() {
       setDomain(data.horoshopDomain || '');
       setLogin(data.horoshopLogin || '');
       setAutoSyncEnabled(Boolean(data.horoshopExportEnabled));
+      setOrderWebhookEnabled(data.horoshopOrderWebhookEnabled ?? true);
+      setProductWebhookEnabled(data.horoshopProductCreationWebhookEnabled ?? false);
       setSyncInterval(data.horoshopSyncIntervalMinutes || 15);
     } catch (err) {
       console.error('Failed to load tenant:', err);
@@ -251,6 +259,8 @@ export function ClientPortalPage() {
       horoshopDomain: domain.trim(),
       horoshopLogin: login.trim(),
       horoshopExportEnabled: autoSyncEnabled,
+      horoshopOrderWebhookEnabled: orderWebhookEnabled,
+      horoshopProductCreationWebhookEnabled: productWebhookEnabled,
       horoshopSyncIntervalMinutes: syncInterval,
     };
     if (password) {
@@ -285,7 +295,10 @@ export function ClientPortalPage() {
           <div>
             <h1 className="page-title">
               <Store size={24} className="text-indigo" />
-              {tenant?.name || `Магазин ${tenantId}`}
+              {tenant?.horoshopShopTitle ||
+                (tenant?.name && tenant.name.replace(/\s*\(Локальная MariaDB\)/i, '')) ||
+                (tenant?.horoshopDomain && tenant.horoshopDomain.replace(/^https?:\/\//, '')) ||
+                `Магазин ${tenantId}`}
             </h1>
             <p className="page-subtitle">
               {t('clientPortal')} — {t('horoshop')}
@@ -489,20 +502,40 @@ export function ClientPortalPage() {
             </div>
           </div>
 
-          {/* Карточка 3: Ссылка на XML-каталог фид */}
+          {/* Карточка 3: Экспорт товаров и XML-каталог фид */}
           <div className="card flex flex-col justify-between" id="action-feed-card">
             <div className="card__header">
               <h2 className="card__title">
                 <FileCode size={20} className="text-sky flex-shrink-0" />
-                <span>{t('xmlFeed')}</span>
+                <span>{t('exportToHoroshop')}</span>
               </h2>
             </div>
             <div className="card__body flex flex-col justify-between flex-1">
               <p className="text-sm text-secondary mb-3">
-                Персональная ссылка на потоковый YML/XML прайс-лист для импорта товаров в Хорошоп:
+                Прямая выгрузка позиций в Хорошоп в 1 клик через API или подключение по ссылке на фид:
               </p>
 
               <div>
+                <button
+                  type="button"
+                  className="btn btn--primary w-full justify-center mb-3 text-sm"
+                  id="btn-direct-export"
+                  onClick={handleSyncPricesStocks}
+                  disabled={isSyncing}
+                >
+                  {isSyncing ? (
+                    <>
+                      <Loader2 size={16} className="spinner" />
+                      <span>{t('syncInProgress')}...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload size={16} />
+                      <span>{t('exportCatalogBtn')}</span>
+                    </>
+                  )}
+                </button>
+
                 <div className="bg-elevated p-2.5 rounded-lg border border-subtle mb-3 flex items-center justify-between gap-2">
                   <span className="font-mono text-xs text-primary truncate" id="xml-feed-url">
                     {feedUrl}
@@ -629,6 +662,80 @@ export function ClientPortalPage() {
                     <option value={30}>{t('interval30Min')}</option>
                     <option value={60}>{t('interval60Min')}</option>
                   </select>
+                </div>
+              )}
+
+              {/* Вебхук списания остатков при заказе */}
+              <div className="flex items-center justify-between p-3 bg-elevated rounded-lg border border-subtle">
+                <div>
+                  <div className="text-xs font-semibold text-primary">{t('orderWebhook')}</div>
+                  <div className="text-[11px] text-muted">{t('orderWebhookDesc')}</div>
+                </div>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={orderWebhookEnabled}
+                    onChange={(e) => setOrderWebhookEnabled(e.target.checked)}
+                  />
+                  <span className="slider round" />
+                </label>
+              </div>
+
+              {orderWebhookEnabled && (
+                <div className="bg-elevated/50 p-2 rounded-lg border border-subtle flex items-center justify-between gap-2">
+                  <span className="font-mono text-[11px] text-primary truncate" id="order-webhook-url">
+                    {`${window.location.origin}/api/v1/horoshop/${tenantId}/webhook/order`}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn--secondary btn--xs flex-shrink-0"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/api/v1/horoshop/${tenantId}/webhook/order`);
+                      setIsOrderWebhookCopied(true);
+                      setTimeout(() => setIsOrderWebhookCopied(false), 2000);
+                    }}
+                    title={t('copyWebhookUrl')}
+                  >
+                    {isOrderWebhookCopied ? <Check size={12} className="text-emerald" /> : <Copy size={12} />}
+                    <span>{isOrderWebhookCopied ? t('copySuccess') : t('copy')}</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Вебхук создания товара */}
+              <div className="flex items-center justify-between p-3 bg-elevated rounded-lg border border-subtle">
+                <div>
+                  <div className="text-xs font-semibold text-primary">{t('productWebhook')}</div>
+                  <div className="text-[11px] text-muted">{t('productWebhookDesc')}</div>
+                </div>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={productWebhookEnabled}
+                    onChange={(e) => setProductWebhookEnabled(e.target.checked)}
+                  />
+                  <span className="slider round" />
+                </label>
+              </div>
+
+              {productWebhookEnabled && (
+                <div className="bg-elevated/50 p-2 rounded-lg border border-subtle flex items-center justify-between gap-2">
+                  <span className="font-mono text-[11px] text-primary truncate" id="product-webhook-url">
+                    {`${window.location.origin}/api/v1/horoshop/${tenantId}/webhook/product`}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn--secondary btn--xs flex-shrink-0"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/api/v1/horoshop/${tenantId}/webhook/product`);
+                      setIsProductWebhookCopied(true);
+                      setTimeout(() => setIsProductWebhookCopied(false), 2000);
+                    }}
+                    title={t('copyWebhookUrl')}
+                  >
+                    {isProductWebhookCopied ? <Check size={12} className="text-emerald" /> : <Copy size={12} />}
+                    <span>{isProductWebhookCopied ? t('copySuccess') : t('copy')}</span>
+                  </button>
                 </div>
               )}
 

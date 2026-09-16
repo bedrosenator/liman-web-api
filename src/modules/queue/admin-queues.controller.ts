@@ -19,6 +19,8 @@ export class AdminQueuesController {
     private readonly ordersQueue: Queue,
     @InjectQueue(QUEUE_NAMES.IMPORT_WOO_CATALOG)
     private readonly wooQueue: Queue,
+    @InjectQueue(QUEUE_NAMES.IMPORT_HOROSHOP_CATALOG)
+    private readonly horoshopQueue: Queue,
     private readonly tenantService: TenantService,
   ) {}
 
@@ -32,6 +34,8 @@ export class AdminQueuesController {
         return this.ordersQueue;
       case QUEUE_NAMES.IMPORT_WOO_CATALOG:
         return this.wooQueue;
+      case QUEUE_NAMES.IMPORT_HOROSHOP_CATALOG:
+        return this.horoshopQueue;
       default:
         throw new NotFoundException(`Очередь "${name}" не найдена`);
     }
@@ -55,6 +59,7 @@ export class AdminQueuesController {
       { name: QUEUE_NAMES.EXPORT_CATALOG, queue: this.exportQueue, label: 'Пакетный экспорт каталога' },
       { name: QUEUE_NAMES.IMPORT_ORDERS, queue: this.ordersQueue, label: 'Импорт заказов' },
       { name: QUEUE_NAMES.IMPORT_WOO_CATALOG, queue: this.wooQueue, label: 'Импорт из WooCommerce' },
+      { name: QUEUE_NAMES.IMPORT_HOROSHOP_CATALOG, queue: this.horoshopQueue, label: 'Импорт из Хорошоп' },
     ];
 
     const stats = await Promise.all(
@@ -126,7 +131,7 @@ export class AdminQueuesController {
     let totalActive = 0;
     let totalFailed = 0;
 
-    const queues = [this.stockQueue, this.exportQueue, this.ordersQueue, this.wooQueue];
+    const queues = [this.stockQueue, this.exportQueue, this.ordersQueue, this.wooQueue, this.horoshopQueue];
     for (const q of queues) {
       try {
         const counts = await q.getJobCounts('waiting', 'active', 'failed');
