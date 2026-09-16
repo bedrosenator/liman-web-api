@@ -88,10 +88,17 @@ export const adminApi = {
     apiClient.post(`/admin/queues/${queueName}/retry-failed`),
 };
 
+export const syncApi = {
+  getJobStatus: (queueName: string, jobId: string) =>
+    apiClient.get(`/sync/jobs/${queueName}/${jobId}`),
+};
+
 export const horoshopApi = {
   ping: (tenantId: string) => apiClient.get(`/horoshop/${tenantId}/ping`),
   syncPricesStocks: (tenantId: string, limit?: number) =>
     apiClient.post(`/horoshop/${tenantId}/sync/prices-stocks${limit ? `?limit=${limit}` : ''}`),
+  syncPricesStocksAsync: (tenantId: string) =>
+    apiClient.post(`/horoshop/${tenantId}/sync/prices-stocks?async=true`),
   getActivity: (tenantId: string) => apiClient.get(`/horoshop/${tenantId}/activity`),
   saveSettings: (tenantId: string, data: unknown) =>
     apiClient.patch(`/admin/tenants/${tenantId}`, data),
@@ -103,6 +110,8 @@ export const horoshopApi = {
       updateStock?: boolean;
       updateImages?: boolean;
       createBackup?: boolean;
+      limit?: number;
     },
   ) => apiClient.post(`/horoshop/${tenantId}/import/catalog`, payload),
 };
+

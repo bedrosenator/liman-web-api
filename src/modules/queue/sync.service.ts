@@ -17,13 +17,18 @@ export class SyncService {
     private readonly stockQueue: Queue<SyncStockJobData>,
     @InjectQueue(QUEUE_NAMES.IMPORT_WOO_CATALOG)
     private readonly wooImportQueue: Queue<ImportWooCatalogJobData>,
+    @InjectQueue(QUEUE_NAMES.IMPORT_HOROSHOP_CATALOG)
+    private readonly horoshopImportQueue: Queue<any>,
     private readonly tenantService: TenantService,
   ) {}
 
-  async triggerStockSync(tenantId: string, targetPlatform: 'prom' = 'prom') {
+  async triggerStockSync(
+    tenantId: string,
+    targetPlatform: 'prom' | 'rozetka' | 'woocommerce' | 'horoshop' = 'prom',
+  ) {
     const tenant = await this.tenantService.findOne(tenantId);
     this.logger.log(
-      `📥 Постановка в очередь BullMQ задачи синхронизации остатков для [${tenant.id}]`,
+      `📥 Постановка в очередь BullMQ задачи синхронизации остатков для [${tenant.id}] -> [${targetPlatform}]`,
     );
 
     const job = await this.stockQueue.add(
@@ -57,6 +62,8 @@ export class SyncService {
     if (queueName === QUEUE_NAMES.SYNC_STOCK) queue = this.stockQueue;
     if (queueName === QUEUE_NAMES.IMPORT_WOO_CATALOG)
       queue = this.wooImportQueue;
+    if (queueName === QUEUE_NAMES.IMPORT_HOROSHOP_CATALOG)
+      queue = this.horoshopImportQueue;
 
     if (!queue) {
       throw new NotFoundException(`Очередь "${queueName}" не поддерживается`);

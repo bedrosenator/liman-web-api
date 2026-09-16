@@ -1,5 +1,5 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Logger } from '@nestjs/common';
+import { Logger, Optional, Inject, forwardRef } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { QUEUE_NAMES, SyncStockJobData } from './queue.constants';
 import { LimanService } from '../liman/liman.service';
@@ -8,8 +8,12 @@ import {
   PromApiClient,
   PromProductPriceStockUpdate,
 } from '../prom/prom-api.client';
+import {
+  HoroshopApiClient,
+  HoroshopStockPriceItem,
+} from '../horoshop/horoshop-api.client';
+import { HoroshopSyncService } from '../horoshop/horoshop-sync.service';
 import { AlertService } from '../alert/alert.service';
-import { Optional } from '@nestjs/common';
 
 /**
  * Воркер фоновой очереди BullMQ для асинхронной синхронизации складских остатков и цен.
@@ -28,6 +32,12 @@ export class StockSyncProcessor extends WorkerHost {
     private readonly limanService: LimanService,
     private readonly tenantService: TenantService,
     private readonly promApiClient: PromApiClient,
+    @Optional()
+    @Inject(forwardRef(() => HoroshopApiClient))
+    private readonly horoshopClient?: HoroshopApiClient,
+    @Optional()
+    @Inject(forwardRef(() => HoroshopSyncService))
+    private readonly horoshopSyncService?: HoroshopSyncService,
     @Optional() private readonly alertService?: AlertService,
   ) {
     super();
@@ -53,6 +63,9 @@ export class StockSyncProcessor extends WorkerHost {
       const tenant = await this.tenantService.findOne(tenantId);
       if (!tenant.promApiKey && targetPlatform === 'prom') {
         throw new Error(`У тенанта "${tenantId}" не указан promApiKey`);
+      }
+      if (!tenant.horoshopDomain && targetPlatform === 'horoshop') {
+        throw new Error(`У тенанта "${tenantId}" не указан horoshopDomain`);
       }
 
       const totalCount = await this.limanService.getProductCount(tenant);
@@ -84,6 +97,19 @@ export class StockSyncProcessor extends WorkerHost {
             tenant.promApiKey!,
             updatePayload,
           );
+        } else if (targetPlatform === 'horoshop') {
+          if (this.horoshopClient) {
+            const updatePayload: HoroshopStockPriceItem[] = items.map((p) => ({
+              article: String(p.tcod),
+              price: p.price,
+              stock: p.stock,
+              presence: p.stock > 0,
+            }));
+            await this.horoshopClient.updateStocksAndPrices(
+              tenant,
+              updatePayload,
+            );
+          }
         }
 
         totalProcessed += items.length;
@@ -102,6 +128,17 @@ export class StockSyncProcessor extends WorkerHost {
       this.logger.log(
         `✅ Синхронизация [${tenantId}] успешно завершена за ${durationMs}ms! Обработано: ${totalProcessed} SKU.`,
       );
+
+      if (targetPlatform === 'horoshop') {
+        this.horoshopSyncService?.addActivity(tenant.id, {
+          type: 'sync',
+          status: 'success',
+          titleRu: `Синхронизация цен и остатков (${totalProcessed} товаров)`,
+          titleUk: `Синхронізація цін та залишків (${totalProcessed} товарів)`,
+          detailsRu: `Успешно обновлено через фоновую очередь BullMQ за ${durationMs}мс`,
+          detailsUk: `Успішно оновлено через фонову чергу BullMQ за ${durationMs}мс`,
+        });
+      }
 
       return {
         processed: totalProcessed,

@@ -256,4 +256,82 @@ export class HoroshopApiClient {
 
     return this.request(tenant, 'orders/get/', filter);
   }
+
+  /**
+   * Выгрузить каталог товаров из Хорошоп
+   * Используется для обратной синхронизации (Хорошоп → Limansoft MariaDB, TASK-22)
+   */
+  async exportCatalog(
+    tenant: Tenant,
+    options: { page?: number; limit?: number } = {},
+  ): Promise<{
+    status: string;
+    response: {
+      products: Array<{
+        article: string;
+        title: string;
+        price: number;
+        stock?: number;
+        presence?: number;
+        barcode?: string;
+        category?: string;
+        description?: string;
+        images?: string[];
+      }>;
+      total?: number;
+    };
+  }> {
+    if (this.isMockMode(tenant)) {
+      this.logger.log(
+        `🧪 [${tenant.id}] MOCK: симуляция экспорта каталога из Хорошоп (/catalog/export/)`,
+      );
+      return {
+        status: 'OK',
+        response: {
+          total: 3,
+          products: [
+            {
+              article: '16',
+              title: 'Bond Street Blue Selection (MOCK)',
+              price: 142.86,
+              stock: 25,
+              presence: 1,
+              barcode: '482000000016',
+              category: 'Сигареты',
+              description: 'Сигареты Bond Street Blue Selection оригинальные',
+              images: ['https://placehold.co/400x400.png?text=Bond+Street'],
+            },
+            {
+              article: '251',
+              title: 'Burn 0.25 Original (MOCK)',
+              price: 47.0,
+              stock: 40,
+              presence: 1,
+              barcode: '482000000251',
+              category: 'Напитки',
+              description: 'Энергетический напиток Burn 0.25',
+              images: ['https://placehold.co/400x400.png?text=Burn'],
+            },
+            {
+              article: '99999',
+              title: 'Новый товар из Хорошоп MOCK 2026',
+              price: 199.99,
+              stock: 15,
+              presence: 1,
+              barcode: '482000099999',
+              category: 'Новинки',
+              description: 'Эксклюзивная позиция, созданная в админке Хорошоп',
+              images: ['https://placehold.co/400x400.png?text=Horoshop+New'],
+            },
+          ],
+        },
+      };
+    }
+
+    return this.request(tenant, 'catalog/export/', {
+      page: options.page || 1,
+      limit: options.limit || 50,
+    });
+  }
 }
+

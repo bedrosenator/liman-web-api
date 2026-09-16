@@ -63,7 +63,7 @@
 /* Grid layout */
 .lsw-grid {
     display: grid;
-    grid-template-columns: 1fr 340px;
+    grid-template-columns: 1fr 380px;
     gap: 24px;
     align-items: start;
 }
@@ -346,8 +346,7 @@
 
 /* Buttons */
 .lsw-btn-save,
-.lsw-btn-secondary,
-.lsw-btn-sync {
+.lsw-btn-secondary {
     font-family: inherit !important;
     font-size: 0.875rem !important;
     font-weight: 600 !important;
@@ -382,26 +381,6 @@
     border-color: var(--lsw-primary) !important;
     color: var(--lsw-primary) !important;
     background: #ede9fe !important;
-}
-
-.lsw-btn-sync {
-    width: 100% !important;
-    justify-content: center !important;
-    background: linear-gradient(135deg, var(--lsw-primary) 0%, #8b5cf6 100%) !important;
-    border: none !important;
-    color: #fff !important;
-    font-size: 1rem !important;
-    height: 48px !important;
-}
-
-.lsw-btn-sync:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(99,102,241,.4) !important;
-}
-
-.lsw-btn-sync:disabled {
-    opacity: .5 !important;
-    cursor: not-allowed !important;
 }
 
 /* Progress bar */
@@ -520,30 +499,111 @@
 .lsw-action-buttons {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    margin-top: 15px;
+    gap: 12px;
+    margin-top: 16px;
 }
 
-.lsw-btn-full {
-    width: 100% !important;
-    text-align: center !important;
+.lsw-action-buttons .button,
+.lsw-action-buttons .lsw-btn-full {
+    display: flex !important;
+    align-items: center !important;
     justify-content: center !important;
-    padding: 8px 16px !important;
-    font-weight: 600 !important;
+    text-align: center !important;
+    width: 100% !important;
+    min-height: 48px !important;
     height: auto !important;
-    line-height: 1.5 !important;
+    padding: 10px 14px !important;
+    gap: 8px !important;
+    white-space: normal !important;
+    word-break: normal !important;
+    line-height: 1.35 !important;
+    font-size: 0.875rem !important;
+    font-weight: 600 !important;
+    box-sizing: border-box !important;
+    border-radius: 8px !important;
+    transition: all 0.2s ease !important;
+    cursor: pointer !important;
+    overflow: hidden !important;
 }
 
+.lsw-action-buttons .lsw-btn-icon {
+    font-size: 1.25rem;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.lsw-action-buttons .lsw-btn-text {
+    display: inline-block;
+    line-height: 1.35;
+    flex: 1;
+}
+
+/* Button 1: Purple Gradient (Sync Now) */
+.lsw-btn-sync {
+    background: linear-gradient(135deg, var(--lsw-primary) 0%, #8b5cf6 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: #fff !important;
+    box-shadow: 0 2px 6px rgba(99, 102, 241, 0.25) !important;
+}
+
+.lsw-btn-sync:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4) !important;
+    color: #fff !important;
+}
+
+.lsw-btn-sync:disabled {
+    opacity: 0.55 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* Button 2: Blue (Import Limansoft DB) */
+.lsw-btn-primary {
+    background: #0284c7 !important;
+    border: 1px solid #0369a1 !important;
+    color: #fff !important;
+    box-shadow: 0 2px 6px rgba(2, 132, 199, 0.25) !important;
+}
+
+.lsw-btn-primary:hover:not(:disabled) {
+    background: #0369a1 !important;
+    border-color: #075985 !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35) !important;
+    color: #fff !important;
+}
+
+/* Button 3: Secondary Action (Fast Stock Sync) */
+.lsw-btn-secondary-action {
+    background: #fff !important;
+    border: 1.5px solid #3b82f6 !important;
+    color: #1d4ed8 !important;
+}
+
+.lsw-btn-secondary-action:hover:not(:disabled) {
+    background: #eff6ff !important;
+    border-color: #2563eb !important;
+    color: #1e40af !important;
+    transform: translateY(-1px);
+}
+
+/* Button 4: Danger (Cleanup Duplicates) */
 .lsw-btn-danger {
-    color: #b91c1c !important;
-    border-color: #f87171 !important;
+    color: #dc2626 !important;
+    border: 1.5px solid #fca5a5 !important;
     background: #fff !important;
 }
 
-.lsw-btn-danger:hover {
-    background: #fee2e2 !important;
+.lsw-btn-danger:hover:not(:disabled) {
+    background: #fef2f2 !important;
     border-color: #ef4444 !important;
-    color: #991b1b !important;
+    color: #b91c1c !important;
+    transform: translateY(-1px);
 }
 
 /* Console & Logs */

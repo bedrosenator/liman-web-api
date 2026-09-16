@@ -3,6 +3,7 @@ export const QUEUE_NAMES = {
   SYNC_STOCK: 'sync-stock',
   IMPORT_ORDERS: 'import-orders',
   IMPORT_WOO_CATALOG: 'import-woo-catalog',
+  IMPORT_HOROSHOP_CATALOG: 'import-horoshop-catalog',
 } as const;
 
 export interface ExportChunkJobData {
@@ -15,11 +16,21 @@ export interface ExportChunkJobData {
 
 export interface SyncStockJobData {
   tenantId: string;
-  targetPlatform: 'prom' | 'rozetka' | 'woocommerce';
+  targetPlatform: 'prom' | 'rozetka' | 'woocommerce' | 'horoshop';
 }
 
 export interface ImportWooCatalogJobData {
   tenantId: string;
   limit?: number;
   page?: number;
+}
+
+export interface ImportHoroshopCatalogJobData {
+  tenantId: string;
+  mode?: 'only_new' | 'overwrite';
+  updatePrices?: boolean;
+  updateStock?: boolean;
+  updateImages?: boolean;
+  createBackup?: boolean;
+  limit?: number;
 }

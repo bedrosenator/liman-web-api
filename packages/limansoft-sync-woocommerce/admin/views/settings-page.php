@@ -292,29 +292,34 @@ $stock_columns = [
                     <!-- Кнопка 1: Полный синк через API -->
                     <button type="button" id="lsw-sync-now" class="button lsw-btn-sync lsw-btn-full"
                             <?php echo ! $settings->is_configured() ? 'disabled title="Спочатку збережіть налаштування API"' : ''; ?>>
-                        🚀 <?php esc_html_e( 'Повна синхронізація через Liman API', 'limansoft-sync' ); ?>
+                        <span class="lsw-btn-icon">🚀</span>
+                        <span class="lsw-btn-text"><?php esc_html_e( 'Повна синхронізація через Liman API', 'limansoft-sync' ); ?></span>
                     </button>
 
                     <!-- Кнопка 2: Полный импорт из БД Limansoft -->
-                    <button type="button" id="lsw-import-tobacco" class="button button-primary lsw-btn-full" style="background:#0073aa; border-color:#006799;">
-                        📦 <?php esc_html_e( 'Повний імпорт товарів з БД Limansoft', 'limansoft-sync' ); ?>
+                    <button type="button" id="lsw-import-tobacco" class="button button-primary lsw-btn-primary lsw-btn-full">
+                        <span class="lsw-btn-icon">📦</span>
+                        <span class="lsw-btn-text"><?php esc_html_e( 'Повний імпорт товарів з БД Limansoft', 'limansoft-sync' ); ?></span>
                     </button>
 
                     <!-- Кнопка 3: Быстрый синк цен и остатков -->
-                    <button type="button" id="lsw-fast-stock-sync" class="button button-secondary lsw-btn-full">
-                        ⚡ <?php esc_html_e( 'Швидке оновлення цін і залишків (Direct DB)', 'limansoft-sync' ); ?>
+                    <button type="button" id="lsw-fast-stock-sync" class="button button-secondary lsw-btn-secondary-action lsw-btn-full">
+                        <span class="lsw-btn-icon">⚡</span>
+                        <span class="lsw-btn-text"><?php esc_html_e( 'Швидке оновлення цін і залишків (Direct DB)', 'limansoft-sync' ); ?></span>
                     </button>
 
                     <!-- Кнопка 4: Запуск Веб-Паука (Тимчасово приховано: експериментальна функція TASK-25) -->
                     <?php /*
                     <button type="button" id="lsw-web-spider" class="button button-secondary lsw-btn-full" style="color:#008a20; border-color:#008a20;">
-                        🕷️ <?php esc_html_e( 'Запустити Веб-Паук (Фото та описи)', 'limansoft-sync' ); ?>
+                        <span class="lsw-btn-icon">🕷️</span>
+                        <span class="lsw-btn-text"><?php esc_html_e( 'Запустити Веб-Паук (Фото та описи)', 'limansoft-sync' ); ?></span>
                     </button>
                     */ ?>
 
                     <!-- Кнопка 5: Очистка дубликатов -->
                     <button type="button" id="lsw-cleanup-dups" class="button lsw-btn-danger lsw-btn-full">
-                        🧹 <?php esc_html_e( 'Видалити дублікати в каталозі WooCommerce', 'limansoft-sync' ); ?>
+                        <span class="lsw-btn-icon">🧹</span>
+                        <span class="lsw-btn-text"><?php esc_html_e( 'Видалити дублікати в каталозі WooCommerce', 'limansoft-sync' ); ?></span>
                     </button>
                 </div>
 

@@ -15,8 +15,13 @@ vi.mock('@/api/client', () => ({
   horoshopApi: {
     ping: vi.fn(),
     syncPricesStocks: vi.fn(),
+    syncPricesStocksAsync: vi.fn(),
     getActivity: vi.fn(),
     saveSettings: vi.fn(),
+    importCatalog: vi.fn(),
+  },
+  syncApi: {
+    getJobStatus: vi.fn(),
   },
 }));
 
@@ -91,7 +96,7 @@ describe('ClientPortalPage (TASK-20)', () => {
   });
 
   it('вызывает syncPricesStocks при клике на кнопку немедленного обновления цен и остатков', async () => {
-    vi.mocked(horoshopApi.syncPricesStocks).mockResolvedValue({
+    vi.mocked(horoshopApi.syncPricesStocksAsync).mockResolvedValue({
       data: { success: true, updated: 5768, processed: 5768 },
     } as any);
 
@@ -105,7 +110,7 @@ describe('ClientPortalPage (TASK-20)', () => {
     fireEvent.click(syncBtn);
 
     await waitFor(() => {
-      expect(horoshopApi.syncPricesStocks).toHaveBeenCalledWith('columb');
+      expect(horoshopApi.syncPricesStocksAsync).toHaveBeenCalledWith('columb');
       expect(screen.getByText(/Успешно обновлено 5768 товаров в Хорошоп/i)).toBeInTheDocument();
     });
   });

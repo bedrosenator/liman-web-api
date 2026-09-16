@@ -8,6 +8,10 @@ import {
   Logger,
   HttpCode,
   HttpStatus,
+  HttpException,
+  Inject,
+  forwardRef,
+  Optional,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -17,6 +21,10 @@ import {
   ApiResponse,
   ApiQuery,
 } from '@nestjs/swagger';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
+import { QUEUE_NAMES, ImportHoroshopCatalogJobData } from '../queue/queue.constants';
+import { SyncService } from '../queue/sync.service';
 import { HoroshopApiClient } from './horoshop-api.client';
 import { HoroshopSyncService } from './horoshop-sync.service';
 import { LimanService } from '../liman/liman.service';
@@ -33,6 +41,12 @@ export class HoroshopSyncController {
     private readonly syncService: HoroshopSyncService,
     private readonly limanService: LimanService,
     private readonly tenantService: TenantService,
+    @Optional()
+    @InjectQueue(QUEUE_NAMES.IMPORT_HOROSHOP_CATALOG)
+    private readonly importCatalogQueue?: Queue<ImportHoroshopCatalogJobData>,
+    @Optional()
+    @Inject(forwardRef(() => SyncService))
+    private readonly queueSyncService?: SyncService,
   ) {}
 
   /**
@@ -71,7 +85,7 @@ export class HoroshopSyncController {
     summary: 'Синхронизировать цены и остатки в магазине Хорошоп',
     description:
       'Считывает товары из базы Limansoft и отправляет пакеты обновлений цен и остатков в API Хорошоп. ' +
-      'Артикулом (article) является tcod товара.',
+      'При async=true задача ставится в фоновую очередь BullMQ (sync-stock).',
   })
   @ApiParam({ name: 'tenantId', example: 'columb' })
   @ApiQuery({
@@ -81,14 +95,26 @@ export class HoroshopSyncController {
       'Ограничить количество обрабатываемых товаров (для тестирования)',
     example: 50,
   })
-  @ApiResponse({ status: 202, description: 'Синхронизация завершена' })
+  @ApiQuery({
+    name: 'async',
+    required: false,
+    description: 'Выполнить асинхронно через очередь BullMQ с отслеживанием прогресса',
+    example: true,
+  })
+  @ApiResponse({ status: 202, description: 'Синхронизация завершена или поставлена в очередь' })
   async syncPricesStocks(
     @Param('tenantId') tenantId: string,
     @Query('limit') limitStr?: string,
+    @Query('async') isAsync?: string,
   ) {
     const tenant = await this.tenantService.findOne(tenantId);
-    const limit = limitStr ? parseInt(limitStr, 10) : undefined;
 
+    // Если запрошен асинхронный режим через BullMQ
+    if ((isAsync === 'true' || isAsync === '1') && this.queueSyncService) {
+      return this.queueSyncService.triggerStockSync(tenantId, 'horoshop');
+    }
+
+    const limit = limitStr ? parseInt(limitStr, 10) : undefined;
     const result = await this.syncService.syncPricesAndStocks(tenant, {
       limit,
     });
@@ -269,4 +295,84 @@ export class HoroshopSyncController {
       timestamp: new Date().toISOString(),
     };
   }
+
+  /**
+   * Запуск обратного импорта каталога из Хорошоп в Limansoft MariaDB (TASK-22)
+   */
+  @Post('import/catalog')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({
+    summary:
+      'Запустить обратный импорт каталога товаров из Хорошоп в Limansoft (MariaDB)',
+    description:
+      'Помещает задачу в фоновую очередь BullMQ (import-horoshop-catalog). ' +
+      'Поддерживает безопасный режим "only_new" (только новинки) и режим перезаписи "overwrite".',
+  })
+  @ApiParam({ name: 'tenantId', example: 'columb' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        mode: {
+          type: 'string',
+          enum: ['only_new', 'overwrite'],
+          default: 'only_new',
+          description: 'Режим импорта: только новинки или полная перезапись',
+        },
+        updatePrices: { type: 'boolean', default: true },
+        updateStock: { type: 'boolean', default: true },
+        updateImages: { type: 'boolean', default: true },
+        createBackup: { type: 'boolean', default: true },
+        limit: { type: 'number', example: 50 },
+      },
+    },
+  })
+  @ApiResponse({ status: 202, description: 'Задача импорта поставлена в очередь BullMQ' })
+  async triggerCatalogImport(
+    @Param('tenantId') tenantId: string,
+    @Body() body: any = {},
+  ) {
+    const tenant = await this.tenantService.findOne(tenantId);
+    if (!tenant.horoshopDomain) {
+      throw new HttpException(
+        'У тенанта не настроен домен магазина Хорошоп (horoshopDomain)',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    if (!this.importCatalogQueue) {
+      throw new HttpException(
+        'Очередь импорта каталога Хорошоп недоступна',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    const job = await this.importCatalogQueue.add(
+      'import-horoshop-catalog-job',
+      {
+        tenantId,
+        mode: body.mode || 'only_new',
+        updatePrices: body.updatePrices !== false,
+        updateStock: body.updateStock !== false,
+        updateImages: body.updateImages !== false,
+        createBackup: body.createBackup !== false,
+        limit: body.limit ? parseInt(body.limit, 10) : undefined,
+      },
+      {
+        attempts: 2,
+        removeOnComplete: 100,
+        removeOnFail: 50,
+      },
+    );
+
+    return {
+      success: true,
+      message: 'Задача импорта каталога успешно поставлена в фоновую очередь BullMQ',
+      jobId: job.id,
+      queue: QUEUE_NAMES.IMPORT_HOROSHOP_CATALOG,
+      tenantId,
+      mode: body.mode || 'only_new',
+    };
+  }
 }
+

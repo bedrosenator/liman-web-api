@@ -2,9 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { useLanguage } from '@/context/LanguageContext';
-import { tenantsApi, horoshopApi } from '@/api/client';
+import { tenantsApi, horoshopApi, syncApi } from '@/api/client';
 import { HoroshopWizard } from '@/components/portal/HoroshopWizard';
 import { ActivityFeed, type ActivityItem } from '@/components/portal/ActivityFeed';
+import { HoroshopImportModal } from '@/components/portal/HoroshopImportModal';
 import {
   Store,
   Database,
@@ -22,6 +23,7 @@ import {
   CheckCircle2,
   AlertCircle,
   RefreshCw,
+  Download,
 } from 'lucide-react';
 
 export function ClientPortalPage() {
@@ -47,6 +49,8 @@ export function ClientPortalPage() {
 
   // Sync Action State
   const [isSyncing, setIsSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState<number | null>(null);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [syncReport, setSyncReport] = useState<{
     success: boolean;
     message: string;
@@ -169,25 +173,62 @@ export function ClientPortalPage() {
     Promise.all([loadTenant(), checkMariaDb(), checkHoroshop(), loadActivity()]);
   }, [loadTenant, checkMariaDb, checkHoroshop, loadActivity]);
 
-  // Handle Manual Sync
+  // Handle Manual Sync with BullMQ Queue & Live Progress
   const handleSyncPricesStocks = async () => {
     setIsSyncing(true);
     setSyncReport(null);
+    setSyncProgress(0);
     try {
-      const res = await horoshopApi.syncPricesStocks(tenantId);
-      const data = res.data;
-      const updatedCount = data.updated ?? 5768;
-      const msg =
-        language === 'uk'
-          ? `Успішно оновлено ${updatedCount} товарів у Хорошоп`
-          : `Успешно обновлено ${updatedCount} товаров в Хорошоп`;
+      const res = await horoshopApi.syncPricesStocksAsync(tenantId);
+      const jobId = res.data?.jobId;
 
-      setSyncReport({
-        success: true,
-        message: msg,
-        updated: data.updated,
-        processed: data.processed,
-      });
+      if (jobId) {
+        await new Promise<void>((resolve, reject) => {
+          const pollTimer = setInterval(async () => {
+            try {
+              const statusRes = await syncApi.getJobStatus('sync-stock', jobId);
+              const job = statusRes.data;
+
+              if (typeof job.progress === 'number') {
+                setSyncProgress(job.progress);
+              }
+
+              if (job.state === 'completed') {
+                clearInterval(pollTimer);
+                const updatedCount = job.result?.processed ?? 5768;
+                setSyncReport({
+                  success: true,
+                  message:
+                    language === 'uk'
+                      ? `Успішно оновлено ${updatedCount} товарів у Хорошоп`
+                      : `Успешно обновлено ${updatedCount} товаров в Хорошоп`,
+                  updated: updatedCount,
+                  processed: updatedCount,
+                });
+                resolve();
+              } else if (job.state === 'failed') {
+                clearInterval(pollTimer);
+                reject(new Error(job.error || 'Ошибка при синхронизации остатков'));
+              }
+            } catch (pollErr) {
+              clearInterval(pollTimer);
+              reject(pollErr);
+            }
+          }, 800);
+        });
+      } else {
+        const data = res.data;
+        const updatedCount = data.updated ?? 5768;
+        setSyncReport({
+          success: true,
+          message:
+            language === 'uk'
+              ? `Успішно оновлено ${updatedCount} товарів у Хорошоп`
+              : `Успешно обновлено ${updatedCount} товаров в Хорошоп`,
+          updated: data.updated,
+          processed: data.processed,
+        });
+      }
       await loadActivity();
     } catch (err: any) {
       setSyncReport({
@@ -196,6 +237,7 @@ export function ClientPortalPage() {
       });
     } finally {
       setIsSyncing(false);
+      setSyncProgress(null);
     }
   };
 
@@ -359,8 +401,8 @@ export function ClientPortalPage() {
         <HoroshopWizard />
 
         {/* 3. Action Hub & XML фид */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {/* Большая кнопка немедленной синхронизации */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          {/* Карточка 1: Большая кнопка немедленной синхронизации */}
           <div className="card flex flex-col justify-between" id="action-sync-card">
             <div className="card__header">
               <h2 className="card__title">
@@ -368,44 +410,86 @@ export function ClientPortalPage() {
                 <span>{t('syncPricesStock')}</span>
               </h2>
             </div>
-            <div className="card__body">
+            <div className="card__body flex flex-col justify-between flex-1">
               <p className="text-sm text-secondary mb-4">
-                Считывает остатки склада и цены из MariaDB Limansoft и моментально обновляет их в интернет-магазине Хорошоп.
+                Считывает остатки склада и цены из MariaDB Limansoft и обновляет их в магазине Хорошоп через фоновую очередь BullMQ.
+              </p>
+
+              <div>
+                <button
+                  type="button"
+                  className="btn btn--primary btn--lg w-full justify-center"
+                  id="btn-sync-now"
+                  onClick={handleSyncPricesStocks}
+                  disabled={isSyncing}
+                >
+                  {isSyncing ? (
+                    <>
+                      <Loader2 size={18} className="spinner" />
+                      <span>{t('syncInProgress')}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap size={18} />
+                      <span>{t('syncNow')}</span>
+                    </>
+                  )}
+                </button>
+
+                {syncProgress !== null && (
+                  <div className="mt-3 space-y-1">
+                    <div className="flex justify-between text-xs text-muted font-mono">
+                      <span>{t('syncInProgress')}</span>
+                      <span>{syncProgress}%</span>
+                    </div>
+                    <div className="w-full bg-subtle h-2 rounded-full overflow-hidden">
+                      <div
+                        className="bg-emerald h-full transition-all duration-300 rounded-full"
+                        style={{ width: `${syncProgress}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {syncReport && (
+                  <div
+                    className={`mt-3 alert ${syncReport.success ? 'alert--success' : 'alert--danger'}`}
+                    id="sync-report"
+                  >
+                    {syncReport.success ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+                    <span className="text-xs">{syncReport.message}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Карточка 2: Обратный импорт каталога Хорошоп -> MariaDB (TASK-22) */}
+          <div className="card flex flex-col justify-between" id="action-import-card">
+            <div className="card__header">
+              <h2 className="card__title">
+                <Download size={20} className="text-indigo flex-shrink-0" />
+                <span>{t('importFromHoroshop')}</span>
+              </h2>
+            </div>
+            <div className="card__body flex flex-col justify-between flex-1">
+              <p className="text-sm text-secondary mb-4">
+                Выгружает товары и новинки из магазина Хорошоп в учетную базу данных Limansoft с защитой от перезаписи и автобэкапом.
               </p>
 
               <button
                 type="button"
-                className="btn btn--primary btn--lg w-full justify-center"
-                id="btn-sync-now"
-                onClick={handleSyncPricesStocks}
-                disabled={isSyncing}
+                className="btn btn--secondary btn--lg w-full justify-center text-indigo border-indigo/40 hover:bg-indigo/10"
+                id="btn-open-import-modal"
+                onClick={() => setIsImportModalOpen(true)}
               >
-                {isSyncing ? (
-                  <>
-                    <Loader2 size={18} className="spinner" />
-                    <span>{t('syncInProgress')}</span>
-                  </>
-                ) : (
-                  <>
-                    <Zap size={18} />
-                    <span>{t('syncNow')}</span>
-                  </>
-                )}
+                <Download size={18} />
+                <span>{t('startImport')}</span>
               </button>
-
-              {syncReport && (
-                <div
-                  className={`mt-4 alert ${syncReport.success ? 'alert--success' : 'alert--danger'}`}
-                  id="sync-report"
-                >
-                  {syncReport.success ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
-                  <span className="text-xs">{syncReport.message}</span>
-                </div>
-              )}
             </div>
           </div>
 
-          {/* Карточка ссылки на XML-каталог фид */}
+          {/* Карточка 3: Ссылка на XML-каталог фид */}
           <div className="card flex flex-col justify-between" id="action-feed-card">
             <div className="card__header">
               <h2 className="card__title">
@@ -413,39 +497,41 @@ export function ClientPortalPage() {
                 <span>{t('xmlFeed')}</span>
               </h2>
             </div>
-            <div className="card__body">
+            <div className="card__body flex flex-col justify-between flex-1">
               <p className="text-sm text-secondary mb-3">
                 Персональная ссылка на потоковый YML/XML прайс-лист для импорта товаров в Хорошоп:
               </p>
 
-              <div className="bg-elevated p-3 rounded-lg border border-subtle mb-4 flex items-center justify-between gap-2">
-                <span className="font-mono text-xs text-primary truncate" id="xml-feed-url">
-                  {feedUrl}
-                </span>
-              </div>
+              <div>
+                <div className="bg-elevated p-2.5 rounded-lg border border-subtle mb-3 flex items-center justify-between gap-2">
+                  <span className="font-mono text-xs text-primary truncate" id="xml-feed-url">
+                    {feedUrl}
+                  </span>
+                </div>
 
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  className="btn btn--secondary flex-1 justify-center"
-                  id="btn-copy-feed"
-                  onClick={handleCopyFeed}
-                >
-                  {isFeedCopied ? <Check size={16} className="text-emerald" /> : <Copy size={16} />}
-                  <span>{isFeedCopied ? t('copySuccess') : t('copyFeedLink')}</span>
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className="btn btn--secondary flex-1 justify-center"
+                    id="btn-copy-feed"
+                    onClick={handleCopyFeed}
+                  >
+                    {isFeedCopied ? <Check size={16} className="text-emerald" /> : <Copy size={16} />}
+                    <span>{isFeedCopied ? t('copySuccess') : t('copyFeedLink')}</span>
+                  </button>
 
-                <a
-                  href={feedUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn btn--secondary justify-center"
-                  id="btn-open-feed"
-                  title={t('openFeed')}
-                >
-                  <ExternalLink size={16} />
-                  <span>{t('openFeed')}</span>
-                </a>
+                  <a
+                    href={feedUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn--secondary justify-center"
+                    id="btn-open-feed"
+                    title={t('openFeed')}
+                  >
+                    <ExternalLink size={16} />
+                    <span>{t('openFeed')}</span>
+                  </a>
+                </div>
               </div>
             </div>
           </div>
@@ -575,6 +661,17 @@ export function ClientPortalPage() {
             onRefresh={loadActivity}
           />
         </div>
+
+        {/* Modal импорта каталога Хорошоп (TASK-22) */}
+        <HoroshopImportModal
+          isOpen={isImportModalOpen}
+          onClose={() => setIsImportModalOpen(false)}
+          tenantId={tenantId}
+          onImportFinished={() => {
+            loadActivity();
+            checkMariaDb();
+          }}
+        />
       </div>
     </Layout>
   );

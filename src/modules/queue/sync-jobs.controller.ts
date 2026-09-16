@@ -23,12 +23,13 @@ export class SyncJobsController {
     name: 'platform',
     required: false,
     example: 'prom',
-    enum: ['prom', 'rozetka', 'woocommerce'],
+    enum: ['prom', 'rozetka', 'woocommerce', 'horoshop'],
   })
   @ApiResponse({ status: 202, description: 'Задача поставлена в очередь' })
   async triggerStockSync(
     @Param('tenantId') tenantId: string,
-    @Query('platform') platform: 'prom' = 'prom',
+    @Query('platform')
+    platform: 'prom' | 'rozetka' | 'woocommerce' | 'horoshop' = 'prom',
   ) {
     return this.syncService.triggerStockSync(tenantId, platform);
   }

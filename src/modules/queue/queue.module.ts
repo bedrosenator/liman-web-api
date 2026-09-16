@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { QUEUE_NAMES } from './queue.constants';
@@ -11,6 +11,7 @@ import { LimanModule } from '../liman/liman.module';
 import { TenantModule } from '../tenant/tenant.module';
 import { PromModule } from '../prom/prom.module';
 import { WoocommerceModule } from '../woocommerce/woocommerce.module';
+import { HoroshopModule } from '../horoshop/horoshop.module';
 
 @Module({
   imports: [
@@ -30,14 +31,17 @@ import { WoocommerceModule } from '../woocommerce/woocommerce.module';
       { name: QUEUE_NAMES.EXPORT_CATALOG },
       { name: QUEUE_NAMES.IMPORT_ORDERS },
       { name: QUEUE_NAMES.IMPORT_WOO_CATALOG },
+      { name: QUEUE_NAMES.IMPORT_HOROSHOP_CATALOG },
     ),
     TenantModule,
     LimanModule,
     PromModule,
     WoocommerceModule,
+    forwardRef(() => HoroshopModule),
   ],
   controllers: [SyncJobsController, AdminQueuesController],
   providers: [SyncService, StockSyncProcessor, WooImportProcessor],
   exports: [SyncService, BullModule],
 })
 export class AppQueueModule {}
+
