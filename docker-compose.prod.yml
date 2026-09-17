@@ -1,0 +1,105 @@
+services:
+  # ─── Redis (BullMQ + Distributed Locks) ──────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: liman_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - liman_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ─── PostgreSQL (Master DB: Tenants, Integrations, Product Mappings) ─────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: liman_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-liman_master}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - liman_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-liman_master}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── NestJS API (Основной бэкенд и воркеры BullMQ) ───────────────────────────
+  api:
+    image: ghcr.io/bedrosenator/liman-web-api:latest
+    container_name: liman_api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      MASTER_API_KEY: ${MASTER_API_KEY}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      DB_TYPE: postgres
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-liman_master}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - liman_network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/v1/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ─── Nginx (Раздача статики SPA + Reverse Proxy к NestJS API) ───────────────
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: liman_nginx
+    restart: unless-stopped
+    ports:
+      # Проксируем на локальный порт 8088 хоста (не конфликтует с restaurantify на портах 80/443).
+      # Основной Caddy/Nginx сервер Hetzner перенаправляет домен liman на 127.0.0.1:8088.
+      - "127.0.0.1:${LIMAN_HTTP_PORT:-8088}:80"
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./public/app:/app/static:ro
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - liman_network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+networks:
+  liman_network:
+    name: liman_network
+    driver: bridge
+
+volumes:
+  redis_data:
+    name: liman_redis_data
+  postgres_data:
+    name: liman_postgres_data

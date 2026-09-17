@@ -173,8 +173,17 @@
    - Интерфейс управления Хорошоп, Prom.ua, Rozetka, WooCommerce для клиентов.
 6. **Двусторонний импорт каталога Хорошоп ➔ Limansoft (TASK-22):**
    - Режимы `skip_existing` и `overwrite`, предупреждение о бекапе, очередь BullMQ.
-7. **WooCommerce Integration & WordPress Plugin (TASK-12, TASK-16, TASK-17):**
+7. **WooCommerce Integration & WordPress Plugin (TASK-12, TASK-16, TASK-17, TASK-24):**
    - REST API клиент для WooCommerce v3.
-   - Фирменный плагин `liman-sync-for-woocommerce` с защитой лицензии и автообновлением.
+   - Фирменный единый плагин `limansoft-sync-woocommerce` v2.0.0 с прямым подключением MariaDB, группировщиком товаров и автообновлением.
    - Двусторонний импорт каталога WooCommerce ➔ Limansoft.
+8. **Единый движок обработки заказов и интеграция Хорошоп (TASK-29):**
+   - 🟡 В разработке: `LimanOrderService`, единый `UnifiedIncomingOrderDto`, безопасное создание черновиков заказов `tip_dok: 85`, `prov = 'f'`, `ndok` lock, `checkdok`, `dmonitor`.
+   - Тумблер `horoshopCreateOrderDocumentEnabled` (по умолчанию: выключено, экспериментальная функция).
+9. **CI/CD пайплайн и деплой на сервер Hetzner (TASK-30):**
+   - 🟢 Подготовлено: Dockerfile multi-stage, `.github/workflows/deploy.yml`, `scripts/deploy.sh`, `docker-compose.prod.yml`.
+   - Полная изоляция от проекта `restaurantify` на сервере Hetzner (порт 8088 + Caddy SSL).
+10. **Унификация обработки заказов WooCommerce (TASK-31):**
+   - ⚪ Запланировано: подключение WooCommerce к единому сервису `LimanOrderService`, радиокнопка `woocommerceCreateOrderDocumentEnabled`.
+
 

@@ -19,12 +19,20 @@
 5. [Синхронизация каталогов (Outbound Sync)](#5-синхронизация-каталогов-outbound-sync)
    - [WooCommerce (REST API, Unified WP Plugin v2.0.0 & Two-Way Sync)](#51-woocommerce-rest-api--wp-plugin)
      - [Двусторонний импорт каталога (WooCommerce ➔ Limansoft / Two-Way Sync)](#511-двусторонний-импорт-каталога-woocommerce--limansoft--two-way-sync)
+     - [Обработка входящих заказов WooCommerce через Unified Order Engine (TASK-31)](#512-обработка-входящих-заказов-woocommerce-через-unified-order-engine-task-31)
    - [Rozetka Marketplace (YML Feed + Seller API)](#52-rozetka-marketplace-yml-feed--seller-api)
    - [Prom.ua (Потоковый XML/YML фид)](#53-promua-потоковый-xmlyml-фид)
    - [Хорошоп (Гибридная схема, Шедулер, Двусторонний импорт и Прямой экспорт)](#54-хорошоп-гибридная-схема-шедулер-и-двусторонний-импорт)
      - [Двусторонний импорт каталога (Хорошоп ➔ Limansoft / Two-Way Sync / TASK-22)](#541-двусторонний-импорт-каталога-хорошоп--limansoft--two-way-sync--task-22)
      - [Прямой экспорт каталога в 1 клик и динамическое название магазина (Limansoft ➔ Хорошоп / TASK-26)](#542-прямой-экспорт-каталога-в-1-клик-и-динамическое-название-магазина-limansoft--хорошоп--task-26)
-6. [Обработка заказов и списание остатков (Real-time Stock Deduction)](#6-обработка-заказов-и-списание-остатков-real-time-stock-deduction)
+     - [Обработка заказов Хорошоп: вебхуки, опрос и расследование причин сбоя (TASK-29)](#543-обработка-заказов-хорошоп-вебхуки-опрос-и-расследование-причин-сбоя-task-29)
+6. [Единый изолированный движок обработки заказов и списания остатков (LimanOrderService)](#6-единый-изолированный-движок-обработки-заказов-и-списания-остатков-limanorderservice)
+   - [6.1 Архитектурная концепция: Single Domain Engine & Anti-Corruption Layer (ACL)](#61-архитектурная-концепция-single-domain-engine--anti-corruption-layer-acl)
+   - [6.2 Универсальный резолвер товаров (resolveProductTcod)](#62-универсальный-резолвер-товаров-resolveproducttcod)
+   - [6.3 Двухуровневая модель безопасности для десктопного Лимана](#63-двухуровневая-модель-безопасности-для-десктопного-лимана)
+   - [6.4 Пять гарантий безопасности при создании документов в MariaDB](#64-пять-гарантий-безопасности-при-создании-документов-в-mariadb)
+   - [6.5 Обработка краевых кейсов (Edge Cases & Fault Tolerance)](#65-обработка-краевых-кейсов-edge-cases--fault-tolerance)
+   - [6.6 Защита от повторной обработки (Idempotency & Deduplication)](#66-защита-от-повторной-обработки-idempotency--deduplication)
 7. [Очереди и асинхронные задачи (BullMQ + Redis)](#7-очереди-и-асинхронные-задачи-bullmq--redis)
    - [7.1 Зачем нужны очереди и как устроен конвейер](#71-зачем-нужны-очереди-и-как-устроен-конвейер)
    - [7.2 Реестр очередей системы](#72-реестр-очередей-системы)
@@ -47,6 +55,12 @@
 10. [Безопасность и жизненный цикл запроса](#10-безопасность-и-жизненный-цикл-запроса)
 11. [Сводная таблица соответствия сущностей](#11-сводная-таблица-соответствия-сущностей)
 12. [Справочник основных REST API эндпоинтов](#12-справочник-основных-rest-api-эндпоинтов)
+13. [Продакшн-развертывание на Hetzner и CI/CD GitHub Actions (TASK-30)](#13-продакшн-развертывание-на-hetzner-и-cicd-github-actions-task-30)
+    - [13.1 Архитектура сосуществования с Restaurantify на одном сервере](#131-архитектура-сосуществования-с-restaurantify-на-одном-сервере)
+    - [13.2 Непрерывная интеграция и доставка (GitHub Actions CI/CD)](#132-непрерывная-интеграция-и-доставка-github-actions-cicd)
+    - [13.3 Скрипт безопасного развертывания deploy.sh и Healthcheck](#133-скрипт-безопасного-развертывания-deploysh-и-healthcheck)
+    - [13.4 Пошаговая инструкция настройки сервера Hetzner и секретов GitHub](#134-пошаговая-инструкция-настройки-сервера-hetzner-и-секретов-github)
+    - [13.5 Процедура экстренного отката (Emergency Rollback)](#135-процедура-экстренного-отката-emergency-rollback)
 
 ---
 
@@ -152,6 +166,56 @@
 
 ### 5. Таблица `strihcod` — Дополнительные штрихкоды
 - У одного товара (`tcod`) может быть несколько штрихкодов (от разных упаковок, весовые и т.д.). Таблица связывает `tcod` и штрихкоды `barcode`.
+
+### 6. Таблица `nshap` — Шапка документов и накладных
+Регистр всех первичных торговых документов (приходы, расходы, чеки, заказы):
+- `count` *(int, PK)* — глобальный сквозной уникальный идентификатор документа.
+- `n_dok` *(double/int)* — номер документа в пределах своего типа (извлекается из счетчика `ndok`).
+- `date` *(date)* — дата документа.
+- `tip_dok` *(smallint)* — тип документа:
+  - `tip_dok = 1` — приходная накладная;
+  - `tip_dok = 2` — расходная накладная (отгрузка с автоматическим списанием склада);
+  - `tip_dok = 30` — кассовый розничный чек;
+  - `tip_dok = 85` — **Заказ покупателя / Резерв / Счет** (используется для входящих заказов из интернет-магазинов).
+- `kklient` *(int)* — ID контрагента из таблицы `klient` (для розничных интернет-заказов связывается с системным `kklient: 2` — «конечный потребитель»).
+- `klient` *(char(40))* — отображаемое текстовое имя клиента.
+- `summa` *(double)* — общая сумма документа.
+- `prov` *(enum('f','t'))* — статус проведения документа (`'f'` — черновик/не проведен, `'t'` — проведен в учетном регистре).
+- `prim` *(char(80))* — краткое примечание (фиксирует источник и номер: `[Хорошоп Заказ #1]·Безналичный расчет`).
+- `fullprim` *(char(200))* — расширенное примечание (ФИО клиента, телефон, адрес доставки Новой Почты).
+
+### 7. Таблица `nakltelo` — Строки и товарные позиции документов
+Содержимое корзины конкретного документа:
+- `index` *(int, PK)* — глобальный автоинкрементный номер строки.
+- `count` *(int, FK)* — связь с шапкой документа `nshap.count`.
+- `tcod` *(int)* — код товара (`name2.tcod`).
+- `name` *(char(100))* — наименование товара на момент продажи.
+- `kol` *(double)* — количество единиц товара.
+- `cena` *(double)* — отпускная цена единицы товара.
+- `nnom` *(char(20))* — артикул товара.
+- `group` *(char(10))* — код категории товара.
+
+### 8. Таблица `ndok` — Системные счетчики номеров документов
+Хранилище следующих доступных номеров документов для исключения коллизий в кассовой программе:
+- `flt5` *(smallint)* — тип документа (`flt5 = 2` для накладных, `flt5 = 85` для заказов покупателей).
+- `n_dok` *(double)* — текущий порядковый номер документа.
+- При создании заказа извне блокируется транзакцией: `SELECT n_dok FROM ndok WHERE flt5 = 85 FOR UPDATE`.
+
+### 9. Таблица `checkdok` — Реестр связей заказов и документов
+Служебная таблица связки документов и кассовых мест:
+- `count` *(int)* — связь с `nshap.count`.
+- `tip_dok` *(smallint)* — тип документа (`85`).
+- `n_dok` *(double)* — номер документа.
+- `kklient` *(int)* — контрагент.
+
+### 10. Таблица `dmonitor` — Журнал аудита действий (Audit Log)
+Журнал безопасности и сменной отчетности кассиров:
+- `date`, `time` — штамп времени события.
+- `uname` *(char(30))* — имя оператора (для веб-заказов: `'WEB-API (Хорошоп)'`, `'WEB-API (WooCommerce)'`).
+- `mname` *(char(30))* — имя рабочей станции (`'SERVER'`).
+- `n_mach` *(smallint)* — номер виртуальной кассы (`99`).
+- `count` *(int)* — номер документа `nshap.count`.
+- `action` *(char(20))* — действие (`'Заказ'`, `'Новый'`).
 
 ---
 
@@ -450,6 +514,49 @@ sequenceDiagram
 4. **Защита от зацикливания (Anti-Loop Protection):**
    - Чтобы выгрузка из Limansoft в WooCommerce не вызывала повторный обратный вебхук в Limansoft, при обновлении товаров через API выставляется временный маркер (meta/transient), подавляющий отправку хука плагином.
 
+#### 5.1.2. Обработка входящих заказов WooCommerce через Unified Order Engine (TASK-31)
+
+Входящие заказы из WooCommerce поступают двумя независимыми каналами:
+1. **PUSH Webhook (`POST /api/v1/woocommerce/:tenantId/webhook/order`)**:
+   - Срабатывает в реальном времени при оформлении заказа в WooCommerce (хуки `woocommerce_new_order` / топики вебхуков `order.created`, `order.updated`).
+   - Поддерживает стандартные REST вебхуки WooCommerce, а также HPOS (High-Performance Order Storage).
+   - Контроллер выполняет валидацию подписи (HMAC-SHA256) и трансформирует сырой payload заказа в строго типизированный `UnifiedIncomingOrderDto`.
+2. **PULL Polling (`POST /api/v1/woocommerce/:tenantId/sync/orders`)**:
+   - Фоновый сбор заказов в статусе `processing` / `pending` через WooCommerce REST API (`/wp-json/wc/v3/orders`).
+   - Выступает надежным страховочным механизмом на случай потери вебхука из-за сетевых сбоев хостинга WordPress.
+
+##### Маппинг данных из WooCommerce в UnifiedIncomingOrderDto:
+```typescript
+{
+  orderId: String(wcOrder.id),
+  source: 'woocommerce',
+  customer: {
+    name: `${wcOrder.billing?.first_name || ''} ${wcOrder.billing?.last_name || ''}`.trim() || 'Покупатель WooCommerce',
+    phone: wcOrder.billing?.phone || '',
+    email: wcOrder.billing?.email || '',
+  },
+  delivery: {
+    operator: wcOrder.shipping_lines?.[0]?.method_title || 'Доставка',
+    city: wcOrder.shipping?.city || wcOrder.billing?.city || '',
+    address: [wcOrder.shipping?.address_1, wcOrder.shipping?.address_2].filter(Boolean).join(', '),
+  },
+  payment: {
+    type: wcOrder.payment_method_title || wcOrder.payment_method || 'Онлайн',
+    totalSum: parseFloat(wcOrder.total) || 0,
+    currency: wcOrder.currency || 'UAH',
+  },
+  items: wcOrder.line_items.map((li) => ({
+    article: li.sku || String(li.product_id),
+    name: li.name,
+    quantity: li.quantity,
+    price: parseFloat(li.price) || 0,
+  })),
+  createDocument: tenant.woocommerceCreateOrderDocumentEnabled ?? false,
+}
+```
+
+Все заказы передаются в `LimanOrderService.processIncomingOrder(tenant, unifiedDto)`. В зависимости от статуса радиокнопки/тумблера `woocommerceCreateOrderDocumentEnabled` (по умолчанию выключен, экспериментальный), выполняется либо мгновенный безопасный декремент остатка `name2ost.skl_k`, либо создание полноценного черновика документа `tip_dok: 85`.
+
 ### 5.2. Rozetka Marketplace (YML Feed + Seller API)
 - **Потоковый фид (`feed.xml`)**:
   - Rozetka требует строгий формат YML (Yandex Market Language) со специфическими тегами: `<vendorCode>`, `<picture>`, `<param name="Кількість">`.
@@ -647,57 +754,158 @@ sequenceDiagram
    - По завершении выводится подробный отчет: выгружено, создано, обновлено, пропущено, ошибок, затраченное время (мс).
    - Событие выгрузки фиксируется в Activity Feed на двух языках (RU и UK).
 
+#### 5.4.3. Обработка заказов Хорошоп: вебхуки, опрос и расследование причин сбоя (TASK-29)
+
+По результатам детального расследования реального инцидента с тестовым заказом №1 в Хорошоп (Apple iPhone 13 Pro Max 512GB Silver, 52 500 грн, покупатель «фыва фыва», Новая Почта г. Киев, отделение №1) были выявлены и устранены 3 системные причины, почему заказ не обновился в локальной базе Limansoft:
+
+##### Анализ причин сбоя (Root Cause Analysis):
+1. **Сетевая изоляция локальной разработки (Localhost Webhook Delivery)**:
+   - Облачный сервис Хорошоп (`shop724088.horoshop.ua`) физически не может достучаться до `http://localhost:3000/api/v1/horoshop/columb/webhook/order` без публичного туннеля (Cloudflare Tunnel или ngrok).
+   - *Решение*: на проде развернут Caddy Reverse Proxy с публичным белым IP и SSL (`liman.yourdomain.com`), а локально и для гарантии доставки на проде задействован периодический планировщик опроса (Polling Scheduler).
+2. **Некорректная фильтрация статуса в Horoshop API (`stat_status` vs `status`)**:
+   - При фоновом опросе заказов метод отправлял `{ status: 'new' }`. API Хорошоп `/orders/get/` не принимает строковый параметр `status: 'new'` и возвращал 0 заказов (`{ response: { orders: [] } }`).
+   - *Решение*: обновлен `HoroshopApiClient.getOrders`. Для выборки новых заказов передается числовой фильтр `stat_status: 1` либо фильтрация выполняется на стороне сервиса при получении полного списка активных заказов.
+3. **Строковый нечисловой артикул товара (`ELE-23-0557`)**:
+   - В тестовом заказе позиция содержала артикул `ELE-23-0557`. Прежний код делал `parseInt(item.article, 10)`, что возвращало `NaN`. Поиск по `tcod: NaN` завершался неудачей, и списание остатка не происходило.
+   - *Решение*: внедрен `LimanOrderService.resolveProductTcod`, который каскадно сопоставляет товар:
+     1. Если артикул числовой — проверяет `name2.tcod`;
+     2. Ищет по точному совпадению номенклатурного артикула `name2.nnom = 'ELE-23-0557'`;
+     3. Ищет по таблице штрихкодов `strihcod.barcode`;
+     4. Ищет в реестре сопоставлений PostgreSQL `product_mappings`.
+
+##### Надежный гибридный конвейер приема заказов:
+* **Мгновенный вебхук (`POST /api/v1/horoshop/:tenantId/webhook/order`)**: получает тело заказа от Хорошоп, преобразует его в `UnifiedIncomingOrderDto` и мгновенно передает в `LimanOrderService`.
+* **Периодический шедулер (`HoroshopSchedulerService.pollOrdersAndDeductStock`)**: каждые 15 минут опрашивает API Хорошоп `/orders/get/` с корректными параметрами и передает необработанные заказы в `LimanOrderService`.
+* **Переключатель режима (`horoshopCreateOrderDocumentEnabled`)**: в настройках тенанта и UI Клиентского Кабинета доступен тумблер (по умолчанию **ВЫКЛЮЧЕН**, экспериментальный). При выключенном тумблере выполняется чистое списание остатка `name2ost.skl_k`. При включении — создается полноценный резерв `tip_dok: 85`.
+
 ---
 
-## 6. Обработка заказов и списание остатков (Real-time Stock Deduction)
+## 6. Единый изолированный движок обработки заказов и списания остатков (LimanOrderService)
 
-Самая ответственная часть интеграции — предотвращение продажи товара, которого нет на складе (**overselling**).
+Самая ответственная часть интеграции — предотвращение продажи товара, которого нет на складе (**overselling**), и корректное внесение документов продажи в учетную систему **Limansoft**.
 
-### Сквозной цикл обработки заказа:
+Вместо того чтобы каждый канал продаж (Хорошоп, WooCommerce, Prom.ua, Rozetka) реализовывал собственную низкоуровневую логику работы с MariaDB, в ядре системы выделен единый доменный сервис:
+**`src/modules/liman/liman-order.service.ts`** (`LimanOrderService`).
+
+### 6.1. Архитектурная концепция: Single Domain Engine & Anti-Corruption Layer (ACL)
+
+Каждый внешний модуль преобразует сырой payload заказа маркетплейса в строго типизированный DTO единого формата — **`UnifiedIncomingOrderDto`**:
 
 ```
-Покупатель оформляет заказ на маркетплейсе
-                 │
-                 ▼
-      [Способ доставки заказа]
-      ├── Вариант А: Мгновенный Webhook от маркетплейса
-      └── Вариант B: Фоновый опрос Polling (/orders/get/)
-                 │
-                 ▼
-   POST /api/v1/{platform}/:tenantId/webhook/order
-                 │
-                 ▼
-┌─────────────────────────────────────────────────────────┐
-│     1. Дедупликация (Защита от двойного списания)       │
-│  Проверка orderId в Set<tenantId:orderId>.              │
-│  Если заказ уже обрабатывался ранее — списание          │
-│  пропускается с возвратом success: true.                │
-└────────────────────────┬────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────┐
-│           2. Парсинг позиций заказа                     │
-│  Для каждого товара извлекается article (tcod) и qty.   │
-└────────────────────────┬────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────┐
-│       3. Атомарное обновление остатка в MariaDB         │
-│  SELECT skl_k FROM name2ost WHERE tcod = ?              │
-│  newStock = Math.max(0, currentStock - qty)             │
-│  UPDATE name2ost SET skl_k = ? WHERE tcod = ?           │
-└────────────────────────┬────────────────────────────────┘
-                         │
-                         ▼
-      Формирование подробного JSON-отчета:
-      {
-        "success": true,
-        "orderId": 10421,
-        "processedItems": [
-          { "tcod": 16, "requestedQty": 1, "oldStock": 339, "newStock": 338 }
-        ]
-      }
+[ Входящий заказ Хорошоп ] ──┐
+                             ├──> [ UnifiedIncomingOrderDto ] ──> [ LimanOrderService.processIncomingOrder ]
+[ Входящий заказ WooCommerce] ┘                                            │
+                                                                           ├── 1. Универсальный резолв товаров -> tcod
+                                                                           ├── 2. ВЫКЛ тумблер: атомарный deductStock
+                                                                           └── 3. ВКЛ тумблер: черновик tip_dok 85 + ndok
 ```
+
+#### Структура `UnifiedIncomingOrderDto`:
+* `orderId` *(string | number)* — идентификатор заказа во внешней системе;
+* `source` *('horoshop' | 'woocommerce' | 'prom' | 'rozetka')* — платформа-источник;
+* `customer` — объект клиента: `name`, `phone`, `email`;
+* `delivery` — данные доставки: `operator` (напр. `'nova_poshta'`), `city`, `address` / отделение;
+* `payment` — параметры оплаты: `type`, `totalSum`, `currency`;
+* `items` — массив позиций: `{ article, sku, barcode, name, quantity, price }`;
+* `createDocument` *(boolean)* — флаг создания полноценного документа накладной (берется из настроек тенанта).
+
+---
+
+### 6.2. Универсальный резолвер товаров (`resolveProductTcod`)
+
+В интернет-магазинах товары часто идентифицируются строковыми артикулами (например, `ELE-23-0557`), штрихкодами производителей или внешними ID маркетплейсов, тогда как база Limansoft строго оперирует числовым кодом `tcod`.
+
+Единый резолвер выполняет ступенчатый каскадный поиск товара:
+1. **Числовой код `tcod`:** если артикул состоит строго из цифр и найден в `name2.tcod > 0`.
+2. **Поиск по номенклатурному артикулу (`name2.nnom`):** поиск точного совпадения по полю артикула Limansoft.
+3. **Поиск по таблице штрихкодов (`strihcod.barcode`):** проверка по штрихкодам упаковок и фасовок.
+4. **Поиск по реестру сопоставлений (`product_mappings`):** проверка связей `limanTcod <-> externalArticle` в PostgreSQL.
+
+---
+
+### 6.3. Двухуровневая модель безопасности для десктопного Лимана
+
+Для абсолютной защиты локальной базы магазинов от сбоев в десктопной программе Limansoft в интерфейсе каждого клиента предусмотрены независимые радиокнопки:
+* `horoshopCreateOrderDocumentEnabled` (Хорошоп);
+* `woocommerceCreateOrderDocumentEnabled` (WooCommerce).
+
+По умолчанию они **ВЫКЛЮЧЕНЫ** и помечены как *(Экспериментальная функция)*.
+
+```
+                  Входящий унифицированный заказ
+                               │
+                               ▼
+                [Проверка тумблера создания заказа]
+                               │
+         ┌─────────────────────┴─────────────────────┐
+         ▼                                           ▼
+[ВЫКЛЮЧЕНО (По умолчанию)]                [ВКЛЮЧЕНО (Экспериментально)]
+Режим 1: 100% безопасное списание         Режим 2: Создание черновика накладной
+- Только UPDATE name2ost.skl_k            - tip_dok: 85 (Заказ покупателя)
+- Документы nshap не создаются            - prov = 'f' (Не проведен / черновик)
+- Бухгалтерские регистры не тронуты       - Блокировка ndok (flt5=85) FOR UPDATE
+- Кассовая программа работает штатно     - Регистрация в checkdok
+                                          - Логирование в dmonitor (uname: 'WEB-API')
+                                          - Контакты и Новая Почта в prim/fullprim
+```
+
+---
+
+### 6.4. Пять гарантий безопасности при создании документов в MariaDB
+
+Когда тумблер включен, сервис гарантирует, что десктопная программа Limansoft на кассе магазина продолжит работать стабильно:
+
+1. **Документ создается как черновик (`tip_dok: 85`, `prov = 'f'`):**  
+   Заказ сохраняется со статусом «Не проведен». Он отображается в журнале заказов Лимана как входящая интернет-заявка. Когда менеджер в магазине физически отгружает товар, он нажимает штатную кнопку Лимана «Оформить накладную» / «Провести», и кассовая программа сама списывает товар со склада своими родными алгоритмами партионного учета.
+2. **Исключение коллизий номеров документов (`ndok`):**  
+   Номера накладных берутся из таблицы счетчиков `ndok`. В транзакции выполняется захват строки:
+   ```sql
+   SELECT n_dok FROM ndok WHERE flt5 = 85 FOR UPDATE;
+   UPDATE ndok SET n_dok = n_dok + 1 WHERE flt5 = 85;
+   ```
+   Благодаря `FOR UPDATE` исключен race condition — номер накладной интернет-заказа никогда не пересечется с накладной, выписанной кассиром в ту же секунду.
+3. **Исключение двойного списания (Double Deduct):**  
+   Так как документ создается в статусе `prov = 'f'`, физический остаток на складе десктопом не списывается до нажатия менеджером кнопки проводки.
+4. **Легитимность для кассовых Z-отчетов (`dmonitor`):**  
+   Каждое создание заказа сопровождается записью в системный журнал аудита:  
+   `uname: 'WEB-API (Хорошоп)'`, `mname: 'SERVER'`, `n_mach: 99`, `action: 'Заказ'`.  
+   Кассовые отчеты десктопного Лимана не сбоят, а руководство видит прозрачную историю интернет-продаж.
+5. **Чистый справочник контрагентов (`klient`):**  
+   Заказ привязывается к системному клиенту `kklient: 2` («конечный потребитель»), исключая раздувание базы тысячами одноразовых розничных покупателей. Все детали (ФИО, телефон, город, отделение Новой Почты) фиксируются в полях `nshap.prim` и `nshap.fullprim`.
+
+---
+
+### 6.5. Обработка краевых кейсов (Edge Cases & Fault Tolerance)
+
+* **Товар не найден в номенклатуре:** транзакция заказа не падает с ошибкой. Заказ сохраняется, в примечание добавляется метка `⚠️ Ненайден SKU: ...`, а администратору отправляется алерт в Telegram.
+* **Скидочные купоны и копейки:** в строки `nakltelo` записывается фактически уплаченная цена покупателя, скидка фиксируется в `nshap.skidka`.
+* **Спецсимволы в адресах:** все запросы используют параметризованные SQL-запросы в кодировке `utf8mb4` (устойчивость к апострофам и украинским буквам `і`, `ї`, `є`).
+
+---
+
+### 6.6. Защита от повторной обработки (Idempotency & Deduplication)
+
+Поскольку в системе действуют параллельно два механизма доставки заказов — мгновенный вебхук (Event-driven) и регулярный опрос по расписанию (Polling Scheduler) — критически важно исключить повторное списание остатка или дублирование документов в MariaDB:
+
+1. **Мьютекс дедупликации в Redis (`lock:order:{source}:{tenantId}:{orderId}`)**:
+   - Перед обработкой заказа сервис пытается захватить атомарный ключ в Redis:
+     ```typescript
+     const lockKey = `lock:order:${order.source}:${tenant.id}:${order.orderId}`;
+     const acquired = await redis.set(lockKey, '1', 'EX', 3600, 'NX');
+     if (!acquired) {
+       return { status: 'duplicate_ignored', orderId: order.orderId };
+     }
+     ```
+   - Ключ живет 1 час. Если событие от вебхука и задача шедулера пришли одновременно, заказ обработается ровно один раз.
+2. **Проверка существования документа в MariaDB**:
+   - В режиме 2 (создание накладной) перед открытием транзакции вставки проверяется наличие существующей шапки документа по маске примечания:
+     ```sql
+     SELECT count FROM nshap WHERE prim LIKE ? LIMIT 1
+     ```
+     где аргумент: `[Хорошоп Заказ #1]%` или `[WooCommerce Заказ #123]%`.
+   - Если такой документ уже существует в `nshap`, метод возвращает статус `already_exists` и не создает дублирующую запись.
+3. **Фиксация в Activity Feed**:
+   - Каждое событие списания остатков или создания резервного документа фиксируется в двуязычной ленте событий клиента с полным списком позиций и статусом списания.
 
 ---
 
@@ -1076,18 +1284,200 @@ sequenceDiagram
 | | `GET` | `/api/v1/horoshop/:tenantId/activity` | Хронологическая лента событий синхронизации для Activity Feed |
 | | `POST` | `/api/v1/horoshop/:tenantId/settings` | Сохранение домена, логина, пароля и интервала автосинхронизации |
 | | `GET` | `/api/v1/horoshop/:tenantId/feed.xml` | Публичный потоковый XML-каталог фид для витрины Хорошоп |
-| | `POST` | `/api/v1/horoshop/:tenantId/webhook/order` | Входящий вебхук заказа из Хорошоп для списания остатков в MariaDB |
+| | `POST` | `/api/v1/horoshop/:tenantId/webhook/order` | Входящий вебхук заказа из Хорошоп ➔ `LimanOrderService` (списание остатка или создание `tip_dok: 85`) |
+| | `POST` | `/api/v1/horoshop/:tenantId/sync/orders` | Опрос новых заказов через API Хорошоп ➔ `LimanOrderService` |
 | | `POST` | `/api/v1/horoshop/:tenantId/webhook/product` | Входящий вебхук создания/модификации товара в магазине Хорошоп |
 | **Очереди и асинхронные задачи** | `POST` | `/api/v1/sync/:tenantId/stock` | Постановка задачи обновления остатков в очередь `sync-stock` |
 | | `GET` | `/api/v1/sync/jobs/:queueName/:jobId` | Опрос состояния (`waiting`, `active`, `completed`, `failed`) и процента прогресса |
 | **WooCommerce & WordPress** | `POST` | `/api/v1/woocommerce/:tenantId/sync` | Пакетный пуш цен и остатков через REST API WooCommerce |
 | | `POST` | `/api/v1/woocommerce/:tenantId/import/products` | Пакетный импорт товаров из WooCommerce в базу данных Limansoft |
 | | `POST` | `/api/v1/woocommerce/:tenantId/webhook/product` | PUSH-вебхук создания или изменения товара в WordPress |
-| | `POST` | `/api/v1/woocommerce/:tenantId/webhook/order` | Входящий вебхук оформленного заказа WooCommerce |
+| | `POST` | `/api/v1/woocommerce/:tenantId/webhook/order` | Входящий вебхук заказа WooCommerce ➔ `LimanOrderService` (списание остатка или создание `tip_dok: 85`) |
+| | `POST` | `/api/v1/woocommerce/:tenantId/sync/orders` | Опрос новых заказов WooCommerce ➔ `LimanOrderService` |
 | **Маркетплейсы Rozetka & Prom.ua** | `GET` | `/api/v1/rozetka/:tenantId/feed.xml` | Потоковый XML/YML фид для Rozetka Marketplace |
 | | `POST` | `/api/v1/rozetka/:tenantId/sync/prices-stocks` | Пакетное обновление цен и остатков в Rozetka Seller API |
 | | `POST` | `/api/v1/rozetka/:tenantId/sync/orders` | Опрос новых заказов Rozetka и списание остатков |
 | | `GET` | `/api/v1/prom/:tenantId/feed.xml` | Потоковый YML фид для витрины Prom.ua |
 | | `POST` | `/api/v1/prom/:tenantId/webhook/order` | Входящий вебхук заказа Prom.ua со списанием остатков |
 | **Стриминг медиа (BLOB в URL)** | `GET` | `/api/v1/media/:tenantId/products/:tcod/:index.jpg` | Потоковая отдача фото из BLOB поля `namedesc.photo` (с кэшированием HTTP 304) |
+
+---
+
+## 13. Продакшн-развертывание на Hetzner и CI/CD GitHub Actions (TASK-30)
+
+Для надежной промышленной эксплуатации микросервиса настроен автоматизированный конвейер непрерывной интеграции и развертывания (CI/CD) на облачном сервере **Hetzner Cloud**.
+
+### 13.1. Архитектура сосуществования с Restaurantify на одном сервере
+
+На выделенном сервере Hetzner уже запущен рабочий проект `restaurantify` (Telegram-заказы еды), который занимает публичные порты `80` (HTTP) и `443` (HTTPS) через веб-сервер **Caddy**, а также базу данных PostgreSQL на порту `5432`.
+
+Для исключения конфликтов портов и взаимовлияния проектов применена схема **Изолированного сайдкара**:
+
+```
+                              ИНТЕРНЕТ (Пользователи / Маркетплейсы)
+                                                 │
+                                                 ▼
+                             ┌────────────────────────────────────────┐
+                             │       CADDY REVERSE PROXY (Порт 80/443)│
+                             │       Автоматический SSL Let's Encrypt │
+                             └───────────────┬────────────┬───────────┘
+                                             │            │
+            https://restaurantify.domain.com │            │ https://liman.yourdomain.com
+                                             │            │
+                                             ▼            ▼
+                   ┌────────────────────────────┐  ┌───────────────────────────────────┐
+                   │    ПРОЕКТ RESTAURANTIFY    │  │       ПРОЕКТ LIMAN WEB API        │
+                   │    - api: 3001             │  │       - Nginx: 127.0.0.1:8088     │
+                   │    - web: 80               │  │       - NestJS API: 3000 (в сети) │
+                   │    - postgres: 5432        │  │       - Redis 7: liman_redis      │
+                   │    - network: app-network  │  │       - Postgres: liman_postgres  │
+                   │                            │  │         (внутренний порт 5433)    │
+                   │                            │  │       - network: liman_network    │
+                   └────────────────────────────┘  └───────────────────────────────────┘
+```
+
+#### Настройка домена в Caddyfile на Hetzner:
+Для вывода Liman Web API в публичный интернет достаточно добавить 3 строки в рабочий `Caddyfile` сервера:
+```caddy
+liman.yourdomain.com {
+    reverse_proxy 127.0.0.1:8088
+}
+```
+После выполнения команды `docker compose exec caddy caddy reload` Caddy мгновенно выпустит доверенный бесплатный SSL-сертификат Let's Encrypt и направит трафик на контейнер `liman_nginx`.
+
+---
+
+### 13.2. Непрерывная интеграция и доставка (GitHub Actions CI/CD)
+
+Пайплайн описан в [`.github/workflows/deploy.yml`](file:///Users/bedrosenator/Work/liman-web-api/.github/workflows/deploy.yml) и срабатывает автоматически при любом `git push` или `merge` в ветку `main` или `master`.
+
+Пайплайн состоит из 4 последовательных стадий:
+
+```
+[ Git Push to main ]
+         │
+         ▼
+ 1. test (Ubuntu Runner)
+    ├── Checkout v4
+    ├── Setup Node.js 22 (npm cache)
+    ├── npm ci
+    └── npm run test (22 test suites / 123 tests pass)
+         │
+         ▼
+ 2. build-and-push (Docker Buildx)
+    ├── Логин в GitHub Container Registry (ghcr.io)
+    ├── Сборка multi-stage Dockerfile (SPA + NestJS)
+    └── Пуш образов:
+        ├── ghcr.io/bedrosenator/liman-web-api:latest
+        └── ghcr.io/bedrosenator/liman-web-api:<git_sha>
+         │
+         ▼
+ 3. deploy (SSH к Hetzner через appleboy/ssh-action)
+    ├── Подключение по SSH-ключу (${{ secrets.SSH_KEY }})
+    ├── cd /root/liman-web-api
+    ├── git fetch && git reset --hard origin/main
+    └── ./scripts/deploy.sh
+         │
+         ▼
+ 4. cleanup (Очистка GHCR)
+    └── actions/delete-package-versions (ротация старых слоев)
+```
+
+---
+
+### 13.3. Скрипт безопасного развертывания `deploy.sh` и Healthcheck
+
+Скрипт [`scripts/deploy.sh`](file:///Users/bedrosenator/Work/liman-web-api/scripts/deploy.sh) на стороне сервера гарантирует бесшовное обновление:
+1. **Перехват системных ошибок (`trap ERR`):** если на любом шаге возникает сбой, деплой прерывается без остановки предыдущего стабильного контейнера.
+2. **Скачивание новых образов (`docker compose pull`):** слои скачиваются заранее, что сводит время переключения контейнеров к 1–2 секундам.
+3. **Бесшовный перезапуск (`docker compose up -d --remove-orphans`):** подменяются только обновленные сервисы.
+4. **Цикл верификации здоровья (Healthcheck Loop):** скрипт опрашивает статус контейнеров до 60 секунд. Если контейнер перешел в `unhealthy` или упал, возвращается ошибка с выводом логов.
+5. **Очистка диска (`docker image prune -f`):** неиспользуемые анонимные слои удаляются, предотвращая переполнение диска NVMe на Hetzner.
+
+---
+
+### 13.4. Пошаговая инструкция настройки сервера Hetzner и секретов GitHub
+
+#### Шаг 1: Подготовка каталога на сервере Hetzner
+Подключитесь к серверу Hetzner по SSH и создайте рабочую директорию проекта:
+```bash
+mkdir -p /root/liman-web-api
+cd /root/liman-web-api
+git clone https://github.com/bedrosenator/liman-web-api.git .
+chmod +x scripts/deploy.sh
+```
+
+#### Шаг 2: Настройка файла переменных окружения `.env.production`
+Создайте файл `/root/liman-web-api/.env.production` на основе [`.env.production.example`](file:///Users/bedrosenator/Work/liman-web-api/.env.production.example):
+```env
+NODE_ENV=production
+PORT=3000
+
+# Изолированный PostgreSQL проекта Liman (внутренний порт 5433, без конфликта с restaurantify)
+DATABASE_HOST=liman_postgres
+DATABASE_PORT=5432
+DATABASE_USER=liman_admin
+DATABASE_PASSWORD=your_secure_postgres_password_here
+DATABASE_NAME=liman_master
+
+# Изолированный Redis 7 проекта Liman
+REDIS_HOST=liman_redis
+REDIS_PORT=6379
+
+# Безопасность API
+MASTER_API_KEY=your_random_64_character_hex_master_key
+JWT_SECRET=your_random_jwt_secret_phrase
+
+# Порт Nginx для связи с Caddy
+NGINX_HOST_PORT=8088
+```
+
+#### Шаг 3: Настройка проксирования в Caddyfile Hetzner
+Откройте конфигурацию Caddy (`/root/restaurantify/Caddyfile` или системный Caddyfile):
+```caddy
+liman.yourdomain.com {
+    reverse_proxy 127.0.0.1:8088
+}
+```
+Примените изменения без простоя сервера:
+```bash
+docker compose exec caddy caddy reload
+```
+
+#### Шаг 4: Настройка секретов в GitHub Repository Settings
+В репозитории GitHub перейдите в **Settings ➔ Secrets and variables ➔ Actions** и добавьте следующие секреты:
+
+| Имя секрета | Значение / Описание |
+|---|---|
+| `SSH_HOST` | Белый IP-адрес сервера Hetzner (например, `49.12.x.x` или `135.181.x.x`) |
+| `SSH_USER` | Пользователь SSH для деплоя (по умолчанию `root`) |
+| `SSH_KEY` | Приватный SSH-ключ (содержимое `id_ed25519` без парольной фразы) |
+| `SSH_PORT` | SSH порт сервера (по умолчанию `22`) |
+
+*Примечание: токен `GITHUB_TOKEN` предоставляется GitHub Actions автоматически и имеет права на чтение/запись в `ghcr.io`.*
+
+---
+
+### 13.5. Процедура экстренного отката (Emergency Rollback)
+
+Если после автоматического деплоя обнаружена критическая проблема:
+1. **Быстрый откат на предыдущий образ Docker**:
+   ```bash
+   cd /root/liman-web-api
+   docker compose down
+   # Переключить тег образа на конкретный стабильный SHA коммита
+   docker compose up -d
+   ```
+2. **Откат по Git ветке**:
+   ```bash
+   cd /root/liman-web-api
+   git log -n 5 --oneline
+   git reset --hard <PREVIOUS_COMMIT_SHA>
+   ./scripts/deploy.sh
+   ```
+3. **Откат учетной базы данных MariaDB конкретного клиента**:
+   - Через REST API: `POST /api/v1/liman/:tenantId/backups/:filename/restore`
+   - Или в панели управления в 1 клик на вкладке «Резервные копии».
+
+
 
