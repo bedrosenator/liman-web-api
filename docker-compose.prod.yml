@@ -101,7 +101,7 @@ services:
 
   # ─── MariaDB (База данных Limansoft магазина columb) ─────────────────────────
   mariadb:
-    image: mariadb:10.11-alpine
+    image: mariadb:10.11
     container_name: liman_mariadb
     restart: unless-stopped
     environment:
