@@ -16,6 +16,7 @@ import {
   Clock,
   Sparkles,
   RefreshCw,
+  Check,
 } from 'lucide-react';
 
 interface HoroshopExportModalProps {
@@ -123,363 +124,411 @@ export function HoroshopExportModal({
   };
 
   return (
-    <div className="modal-overlay" id="horoshop-export-modal-overlay">
+    <div className="modal-overlay" id="horoshop-export-modal-overlay" role="dialog" aria-modal="true">
       <div
-        className="modal modal--md max-w-xl w-full bg-elevated border border-subtle rounded-xl p-6 shadow-2xl"
+        className="modal-content modal-content--wide"
         id="horoshop-export-modal"
       >
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-subtle mb-4">
-          <div className="flex items-center gap-2">
+        <div className="modal-header">
+          <div className="modal-title-row">
             <Upload size={20} className="text-emerald" />
-            <h2 className="text-lg font-bold text-primary">
+            <h2 className="modal-title">
               {language === 'uk' ? 'Прямий експорт каталогу в Хорошоп' : 'Прямой экспорт каталога в Хорошоп'}
             </h2>
           </div>
           {status !== 'running' && (
             <button
               type="button"
-              className="text-muted hover:text-primary transition-colors p-1"
+              className="btn-icon"
               onClick={onClose}
-              aria-label="Close"
+              aria-label={t('close')}
             >
               <X size={20} />
             </button>
           )}
         </div>
 
-        {/* Content */}
-        {status === 'idle' && (
-          <div className="space-y-4">
-            {/* Режим выгрузки */}
-            <div>
-              <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-2">
-                {language === 'uk' ? 'Режим вивантаження' : 'Режим выгрузки'}
-              </label>
+        {/* Modal Body */}
+        <div className="modal-body">
+          {status === 'idle' && (
+            <div className="space-y-4">
+              {/* Режим выгрузки */}
+              <div>
+                <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-2">
+                  {language === 'uk' ? 'Режим вивантаження' : 'Режим выгрузки'}
+                </label>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                {/* Режим 1: Полная выгрузка */}
-                <div
-                  className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                    mode === 'full_overwrite'
-                      ? 'border-emerald bg-emerald/10 shadow-sm'
-                      : 'border-subtle bg-canvas hover:border-muted'
-                  }`}
-                  onClick={() => setMode('full_overwrite')}
-                  id="mode-full-overwrite"
+                <div className="mode-cards-grid">
+                  {/* Режим 1: Полная выгрузка */}
+                  <label
+                    htmlFor="radio-mode-full-overwrite"
+                    className={`mode-card mode-card--emerald ${
+                      mode === 'full_overwrite' ? 'mode-card--active' : ''
+                    }`}
+                    id="mode-full-overwrite"
+                    onClick={() => setMode('full_overwrite')}
+                  >
+                    <input
+                      type="radio"
+                      id="radio-mode-full-overwrite"
+                      name="exportMode"
+                      value="full_overwrite"
+                      checked={mode === 'full_overwrite'}
+                      onChange={() => setMode('full_overwrite')}
+                      className="sr-only"
+                    />
+                    <div className="mode-card__header">
+                      <div className="mode-card__title-wrap">
+                        <Zap size={16} className="text-emerald" />
+                        <span className="mode-card__title">
+                          {language === 'uk' ? 'Всі товари' : 'Все товары'}
+                        </span>
+                      </div>
+                      <div className="mode-card__radio" aria-hidden="true">
+                        {mode === 'full_overwrite' ? (
+                          <Check size={12} strokeWidth={3} className="text-white" />
+                        ) : null}
+                      </div>
+                    </div>
+                    <p className="mode-card__desc">
+                      {language === 'uk'
+                        ? 'Повне оновлення та експорт всього каталогу'
+                        : 'Полное обновление и экспорт всего каталога'}
+                    </p>
+                  </label>
+
+                  {/* Режим 2: Только новинки */}
+                  <label
+                    htmlFor="radio-mode-only-new"
+                    className={`mode-card mode-card--indigo ${
+                      mode === 'only_new' ? 'mode-card--active' : ''
+                    }`}
+                    id="mode-only-new"
+                    onClick={() => setMode('only_new')}
+                  >
+                    <input
+                      type="radio"
+                      id="radio-mode-only-new"
+                      name="exportMode"
+                      value="only_new"
+                      checked={mode === 'only_new'}
+                      onChange={() => setMode('only_new')}
+                      className="sr-only"
+                    />
+                    <div className="mode-card__header">
+                      <div className="mode-card__title-wrap">
+                        <Sparkles size={16} className="text-indigo" />
+                        <span className="mode-card__title">
+                          {language === 'uk' ? 'Тільки новинки' : 'Только новинки'}
+                        </span>
+                      </div>
+                      <div className="mode-card__radio" aria-hidden="true">
+                        {mode === 'only_new' ? (
+                          <Check size={12} strokeWidth={3} className="text-white" />
+                        ) : null}
+                      </div>
+                    </div>
+                    <p className="mode-card__desc">
+                      {language === 'uk'
+                        ? 'Вивантажити лише нові, ще не створені позиції'
+                        : 'Выгрузить только новые, еще не созданные позиции'}
+                    </p>
+                  </label>
+
+                  {/* Режим 3: Обновление существующих */}
+                  <label
+                    htmlFor="radio-mode-update-existing"
+                    className={`mode-card mode-card--sky ${
+                      mode === 'update_existing' ? 'mode-card--active' : ''
+                    }`}
+                    id="mode-update-existing"
+                    onClick={() => setMode('update_existing')}
+                  >
+                    <input
+                      type="radio"
+                      id="radio-mode-update-existing"
+                      name="exportMode"
+                      value="update_existing"
+                      checked={mode === 'update_existing'}
+                      onChange={() => setMode('update_existing')}
+                      className="sr-only"
+                    />
+                    <div className="mode-card__header">
+                      <div className="mode-card__title-wrap">
+                        <RefreshCw size={16} className="text-sky" />
+                        <span className="mode-card__title">
+                          {language === 'uk' ? 'Оновити існуючі' : 'Обновить сущ.'}
+                        </span>
+                      </div>
+                      <div className="mode-card__radio" aria-hidden="true">
+                        {mode === 'update_existing' ? (
+                          <Check size={12} strokeWidth={3} className="text-white" />
+                        ) : null}
+                      </div>
+                    </div>
+                    <p className="mode-card__desc">
+                      {language === 'uk'
+                        ? 'Оновити дані тільки раніше прив’язаних товарів'
+                        : 'Обновить данные только ранее привязанных товаров'}
+                    </p>
+                  </label>
+                </div>
+              </div>
+
+              {/* Состав выгружаемых полей */}
+              <div>
+                <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-2">
+                  {language === 'uk' ? 'Дані для синхронізації' : 'Данные для синхронизации'}
+                </label>
+
+                <div className="checkbox-grid">
+                  <label className="checkbox-item" htmlFor="checkbox-export-prices">
+                    <input
+                      type="checkbox"
+                      checked={exportPrices}
+                      onChange={(e) => setExportPrices(e.target.checked)}
+                      id="checkbox-export-prices"
+                    />
+                    <DollarSign size={15} className="text-emerald" />
+                    <span>{language === 'uk' ? 'Актуальні ціни' : 'Актуальные цены'}</span>
+                  </label>
+
+                  <label className="checkbox-item" htmlFor="checkbox-export-stock">
+                    <input
+                      type="checkbox"
+                      checked={exportStock}
+                      onChange={(e) => setExportStock(e.target.checked)}
+                      id="checkbox-export-stock"
+                    />
+                    <Package size={15} className="text-indigo" />
+                    <span>{language === 'uk' ? 'Залишки на складі' : 'Остатки склада'}</span>
+                  </label>
+
+                  <label className="checkbox-item" htmlFor="checkbox-export-categories">
+                    <input
+                      type="checkbox"
+                      checked={exportCategories}
+                      onChange={(e) => setExportCategories(e.target.checked)}
+                      id="checkbox-export-categories"
+                    />
+                    <FolderTree size={15} className="text-amber" />
+                    <span>{language === 'uk' ? 'Дерево категорій' : 'Дерево категорий'}</span>
+                  </label>
+
+                  <label className="checkbox-item" htmlFor="checkbox-export-images">
+                    <input
+                      type="checkbox"
+                      checked={exportImages}
+                      onChange={(e) => setExportImages(e.target.checked)}
+                      id="checkbox-export-images"
+                    />
+                    <ImageIcon size={15} className="text-sky" />
+                    <span>{language === 'uk' ? 'Посилання на фото' : 'Ссылки на фото'}</span>
+                  </label>
+
+                  <label className="checkbox-item" htmlFor="checkbox-export-descriptions">
+                    <input
+                      type="checkbox"
+                      checked={exportDescriptions}
+                      onChange={(e) => setExportDescriptions(e.target.checked)}
+                      id="checkbox-export-descriptions"
+                    />
+                    <FileText size={15} className="text-indigo" />
+                    <span>{language === 'uk' ? 'Описи товарів' : 'Описания товаров'}</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Ограничение количества */}
+              <div>
+                <label
+                  htmlFor="export-limit-input"
+                  className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1"
                 >
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <Zap size={16} className="text-emerald" />
-                    <span className="text-xs font-bold text-primary">
-                      {language === 'uk' ? 'Всі товари' : 'Все товары'}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-secondary leading-relaxed">
-                    {language === 'uk'
-                      ? 'Повне оновлення та експорт всього каталогу'
-                      : 'Полное обновление и экспорт всего каталога'}
-                  </p>
-                </div>
-
-                {/* Режим 2: Только новинки */}
-                <div
-                  className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                    mode === 'only_new'
-                      ? 'border-indigo bg-indigo/10 shadow-sm'
-                      : 'border-subtle bg-canvas hover:border-muted'
-                  }`}
-                  onClick={() => setMode('only_new')}
-                  id="mode-only-new"
-                >
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <Sparkles size={16} className="text-indigo" />
-                    <span className="text-xs font-bold text-primary">
-                      {language === 'uk' ? 'Тільки новинки' : 'Только новинки'}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-secondary leading-relaxed">
-                    {language === 'uk'
-                      ? 'Вивантажити лише нові, ще не створені позиції'
-                      : 'Выгрузить только новые, еще не созданные позиции'}
-                  </p>
-                </div>
-
-                {/* Режим 3: Обновление существующих */}
-                <div
-                  className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                    mode === 'update_existing'
-                      ? 'border-sky bg-sky/10 shadow-sm'
-                      : 'border-subtle bg-canvas hover:border-muted'
-                  }`}
-                  onClick={() => setMode('update_existing')}
-                  id="mode-update-existing"
-                >
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <RefreshCw size={16} className="text-sky" />
-                    <span className="text-xs font-bold text-primary">
-                      {language === 'uk' ? 'Оновити існуючі' : 'Обновить сущ.'}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-secondary leading-relaxed">
-                    {language === 'uk'
-                      ? 'Оновити дані тільки раніше прив’язаних товарів'
-                      : 'Обновить данные только ранее привязанных товаров'}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Состав выгружаемых полей */}
-            <div>
-              <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-2">
-                {language === 'uk' ? 'Дані для синхронізації' : 'Данные для синхронизации'}
-              </label>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 bg-canvas border border-subtle rounded-lg">
-                <label className="flex items-center gap-2 cursor-pointer text-xs text-primary select-none">
-                  <input
-                    type="checkbox"
-                    checked={exportPrices}
-                    onChange={(e) => setExportPrices(e.target.checked)}
-                    className="checkbox"
-                    id="checkbox-export-prices"
-                  />
-                  <DollarSign size={14} className="text-emerald" />
-                  <span>{language === 'uk' ? 'Актуальні ціни' : 'Актуальные цены'}</span>
+                  {language === 'uk' ? 'Тестовий ліміт (необов’язково)' : 'Тестовый лимит (необязательно)'}
                 </label>
-
-                <label className="flex items-center gap-2 cursor-pointer text-xs text-primary select-none">
-                  <input
-                    type="checkbox"
-                    checked={exportStock}
-                    onChange={(e) => setExportStock(e.target.checked)}
-                    className="checkbox"
-                    id="checkbox-export-stock"
-                  />
-                  <Package size={14} className="text-indigo" />
-                  <span>{language === 'uk' ? 'Залишки на складі' : 'Остатки склада'}</span>
-                </label>
-
-                <label className="flex items-center gap-2 cursor-pointer text-xs text-primary select-none">
-                  <input
-                    type="checkbox"
-                    checked={exportCategories}
-                    onChange={(e) => setExportCategories(e.target.checked)}
-                    className="checkbox"
-                    id="checkbox-export-categories"
-                  />
-                  <FolderTree size={14} className="text-amber" />
-                  <span>{language === 'uk' ? 'Дерево категорій' : 'Дерево категорий'}</span>
-                </label>
-
-                <label className="flex items-center gap-2 cursor-pointer text-xs text-primary select-none">
-                  <input
-                    type="checkbox"
-                    checked={exportImages}
-                    onChange={(e) => setExportImages(e.target.checked)}
-                    className="checkbox"
-                    id="checkbox-export-images"
-                  />
-                  <ImageIcon size={14} className="text-sky" />
-                  <span>{language === 'uk' ? 'Посилання на фото' : 'Ссылки на фото'}</span>
-                </label>
-
-                <label className="flex items-center gap-2 cursor-pointer text-xs text-primary select-none sm:col-span-2">
-                  <input
-                    type="checkbox"
-                    checked={exportDescriptions}
-                    onChange={(e) => setExportDescriptions(e.target.checked)}
-                    className="checkbox"
-                    id="checkbox-export-descriptions"
-                  />
-                  <FileText size={14} className="text-purple-500" />
-                  <span>{language === 'uk' ? 'Описи товарів' : 'Описания товаров'}</span>
-                </label>
-              </div>
-            </div>
-
-            {/* Ограничение количества */}
-            <div>
-              <label
-                htmlFor="export-limit-input"
-                className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1"
-              >
-                {language === 'uk' ? 'Тестовий ліміт (необов’язково)' : 'Тестовый лимит (необязательно)'}
-              </label>
-              <input
-                type="number"
-                id="export-limit-input"
-                placeholder={language === 'uk' ? 'Наприклад, 50 позицій' : 'Например, 50 позиций'}
-                value={limit}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setLimit(val === '' ? '' : Math.max(1, parseInt(val, 10) || 1));
-                }}
-                className="input input--sm w-full font-mono"
-              />
-              <span className="text-[11px] text-muted">
-                {language === 'uk'
-                  ? 'Залиште порожнім для експорту всієї бази Limansoft'
-                  : 'Оставьте пустым для экспорта всей базы Limansoft'}
-              </span>
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-subtle">
-              <button
-                type="button"
-                className="btn btn--secondary btn--sm"
-                onClick={onClose}
-              >
-                {t('cancel')}
-              </button>
-              <button
-                type="button"
-                className="btn btn--primary btn--sm gap-1.5"
-                id="btn-start-export-modal"
-                onClick={handleStartExport}
-              >
-                <Upload size={16} />
-                <span>{language === 'uk' ? 'Почати експорт' : 'Начать экспорт'}</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Running Progress Screen */}
-        {status === 'running' && (
-          <div className="py-8 text-center space-y-6" id="export-running-screen">
-            <div className="relative w-20 h-20 mx-auto">
-              <Loader2 size={80} className="spinner text-emerald mx-auto" />
-              <div className="absolute inset-0 flex items-center justify-center font-mono font-bold text-sm text-primary">
-                {progress}%
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-base font-bold text-primary mb-1">
-                {language === 'uk' ? 'Експорт каталогу в Хорошоп...' : 'Экспорт каталога в Хорошоп...'}
-              </h3>
-              <p className="text-xs text-secondary">
-                {language === 'uk'
-                  ? 'Фоновий воркер BullMQ пакетно відправляє товари в API /catalog/import/'
-                  : 'Фоновый воркер BullMQ пакетно отправляет товары в API /catalog/import/'}
-              </p>
-            </div>
-
-            <div className="w-full bg-subtle h-2.5 rounded-full overflow-hidden">
-              <div
-                className="bg-emerald h-full transition-all duration-300 rounded-full"
-                style={{ width: `${Math.max(5, progress)}%` }}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Completed Screen */}
-        {status === 'completed' && (
-          <div className="py-4 space-y-5 text-center" id="export-completed-screen">
-            <div className="w-12 h-12 bg-emerald/10 border border-emerald/30 rounded-full flex items-center justify-center mx-auto text-emerald">
-              <CheckCircle2 size={28} />
-            </div>
-
-            <div>
-              <h3 className="text-base font-bold text-primary mb-1">
-                {language === 'uk' ? 'Каталог успішно експортовано!' : 'Каталог успешно экспортирован!'}
-              </h3>
-              <p className="text-xs text-secondary">
-                {language === 'uk'
-                  ? 'Дані товарів та зв’язки product_mappings успішно оновлено.'
-                  : 'Данные товаров и связи product_mappings успешно обновлены.'}
-              </p>
-            </div>
-
-            {stats && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-left">
-                <div className="p-3 bg-canvas border border-subtle rounded-lg">
-                  <div className="text-[11px] text-muted">{language === 'uk' ? 'Вивантажено' : 'Выгружено'}</div>
-                  <div className="text-lg font-bold font-mono text-primary">
-                    {stats.totalExported ?? 0}
-                  </div>
-                </div>
-
-                <div className="p-3 bg-canvas border border-subtle rounded-lg">
-                  <div className="text-[11px] text-muted">{language === 'uk' ? 'Новинок' : 'Новинок'}</div>
-                  <div className="text-lg font-bold font-mono text-emerald">
-                    {stats.created ?? 0}
-                  </div>
-                </div>
-
-                <div className="p-3 bg-canvas border border-subtle rounded-lg">
-                  <div className="text-[11px] text-muted">{language === 'uk' ? 'Оновлено' : 'Обновлено'}</div>
-                  <div className="text-lg font-bold font-mono text-sky">
-                    {stats.updated ?? 0}
-                  </div>
-                </div>
-
-                <div className="p-3 bg-canvas border border-subtle rounded-lg">
-                  <div className="text-[11px] text-muted">{language === 'uk' ? 'Помилок' : 'Ошибок'}</div>
-                  <div className="text-lg font-bold font-mono text-rose">
-                    {stats.errors ?? 0}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {stats?.durationMs && (
-              <div className="text-xs text-muted flex items-center justify-center gap-1.5 font-mono">
-                <Clock size={13} />
-                <span>
-                  {language === 'uk' ? 'Час виконання:' : 'Время выполнения:'} {(stats.durationMs / 1000).toFixed(1)}s
+                <input
+                  type="number"
+                  id="export-limit-input"
+                  placeholder={language === 'uk' ? 'Наприклад, 50 позицій' : 'Например, 50 позиций'}
+                  value={limit}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setLimit(val === '' ? '' : Math.max(1, parseInt(val, 10) || 1));
+                  }}
+                  className="input input--sm w-full font-mono"
+                />
+                <span className="text-[11px] text-muted">
+                  {language === 'uk'
+                    ? 'Залиште порожнім для експорту всієї бази Limansoft'
+                    : 'Оставьте пустым для экспорта всей базы Limansoft'}
                 </span>
               </div>
-            )}
-
-            <div className="pt-3 border-t border-subtle">
-              <button
-                type="button"
-                className="btn btn--primary btn--sm w-full justify-center"
-                id="btn-close-export-modal"
-                onClick={onClose}
-              >
-                {t('close')}
-              </button>
             </div>
+          )}
+
+          {/* Running Progress Screen */}
+          {status === 'running' && (
+            <div className="py-8 text-center space-y-6" id="export-running-screen">
+              <div className="relative w-20 h-20 mx-auto">
+                <Loader2 size={80} className="spinner text-emerald mx-auto" />
+                <div className="absolute inset-0 flex items-center justify-center font-mono font-bold text-sm text-primary">
+                  {progress}%
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-base font-bold text-primary mb-1">
+                  {language === 'uk' ? 'Експорт каталогу в Хорошоп...' : 'Экспорт каталога в Хорошоп...'}
+                </h3>
+                <p className="text-xs text-secondary">
+                  {language === 'uk'
+                    ? 'Фоновий воркер BullMQ пакетно відправляє товари в API /catalog/import/'
+                    : 'Фоновый воркер BullMQ пакетно отправляет товары в API /catalog/import/'}
+                </p>
+              </div>
+
+              <div className="progress-track">
+                <div
+                  className="progress-fill progress-fill--emerald"
+                  style={{ width: `${Math.max(5, progress)}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Completed Screen */}
+          {status === 'completed' && (
+            <div className="py-4 space-y-5 text-center" id="export-completed-screen">
+              <div className="w-12 h-12 bg-emerald/10 border border-emerald/30 rounded-full flex items-center justify-center mx-auto text-emerald">
+                <CheckCircle2 size={28} />
+              </div>
+
+              <div>
+                <h3 className="text-base font-bold text-primary mb-1">
+                  {language === 'uk' ? 'Каталог успішно експортовано!' : 'Каталог успешно экспортирован!'}
+                </h3>
+                <p className="text-xs text-secondary">
+                  {language === 'uk'
+                    ? 'Дані товарів та зв’язки product_mappings успішно оновлено.'
+                    : 'Данные товаров и связи product_mappings успешно обновлены.'}
+                </p>
+              </div>
+
+              {stats && (
+                <div className="stat-grid">
+                  <div className="stat-box">
+                    <div className="stat-box__label">{language === 'uk' ? 'Вивантажено' : 'Выгружено'}</div>
+                    <div className="stat-box__value">
+                      {stats.totalExported ?? 0}
+                    </div>
+                  </div>
+
+                  <div className="stat-box">
+                    <div className="stat-box__label">{language === 'uk' ? 'Новинок' : 'Новинок'}</div>
+                    <div className="stat-box__value text-emerald">
+                      {stats.created ?? 0}
+                    </div>
+                  </div>
+
+                  <div className="stat-box">
+                    <div className="stat-box__label">{language === 'uk' ? 'Оновлено' : 'Обновлено'}</div>
+                    <div className="stat-box__value text-sky">
+                      {stats.updated ?? 0}
+                    </div>
+                  </div>
+
+                  <div className="stat-box">
+                    <div className="stat-box__label">{language === 'uk' ? 'Помилок' : 'Ошибок'}</div>
+                    <div className="stat-box__value text-rose">
+                      {stats.errors ?? 0}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {stats?.durationMs && (
+                <div className="text-xs text-muted flex items-center justify-center gap-1.5 font-mono">
+                  <Clock size={13} />
+                  <span>
+                    {language === 'uk' ? 'Час виконання:' : 'Время выполнения:'} {(stats.durationMs / 1000).toFixed(1)}s
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Error Screen */}
+          {status === 'error' && (
+            <div className="py-4 space-y-4 text-center" id="export-error-screen">
+              <div className="w-12 h-12 bg-rose/10 border border-rose/30 rounded-full flex items-center justify-center mx-auto text-rose">
+                <AlertCircle size={28} />
+              </div>
+
+              <div>
+                <h3 className="text-base font-bold text-primary mb-1">
+                  {language === 'uk' ? 'Помилка експорту каталогу' : 'Ошибка экспорта каталога'}
+                </h3>
+                <p className="text-xs text-rose max-w-sm mx-auto">
+                  {errorMessage}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Modal Footer */}
+        {status === 'idle' && (
+          <div className="modal-footer">
+            <button
+              type="button"
+              className="btn btn--secondary btn--sm"
+              onClick={onClose}
+            >
+              {t('cancel')}
+            </button>
+            <button
+              type="button"
+              className="btn btn--primary btn--sm gap-1.5"
+              id="btn-start-export-modal"
+              onClick={handleStartExport}
+            >
+              <Upload size={16} />
+              <span>{language === 'uk' ? 'Почати експорт' : 'Начать экспорт'}</span>
+            </button>
           </div>
         )}
 
-        {/* Error Screen */}
+        {status === 'completed' && (
+          <div className="modal-footer">
+            <button
+              type="button"
+              className="btn btn--primary btn--sm w-full justify-center"
+              id="btn-close-export-modal"
+              onClick={onClose}
+            >
+              {t('close')}
+            </button>
+          </div>
+        )}
+
         {status === 'error' && (
-          <div className="py-4 space-y-4 text-center" id="export-error-screen">
-            <div className="w-12 h-12 bg-rose/10 border border-rose/30 rounded-full flex items-center justify-center mx-auto text-rose">
-              <AlertCircle size={28} />
-            </div>
-
-            <div>
-              <h3 className="text-base font-bold text-primary mb-1">
-                {language === 'uk' ? 'Помилка експорту каталогу' : 'Ошибка экспорта каталога'}
-              </h3>
-              <p className="text-xs text-rose max-w-sm mx-auto">
-                {errorMessage}
-              </p>
-            </div>
-
-            <div className="flex items-center justify-center gap-3 pt-3 border-t border-subtle">
-              <button
-                type="button"
-                className="btn btn--secondary btn--sm"
-                onClick={onClose}
-              >
-                {t('close')}
-              </button>
-              <button
-                type="button"
-                className="btn btn--primary btn--sm"
-                onClick={() => setStatus('idle')}
-              >
-                {language === 'uk' ? 'Спробувати знову' : 'Попробовать снова'}
-              </button>
-            </div>
+          <div className="modal-footer justify-center">
+            <button
+              type="button"
+              className="btn btn--secondary btn--sm"
+              onClick={onClose}
+            >
+              {t('close')}
+            </button>
+            <button
+              type="button"
+              className="btn btn--primary btn--sm"
+              onClick={() => setStatus('idle')}
+            >
+              {language === 'uk' ? 'Спробувати знову' : 'Попробовать снова'}
+            </button>
           </div>
         )}
       </div>

@@ -1563,4 +1563,269 @@ input:checked + .slider:before {
   font-size: var(--text-xs);
 }
 
+/* ─── Mode / Option Cards (Radio Selection Cards) ─────────────────────────── */
+.mode-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.mode-cards-grid--2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 680px) {
+  .mode-cards-grid,
+  .mode-cards-grid--2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mode-card {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-3);
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  position: relative;
+  user-select: none;
+  text-align: left;
+}
+
+.mode-card:hover {
+  border-color: var(--indigo);
+  background: var(--bg-overlay);
+  transform: translateY(-1px);
+}
+
+.mode-card:focus-within {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
+}
+
+.mode-card--active {
+  border-color: var(--indigo) !important;
+  background: var(--indigo-soft) !important;
+  box-shadow: 0 0 16px hsl(238 85% 67% / 0.15);
+}
+
+.mode-card--emerald.mode-card--active {
+  border-color: var(--emerald) !important;
+  background: var(--emerald-soft) !important;
+  box-shadow: 0 0 16px hsl(158 64% 52% / 0.15);
+}
+
+.mode-card--sky.mode-card--active {
+  border-color: var(--sky) !important;
+  background: var(--sky-soft) !important;
+  box-shadow: 0 0 16px hsl(200 98% 60% / 0.15);
+}
+
+.mode-card--rose.mode-card--active {
+  border-color: var(--rose) !important;
+  background: var(--rose-soft) !important;
+  box-shadow: 0 0 16px hsl(356 90% 60% / 0.15);
+}
+
+.mode-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.mode-card__title-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.mode-card__title {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.mode-card__radio {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--bg-elevated);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.mode-card:hover .mode-card__radio {
+  border-color: var(--text-secondary);
+}
+
+.mode-card--active .mode-card__radio {
+  border-color: var(--indigo);
+  background: var(--indigo);
+  color: #fff;
+}
+
+.mode-card--emerald.mode-card--active .mode-card__radio {
+  border-color: var(--emerald);
+  background: var(--emerald);
+  color: #fff;
+}
+
+.mode-card--sky.mode-card--active .mode-card__radio {
+  border-color: var(--sky);
+  background: var(--sky);
+  color: #fff;
+}
+
+.mode-card--rose.mode-card--active .mode-card__radio {
+  border-color: var(--rose);
+  background: var(--rose);
+  color: #fff;
+}
+
+.mode-card__radio-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: white;
+  display: block;
+}
+
+.mode-card__desc {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  line-height: 1.45;
+  margin: 0;
+}
+
+/* Checkbox Grid for Fields */
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-top: var(--space-2);
+}
+
+@media (max-width: 540px) {
+  .checkbox-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.checkbox-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-primary);
+  cursor: pointer;
+  user-select: none;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+
+.checkbox-item:hover {
+  background: var(--bg-overlay);
+}
+
+.checkbox-item input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  accent-color: var(--indigo);
+  cursor: pointer;
+}
+
+/* ─── Screen Reader Only Accessibility ────────────────────────────────────────── */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ─── Progress & Stats Helpers ────────────────────────────────────────────────── */
+.progress-track {
+  width: 100%;
+  background: var(--bg-overlay);
+  border: 1px solid var(--border);
+  height: 10px;
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 300ms ease;
+}
+
+.progress-fill--emerald {
+  background: var(--emerald);
+}
+
+.progress-fill--indigo {
+  background: var(--indigo);
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-2);
+}
+
+@media (max-width: 580px) {
+  .stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.stat-box {
+  padding: var(--space-3);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  text-align: left;
+}
+
+.stat-box__label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.stat-box__value {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
+.warning-box--rose {
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--rose-soft);
+  border: 1px solid var(--rose);
+}
+
+
 
