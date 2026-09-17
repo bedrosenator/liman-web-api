@@ -32,7 +32,7 @@ class RestoreBackupDto {
 }
 
 @ApiTags('Backup & Restore')
-@Controller('api/v1/liman/:tenantId/backups')
+@Controller('liman/:tenantId/backups')
 export class BackupController {
   private readonly logger = new Logger(BackupController.name);
 
