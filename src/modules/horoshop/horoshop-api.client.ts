@@ -1,4 +1,11 @@
-import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  HttpException,
+  HttpStatus,
+  UnauthorizedException,
+  BadRequestException,
+} from '@nestjs/common';
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { Tenant } from '../tenant/tenant.entity';
 import { HoroshopAuthService } from './horoshop-auth.service';
@@ -107,8 +114,6 @@ export class HoroshopApiClient {
     const config: AxiosRequestConfig = {
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        'X-Auth-Token': token,
       },
     };
 
@@ -117,25 +122,85 @@ export class HoroshopApiClient {
 
     try {
       const response = await this.http.post<T>(url, body, config);
+      const resData = response.data as any;
+
+      if (
+        resData?.status === 'AUTHORIZATION_ERROR' ||
+        resData?.status === 'AUTH_ERROR' ||
+        resData?.response?.message === 'Auth required.\n' ||
+        resData?.response?.message?.includes('Bearer')
+      ) {
+        if (retryOn401) {
+          this.logger.warn(
+            `[${tenant.id}] Ошибка авторизации (${resData?.response?.message || resData?.status}) от Horoshop API. Обновляем токен и повторяем...`,
+          );
+          this.authService.clearToken(tenant.id);
+          const newToken = await this.authService.getToken(tenant, true);
+          const retryBody =
+            typeof data === 'object' && data !== null
+              ? { token: newToken, ...data }
+              : data;
+          const retryResponse = await this.http.post<T>(url, retryBody, config);
+          const retryData = retryResponse.data as any;
+          if (
+            retryData?.status === 'AUTHORIZATION_ERROR' ||
+            retryData?.status === 'AUTH_ERROR'
+          ) {
+            throw new UnauthorizedException(
+              retryData?.response?.message || 'Ошибка авторизации Хорошоп',
+            );
+          }
+          return retryResponse.data;
+        } else {
+          throw new UnauthorizedException(
+            resData?.response?.message || 'Ошибка авторизации Хорошоп',
+          );
+        }
+      }
+
+      if (resData?.status === 'ERROR') {
+        const errMsg =
+          resData?.response?.message ||
+          resData?.message ||
+          'Ошибка Horoshop API';
+        this.logger.error(`❌ [${tenant.id}] Ошибка Horoshop API: ${errMsg}`);
+        throw new BadRequestException(errMsg);
+      }
+
       return response.data;
     } catch (error: any) {
-      if (error.response?.status === 401 && retryOn401) {
+      if (
+        (error.response?.status === 401 ||
+          error instanceof UnauthorizedException) &&
+        retryOn401
+      ) {
         this.logger.warn(
           `[${tenant.id}] 401 Unauthorized от Horoshop API. Обновляем токен и повторяем...`,
         );
         this.authService.clearToken(tenant.id);
         const newToken = await this.authService.getToken(tenant, true);
-        config.headers!['Authorization'] = `Bearer ${newToken}`;
-        config.headers!['X-Auth-Token'] = newToken;
         const retryBody =
           typeof data === 'object' && data !== null
             ? { token: newToken, ...data }
             : data;
         const retryResponse = await this.http.post<T>(url, retryBody, config);
+        const retryData = retryResponse.data as any;
+        if (
+          retryData?.status === 'AUTHORIZATION_ERROR' ||
+          retryData?.status === 'AUTH_ERROR'
+        ) {
+          throw new UnauthorizedException(
+            retryData?.response?.message || 'Ошибка авторизации Хорошоп',
+          );
+        }
         return retryResponse.data;
       }
 
-      const status = error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR;
+      const status =
+        error.response?.status ||
+        (error instanceof HttpException
+          ? error.getStatus()
+          : HttpStatus.INTERNAL_SERVER_ERROR);
       const responseData = error.response?.data;
       this.logger.error(
         `❌ [${tenant.id}] Ошибка Horoshop API [${status}] на ${endpoint}:`,
@@ -144,11 +209,13 @@ export class HoroshopApiClient {
 
       throw new HttpException(
         responseData?.message ||
-          `Ошибка Horoshop API (${status}): ${error.message}`,
+          error.message ||
+          `Ошибка Horoshop API (${status})`,
         status,
       );
     }
   }
+
 
   /**
    * Проверка, включен ли тестовый/mock режим
@@ -542,10 +609,85 @@ export class HoroshopApiClient {
       };
     }
 
-    return this.request(tenant, 'catalog/export/', {
+    const rawRes = await this.request(tenant, 'catalog/export/', {
       page: options.page || 1,
       limit: options.limit || 50,
     });
+
+    const rawProducts = rawRes?.response?.products || [];
+    const products = rawProducts.map((p: any) => {
+      let title = '';
+      if (typeof p.title === 'string') {
+        title = p.title;
+      } else if (p.title && typeof p.title === 'object') {
+        title = p.title.ua || p.title.ru || Object.values(p.title)[0] || '';
+      }
+      if (!title && p.mod_title) {
+        title =
+          typeof p.mod_title === 'string'
+            ? p.mod_title
+            : p.mod_title.ua ||
+              p.mod_title.ru ||
+              Object.values(p.mod_title)[0] ||
+              '';
+      }
+
+      let description = '';
+      if (typeof p.description === 'string') {
+        description = p.description;
+      } else if (p.description && typeof p.description === 'object') {
+        description =
+          p.description.ua ||
+          p.description.ru ||
+          Object.values(p.description)[0] ||
+          '';
+      }
+
+      let category = '';
+      if (typeof p.parent === 'string') {
+        category = p.parent;
+      } else if (p.parent && typeof p.parent === 'object') {
+        category = p.parent.value || p.parent.title || '';
+      } else if (p.category) {
+        category =
+          typeof p.category === 'string'
+            ? p.category
+            : p.category.value || p.category.title || '';
+      }
+
+      const stock =
+        typeof p.quantity === 'number'
+          ? p.quantity
+          : typeof p.stock === 'number'
+            ? p.stock
+            : 0;
+
+      const price =
+        typeof p.price === 'number' ? p.price : parseFloat(p.price) || 0;
+
+      return {
+        article: String(p.article || '').trim(),
+        title: String(title).trim() || `Товар ${p.article}`,
+        price,
+        stock,
+        presence:
+          typeof p.presence === 'number'
+            ? p.presence
+            : (p.presence?.id ?? (stock > 0 ? 1 : 0)),
+        barcode: p.barcode ? String(p.barcode) : undefined,
+        category: category ? String(category).trim() : undefined,
+        description: description ? String(description).trim() : undefined,
+        images: Array.isArray(p.images) ? p.images : [],
+      };
+    });
+
+    return {
+      status: rawRes?.status || 'OK',
+      response: {
+        products,
+        total: rawRes?.response?.total,
+      },
+    };
   }
 }
 

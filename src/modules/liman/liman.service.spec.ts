@@ -163,4 +163,49 @@ describe('LimanService', () => {
       expect(result?.mimeType).toBe('image/webp');
     });
   });
+
+  describe('resolveCategoryGroup', () => {
+    it('should return categoryGroup directly if provided', async () => {
+      const result = await (service as any).resolveCategoryGroup(
+        mockTenant,
+        '0205',
+      );
+      expect(result).toBe('0205');
+    });
+
+    it('should match existing category by exact name', async () => {
+      mockPool.query.mockResolvedValueOnce([[{ group: '01' }]]);
+      const result = await (service as any).resolveCategoryGroup(
+        mockTenant,
+        undefined,
+        'НАПИТКИ',
+      );
+      expect(result).toBe('01');
+    });
+
+    it('should create new root category and child category for hierarchical path', async () => {
+      // 1. exact match check -> not found
+      mockPool.query.mockResolvedValueOnce([[]]);
+      // 2. check root 'Електроніка' -> not found
+      mockPool.query.mockResolvedValueOnce([[]]);
+      // 3. get all roots for new root group -> return empty
+      mockPool.query.mockResolvedValueOnce([[]]);
+      // 4. insert root category -> success
+      mockPool.query.mockResolvedValueOnce([{ insertId: 1 }]);
+      // 5. check child 'Смартфони' under '30' -> not found
+      mockPool.query.mockResolvedValueOnce([[]]);
+      // 6. get children under '30' -> empty
+      mockPool.query.mockResolvedValueOnce([[]]);
+      // 7. insert child category -> success
+      mockPool.query.mockResolvedValueOnce([{ insertId: 2 }]);
+
+      const result = await (service as any).resolveCategoryGroup(
+        mockTenant,
+        undefined,
+        'Електроніка / Смартфони',
+      );
+      expect(result).toBe('3001');
+    });
+  });
 });
+

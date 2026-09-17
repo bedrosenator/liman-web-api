@@ -659,7 +659,8 @@ export class LimanService {
   }
 
   /**
-   * Разрешить категорию товара в Limansoft (код group)
+   * Разрешить категорию товара в Limansoft (код group).
+   * Если категория или иерархия не существует, автоматически создает её в таблице `name`.
    */
   private async resolveCategoryGroup(
     tenant: Tenant,
@@ -672,16 +673,147 @@ export class LimanService {
         .trim()
         .substring(0, LIMAN_LIMITS.CATEGORY_GROUP_MAX_LEN);
     }
-    if (categoryName && categoryName.trim()) {
-      const [rows] = await pool.query<mysql.RowDataPacket[]>(
-        'SELECT `group` FROM `name` WHERE LOWER(name_g) = LOWER(?) LIMIT 1',
-        [categoryName.trim()],
+
+    if (!categoryName || !categoryName.trim()) {
+      return this.getDefaultCategoryGroup(pool);
+    }
+
+    const cleanPath = categoryName.trim();
+
+    // 1. Быстрая проверка: точное совпадение полного имени группы
+    const [exactRows] = await pool.query<mysql.RowDataPacket[]>(
+      'SELECT `group` FROM `name` WHERE LOWER(name_g) = LOWER(?) LIMIT 1',
+      [cleanPath.substring(0, 50)],
+    );
+    if (exactRows.length && exactRows[0].group) {
+      return String(exactRows[0].group).trim();
+    }
+
+    // 2. Разбор иерархического пути (например, "Електроніка/Смартфони/iPhone 13")
+    const parts = cleanPath
+      .split(/[/>]/)
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
+
+    if (parts.length === 0) {
+      return this.getDefaultCategoryGroup(pool);
+    }
+
+    // 3. Проход по иерархии с поиском или авто-созданием узлов
+    try {
+      let currentParentGroup = '';
+
+      for (let i = 0; i < parts.length; i++) {
+        const partName = parts[i].substring(0, 50);
+
+        let rows: mysql.RowDataPacket[];
+        if (!currentParentGroup) {
+          const [res] = await pool.query<mysql.RowDataPacket[]>(
+            'SELECT `group` FROM `name` WHERE LOWER(name_g) = LOWER(?) AND (parent IS NULL OR parent = "") LIMIT 1',
+            [partName],
+          );
+          rows = res;
+        } else {
+          const [res] = await pool.query<mysql.RowDataPacket[]>(
+            'SELECT `group` FROM `name` WHERE LOWER(name_g) = LOWER(?) AND parent = ? LIMIT 1',
+            [partName, currentParentGroup],
+          );
+          rows = res;
+        }
+
+        if (rows && rows.length > 0) {
+          currentParentGroup = String(rows[0].group).trim();
+        } else {
+          // Создаем новую категорию
+          const newGroup = await this.generateNextCategoryGroup(
+            pool,
+            currentParentGroup,
+          );
+
+          await pool.query(
+            'INSERT INTO `name` (`group`, `name_g`, `group_t`, `parent`, `stat`, `proc1`, `proc2`, `proc3`, `proc4`, `cena`, `cena_z`) VALUES (?, ?, 0, ?, "", 0, 0, 0, 0, 0, 4)',
+            [newGroup, partName, currentParentGroup],
+          );
+
+          this.logger.log(
+            `📁 [${tenant.id}] Автоматически создана категория "${partName}" (код: ${newGroup}, родитель: "${currentParentGroup || 'корень'}")`,
+          );
+
+          currentParentGroup = newGroup;
+        }
+      }
+
+      if (currentParentGroup) {
+        return currentParentGroup;
+      }
+    } catch (err: any) {
+      this.logger.warn(
+        `⚠️ [${tenant.id}] Ошибка при автосоздании категории "${categoryName}": ${err.message}. Используем fallback.`,
       );
-      if (rows.length && rows[0].group) {
-        return String(rows[0].group).trim();
+    }
+
+    return this.getDefaultCategoryGroup(pool);
+  }
+
+  /**
+   * Сгенерировать следующий уникальный код группы (char(10))
+   */
+  private async generateNextCategoryGroup(
+    pool: mysql.Pool,
+    parentGroup: string,
+  ): Promise<string> {
+    if (!parentGroup) {
+      // Корневая группа: ищем свободный 2-значный код (30..99)
+      const [allRoots] = await pool.query<mysql.RowDataPacket[]>(
+        'SELECT `group` FROM `name` WHERE parent IS NULL OR parent = ""',
+      );
+      const usedSet = new Set(allRoots.map((r) => String(r.group).trim()));
+
+      for (let n = 30; n <= 99; n++) {
+        const candidate = String(n).padStart(2, '0');
+        if (!usedSet.has(candidate)) {
+          return candidate;
+        }
+      }
+
+      // Если 2-значные исчерпаны, 3-значные (100..999)
+      for (let n = 100; n <= 999; n++) {
+        const candidate = String(n);
+        if (!usedSet.has(candidate)) {
+          return candidate;
+        }
+      }
+
+      return String(Date.now()).slice(-6);
+    }
+
+    // Дочерняя группа под parentGroup
+    const [children] = await pool.query<mysql.RowDataPacket[]>(
+      'SELECT `group` FROM `name` WHERE parent = ?',
+      [parentGroup],
+    );
+    const usedSet = new Set(children.map((c) => String(c.group).trim()));
+
+    for (let n = 1; n <= 99; n++) {
+      const candidate = (parentGroup + String(n).padStart(2, '0')).substring(
+        0,
+        LIMAN_LIMITS.CATEGORY_GROUP_MAX_LEN,
+      );
+      if (!usedSet.has(candidate)) {
+        return candidate;
       }
     }
-    // Fallback: первая группа в справочнике или '01'
+
+    return (parentGroup + String(Date.now()).slice(-3)).substring(
+      0,
+      LIMAN_LIMITS.CATEGORY_GROUP_MAX_LEN,
+    );
+  }
+
+  /**
+   * Получить дефолтную категорию из справочника
+   */
+  private async getDefaultCategoryGroup(pool: mysql.Pool): Promise<string> {
     const [defRows] = await pool.query<mysql.RowDataPacket[]>(
       'SELECT `group` FROM `name` ORDER BY `index` ASC LIMIT 1',
     );
@@ -690,6 +822,7 @@ export class LimanService {
     }
     return '01';
   }
+
 
   /**
    * Сохранить фотографии и описание в namedesc (DRY: устранено дублирование 5 колонок)
