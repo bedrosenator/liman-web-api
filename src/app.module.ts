@@ -7,6 +7,8 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TenantModule } from './modules/tenant/tenant.module';
 import { Tenant } from './modules/tenant/tenant.entity';
+import { TenantIntegration } from './modules/tenant/tenant-integration.entity';
+import { ProductMapping } from './modules/tenant/product-mapping.entity';
 import { LimanModule } from './modules/liman/liman.module';
 import { MediaModule } from './modules/media/media.module';
 import { PromModule } from './modules/prom/prom.module';
@@ -35,14 +37,31 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: 'better-sqlite3',
-        database:
-          configService.get<string>('sqlite.databasePath') ??
-          './data/liman_master.sqlite',
-        entities: [Tenant],
-        synchronize: true,
-      }),
+      useFactory: (configService: ConfigService) => {
+        const dbType = configService.get<string>('database.type') ?? 'postgres';
+        if (dbType === 'sqlite' || dbType === 'better-sqlite3') {
+          return {
+            type: 'better-sqlite3' as const,
+            database:
+              configService.get<string>('sqlite.databasePath') ??
+              './data/liman_master.sqlite',
+            entities: [Tenant, TenantIntegration, ProductMapping],
+            synchronize: true,
+          };
+        }
+
+        return {
+          type: 'postgres' as const,
+          host: configService.get<string>('database.host') ?? '127.0.0.1',
+          port: configService.get<number>('database.port') ?? 5433,
+          username: configService.get<string>('database.username') ?? 'postgres',
+          password: configService.get<string>('database.password') ?? 'postgres',
+          database:
+            configService.get<string>('database.database') ?? 'liman_master',
+          entities: [Tenant, TenantIntegration, ProductMapping],
+          synchronize: true,
+        };
+      },
     }),
     TenantModule,
     LimanModule,

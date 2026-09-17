@@ -4,6 +4,7 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  OneToMany,
 } from 'typeorm';
 
 @Entity('tenants')
@@ -103,8 +104,14 @@ export class Tenant {
   @Column({ type: 'boolean', default: true })
   isActive!: boolean;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   lastSyncAt?: Date | null;
+
+  @OneToMany('TenantIntegration', 'tenant')
+  integrations?: any[];
+
+  @OneToMany('ProductMapping', 'tenant')
+  productMappings?: any[];
 
   @CreateDateColumn()
   createdAt!: Date;

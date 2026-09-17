@@ -118,6 +118,19 @@ export function SuperAdminPage() {
     loadAllData();
   }, [loadAllData]);
 
+  // Живое авто-обновление очередей каждые 3 секунды при открытой вкладке "Монитор очередей"
+  useEffect(() => {
+    if (currentTab === 'queues') {
+      fetchQueues();
+      fetchOverview();
+      const timer = setInterval(() => {
+        fetchQueues();
+        fetchOverview();
+      }, 3000);
+      return () => clearInterval(timer);
+    }
+  }, [currentTab, fetchQueues, fetchOverview]);
+
   // Search filter
   useEffect(() => {
     if (!searchQuery.trim()) {

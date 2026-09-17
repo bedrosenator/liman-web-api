@@ -55,11 +55,11 @@ export class AdminQueuesController {
   @ApiResponse({ status: 200 })
   async getQueuesStats() {
     const queueList = [
-      { name: QUEUE_NAMES.SYNC_STOCK, queue: this.stockQueue, label: 'Синхронизация остатков и цен' },
+      { name: QUEUE_NAMES.SYNC_STOCK, queue: this.stockQueue, label: 'Синхронизация остатков и цен (Хорошоп, Prom, Rozetka)' },
       { name: QUEUE_NAMES.EXPORT_CATALOG, queue: this.exportQueue, label: 'Пакетный экспорт каталога' },
       { name: QUEUE_NAMES.IMPORT_ORDERS, queue: this.ordersQueue, label: 'Импорт заказов' },
       { name: QUEUE_NAMES.IMPORT_WOO_CATALOG, queue: this.wooQueue, label: 'Импорт из WooCommerce' },
-      { name: QUEUE_NAMES.IMPORT_HOROSHOP_CATALOG, queue: this.horoshopQueue, label: 'Импорт из Хорошоп' },
+      { name: QUEUE_NAMES.IMPORT_HOROSHOP_CATALOG, queue: this.horoshopQueue, label: 'Импорт из Хорошоп (в Limansoft)' },
     ];
 
     const stats = await Promise.all(

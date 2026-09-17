@@ -101,6 +101,10 @@ export const translations = {
     exportToHoroshop: 'Экспорт каталога в Хорошоп',
     exportCatalogBtn: 'Экспорт товаров в Хорошоп (без фида)',
     exportSuccess: 'Каталог успешно экспортирован в Хорошоп',
+    queueActiveSync: 'Выполняется синхронизация через очередь BullMQ',
+    workerActive: 'Фоновый воркер активен',
+    queueNameSync: 'Очередь: sync-stock',
+    jobQueued: 'Поставлено в очередь задач',
 
     // Backups
     createBackup: 'Создать резервную копию',
@@ -308,6 +312,10 @@ export const translations = {
     exportToHoroshop: 'Експорт каталогу в Хорошоп',
     exportCatalogBtn: 'Експорт товарів у Хорошоп (без фіда)',
     exportSuccess: 'Каталог успішно експортовано в Хорошоп',
+    queueActiveSync: 'Виконується синхронізація через чергу BullMQ',
+    workerActive: 'Фоновий воркер активний',
+    queueNameSync: 'Черга: sync-stock',
+    jobQueued: 'Поставлено в чергу завдань',
 
     // Backups
     createBackup: 'Створити резервну копію',

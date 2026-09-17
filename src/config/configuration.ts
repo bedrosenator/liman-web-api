@@ -6,6 +6,14 @@ export default () => ({
     port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
     password: process.env.REDIS_PASSWORD ?? undefined,
   },
+  database: {
+    type: process.env.DB_TYPE ?? 'postgres',
+    host: process.env.POSTGRES_HOST ?? '127.0.0.1',
+    port: parseInt(process.env.POSTGRES_PORT ?? '5433', 10),
+    username: process.env.POSTGRES_USER ?? 'postgres',
+    password: process.env.POSTGRES_PASSWORD ?? 'postgres',
+    database: process.env.POSTGRES_DB ?? 'liman_master',
+  },
   sqlite: {
     databasePath: process.env.SQLITE_PATH ?? './data/liman_master.sqlite',
   },

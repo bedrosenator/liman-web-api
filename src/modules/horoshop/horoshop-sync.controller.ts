@@ -346,12 +346,14 @@ export class HoroshopSyncController {
 
     this.logger.log(`📦 [${tenantId}] Вебхук создания товара: "${title}" (артикул: ${article})`);
 
-    this.syncService.logActivity(
-      tenantId,
-      'product_webhook',
-      `Вебхук товара: "${title}" (арт: ${article}) успешно обработан`,
-      'success',
-    );
+    this.syncService.addActivity(tenantId, {
+      type: 'sync',
+      status: 'success',
+      titleRu: `Вебхук товара: "${title}" (арт: ${article}) успешно обработан`,
+      titleUk: `Вебхук товару: "${title}" (арт: ${article}) успішно оброблено`,
+      detailsRu: `Создание/обновление товара через входящий вебхук Хорошоп`,
+      detailsUk: `Створення/оновлення товару через вхідний вебхук Хорошоп`,
+    });
 
     return {
       success: true,

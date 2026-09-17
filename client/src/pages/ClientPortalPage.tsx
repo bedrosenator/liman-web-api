@@ -52,6 +52,7 @@ export function ClientPortalPage() {
   // Sync Action State
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState<number | null>(null);
+  const [syncStatusStep, setSyncStatusStep] = useState<string | null>(null);
   const [syncReport, setSyncReport] = useState<{
     success: boolean;
     message: string;
@@ -186,11 +187,13 @@ export function ClientPortalPage() {
     setIsSyncing(true);
     setSyncReport(null);
     setSyncProgress(0);
+    setSyncStatusStep(t('jobQueued'));
     try {
       const res = await horoshopApi.syncPricesStocksAsync(tenantId);
       const jobId = res.data?.jobId;
 
       if (jobId) {
+        setSyncStatusStep(`${t('queueActiveSync')} (#${jobId})...`);
         await new Promise<void>((resolve, reject) => {
           const pollTimer = setInterval(async () => {
             try {
@@ -199,6 +202,7 @@ export function ClientPortalPage() {
 
               if (typeof job.progress === 'number') {
                 setSyncProgress(job.progress);
+                setSyncStatusStep(`${t('queueActiveSync')}: ${job.progress}%...`);
               }
 
               if (job.state === 'completed') {
@@ -246,6 +250,7 @@ export function ClientPortalPage() {
     } finally {
       setIsSyncing(false);
       setSyncProgress(null);
+      setSyncStatusStep(null);
     }
   };
 
@@ -449,22 +454,32 @@ export function ClientPortalPage() {
                   )}
                 </button>
 
-                {syncProgress !== null && (
-                  <div className="mt-3 space-y-1">
-                    <div className="flex justify-between text-xs text-muted font-mono">
-                      <span>{t('syncInProgress')}</span>
-                      <span>{syncProgress}%</span>
+                {isSyncing && (
+                  <div className="mt-3 p-3 bg-elevated rounded-lg border border-indigo/40 space-y-2" id="sync-progress-card">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="flex items-center gap-1.5 text-indigo font-semibold">
+                        <Loader2 size={14} className="spinner text-indigo" />
+                        <span>{syncStatusStep || t('syncInProgress')}</span>
+                      </span>
+                      <span className="font-mono text-xs font-bold text-primary">{syncProgress ?? 0}%</span>
                     </div>
                     <div className="w-full bg-subtle h-2 rounded-full overflow-hidden">
                       <div
-                        className="bg-emerald h-full transition-all duration-300 rounded-full"
-                        style={{ width: `${syncProgress}%` }}
+                        className="bg-indigo h-full transition-all duration-300 rounded-full"
+                        style={{ width: `${Math.max(6, syncProgress ?? 0)}%` }}
                       />
+                    </div>
+                    <div className="text-[11px] text-muted flex justify-between items-center font-mono">
+                      <span className="badge badge--xs badge--indigo">
+                        <Zap size={10} />
+                        {t('queueNameSync')}
+                      </span>
+                      <span className="text-emerald font-medium">● {t('workerActive')}</span>
                     </div>
                   </div>
                 )}
 
-                {syncReport && (
+                {syncReport && !isSyncing && (
                   <div
                     className={`mt-3 alert ${syncReport.success ? 'alert--success' : 'alert--danger'}`}
                     id="sync-report"
@@ -526,7 +541,7 @@ export function ClientPortalPage() {
                   {isSyncing ? (
                     <>
                       <Loader2 size={16} className="spinner" />
-                      <span>{t('syncInProgress')}...</span>
+                      <span>{t('syncInProgress')}... ({syncProgress ?? 0}%)</span>
                     </>
                   ) : (
                     <>
@@ -535,6 +550,42 @@ export function ClientPortalPage() {
                     </>
                   )}
                 </button>
+
+                {/* Индикация выполнения экспорта в Карточке 3 */}
+                {isSyncing && (
+                  <div className="mb-3 p-3 bg-elevated rounded-lg border border-indigo/40 space-y-2" id="card3-sync-progress">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="flex items-center gap-1.5 text-indigo font-semibold">
+                        <Loader2 size={14} className="spinner text-indigo" />
+                        <span>{syncStatusStep || t('syncInProgress')}</span>
+                      </span>
+                      <span className="font-mono text-xs font-bold text-primary">{syncProgress ?? 0}%</span>
+                    </div>
+                    <div className="w-full bg-subtle h-2.5 rounded-full overflow-hidden">
+                      <div
+                        className="bg-indigo h-full transition-all duration-300 rounded-full"
+                        style={{ width: `${Math.max(6, syncProgress ?? 0)}%` }}
+                      />
+                    </div>
+                    <div className="text-[11px] text-muted flex justify-between items-center font-mono">
+                      <span className="badge badge--xs badge--indigo">
+                        <Zap size={10} />
+                        {t('queueNameSync')}
+                      </span>
+                      <span className="text-emerald font-medium">● {t('workerActive')}</span>
+                    </div>
+                  </div>
+                )}
+
+                {syncReport && !isSyncing && (
+                  <div
+                    className={`mb-3 alert ${syncReport.success ? 'alert--success' : 'alert--danger'}`}
+                    id="card3-sync-report"
+                  >
+                    {syncReport.success ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+                    <span className="text-xs">{syncReport.message}</span>
+                  </div>
+                )}
 
                 <div className="bg-elevated p-2.5 rounded-lg border border-subtle mb-3 flex items-center justify-between gap-2">
                   <span className="font-mono text-xs text-primary truncate" id="xml-feed-url">

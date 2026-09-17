@@ -111,7 +111,7 @@ describe('ClientPortalPage (TASK-20)', () => {
 
     await waitFor(() => {
       expect(horoshopApi.syncPricesStocksAsync).toHaveBeenCalledWith('columb');
-      expect(screen.getByText(/Успешно обновлено 5768 товаров в Хорошоп/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/Успешно обновлено 5768 товаров в Хорошоп/i).length).toBeGreaterThanOrEqual(1);
     });
   });
 

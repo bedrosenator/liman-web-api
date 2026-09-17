@@ -14,6 +14,25 @@ services:
       timeout: 3s
       retries: 5
 
+  # ─── PostgreSQL (Master DB: Tenants, Integrations, Product Mappings) ─────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: liman_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-liman_master}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-liman_master}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   # ─── NestJS API (Node.js event loop — только бизнес-логика) ──────────────────
   nestjs:
     build:
@@ -26,10 +45,18 @@ services:
       PORT: 3000
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      DB_TYPE: postgres
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-liman_master}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     volumes:
-      - ./data:/app/data            # SQLite + backups
+      - ./data:/app/data            # backups & media
     depends_on:
       redis:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     expose:
       - "3000"                       # Не публикуем наружу — только через Nginx
@@ -60,3 +87,4 @@ services:
 
 volumes:
   redis_data:
+  postgres_data:
