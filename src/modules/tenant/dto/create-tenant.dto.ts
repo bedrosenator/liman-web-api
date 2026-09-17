@@ -288,4 +288,14 @@ export class CreateTenantDto {
   @IsNumber()
   @IsOptional()
   horoshopSyncIntervalMinutes?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Экспериментальная функция: создавать черновик накладной tip_dok:85 в Limansoft при получении заказа из Хорошоп. ' +
+      'По умолчанию: выключено (рекомендуемый безопасный режим — только списание остатка name2ost).',
+    default: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  horoshopCreateOrderDocumentEnabled?: boolean;
 }

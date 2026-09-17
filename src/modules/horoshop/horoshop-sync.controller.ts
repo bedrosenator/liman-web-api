@@ -32,8 +32,10 @@ import { SyncService } from '../queue/sync.service';
 import { HoroshopApiClient } from './horoshop-api.client';
 import { HoroshopSyncService } from './horoshop-sync.service';
 import { LimanService } from '../liman/liman.service';
+import { LimanOrderService } from '../liman/liman-order.service';
 import { TenantService } from '../tenant/tenant.service';
 import { Public } from '../../common/decorators/public.decorator';
+import { UnifiedIncomingOrderDto } from '../liman/dto/unified-order.dto';
 
 @ApiTags('Horoshop')
 @Controller('horoshop/:tenantId')
@@ -44,6 +46,7 @@ export class HoroshopSyncController {
     private readonly horoshopClient: HoroshopApiClient,
     private readonly syncService: HoroshopSyncService,
     private readonly limanService: LimanService,
+    private readonly limanOrderService: LimanOrderService,
     private readonly tenantService: TenantService,
     @Optional()
     @InjectQueue(QUEUE_NAMES.IMPORT_HOROSHOP_CATALOG)
@@ -235,7 +238,10 @@ export class HoroshopSyncController {
   }
 
   /**
-   * Вебхук входящего заказа из Хорошоп (авто-списание остатков)
+   * Вебхук входящего заказа из Хорошоп (авто-списание остатков через LimanOrderService).
+   *
+   * ИСПРАВЛЕНИЕ (TASK-29): через resolveProductTcod поддерживаются строковые
+   * артикулы (ELE-23-0557) через product_mappings, а не только числовые tcod.
    */
   @Post('webhook/order')
   @Public()
@@ -243,8 +249,9 @@ export class HoroshopSyncController {
   @ApiOperation({
     summary: 'Вебхук заказа из Хорошоп (автоматическое списание остатка)',
     description:
-      'Принимает уведомление об оформлении заказа в Хорошоп. Для каждого товара по артикулу (article = tcod) ' +
-      'уменьшает складской остаток в таблице name2ost базы данных Limansoft.',
+      'Принимает уведомление об оформлении заказа в Хорошоп. ' +
+      'Для каждой позиции резолвирует артикул в tcod Limansoft (через product_mappings, tcod, nnom, strihcod) ' +
+      'и уменьшает складской остаток в таблице name2ost.',
   })
   @ApiParam({ name: 'tenantId', example: 'columb' })
   @ApiBody({
@@ -259,11 +266,11 @@ export class HoroshopSyncController {
             properties: {
               article: {
                 type: 'string',
-                example: '251',
-                description: 'tcod товара в Limansoft',
+                example: 'ELE-23-0557',
+                description: 'Артикул товара (строковый ELE-23-0557 или числовой tcod)',
               },
               quantity: { type: 'number', example: 1 },
-              price: { type: 'number', example: 150 },
+              price: { type: 'number', example: 42999 },
             },
           },
         },
@@ -275,8 +282,8 @@ export class HoroshopSyncController {
     @Body() payload: any,
   ) {
     const tenant = await this.tenantService.findOne(tenantId);
-
     const orderId = payload?.order_id || payload?.id || 'N/A';
+
     this.logger.log(`🛒 [${tenantId}] Вебхук заказа Хорошоп №${orderId}`);
 
     // Проверяем активность вебхука списания остатков
@@ -294,10 +301,10 @@ export class HoroshopSyncController {
       };
     }
 
-    // Проверяем дедупликацию, если ID известен
+    // Дедупликация
     if (
       orderId !== 'N/A' &&
-      !this.syncService.markOrderProcessed(tenantId, orderId)
+      !this.limanOrderService.markOrderProcessed(tenantId, 'horoshop', String(orderId))
     ) {
       this.logger.log(
         `⏭️ [${tenantId}] Вебхук: заказ №${orderId} уже был списан ранее.`,
@@ -311,51 +318,65 @@ export class HoroshopSyncController {
       };
     }
 
-    const results: Array<{
-      tcod: number;
-      requestedQty: number;
-      oldStock: number;
-      newStock: number;
-    }> = [];
+    // Извлекаем позиции заказа
+    const lineItemsRaw: any[] = payload?.products || payload?.items || payload?.line_items || [];
 
-    // Извлекаем позиции заказа: payload может содержать products, items, или line_items
-    const lineItems: any[] =
-      payload?.products || payload?.items || payload?.line_items || [];
+    // Маппинг payload → UnifiedIncomingOrderDto
+    const dto: UnifiedIncomingOrderDto = {
+      source: 'horoshop',
+      externalOrderId: String(orderId),
+      customerName:
+        payload?.client?.name ||
+        payload?.customer?.name ||
+        [payload?.customer_first_name, payload?.customer_last_name].filter(Boolean).join(' ') ||
+        undefined,
+      customerPhone: payload?.client?.phone || payload?.customer?.phone || payload?.phone,
+      deliveryAddress:
+        payload?.delivery?.address ||
+        [payload?.delivery?.city, payload?.delivery?.department].filter(Boolean).join(', ') ||
+        payload?.delivery_address,
+      deliveryService: this.syncService.mapDeliveryServicePublic(
+        payload?.delivery?.title || payload?.delivery?.type,
+      ),
+      deliveryWarehouse:
+        payload?.delivery?.department || payload?.delivery?.warehouse_number,
+      paymentMethod: payload?.payment?.title || payload?.payment?.type || payload?.payment_method,
+      totalAmount: payload?.total ? Number(payload.total) : undefined,
+      currency: payload?.currency || 'UAH',
+      lineItems: lineItemsRaw
+        .map((item: any) => ({
+          externalArticle: String(item.article || item.vendorCode || item.sku || ''),
+          name: item.title || item.name,
+          quantity: Number(item.quantity || item.amount || item.count || 1),
+          price: Number(item.price || 0),
+          discount: item.discount ? Number(item.discount) : undefined,
+        }))
+        .filter((li) => li.externalArticle && li.quantity > 0),
+      rawPayload: payload,
+    };
 
-    for (const item of lineItems) {
-      // Артикул = tcod
-      const articleStr = item.article || item.vendorCode || item.sku;
-      const tcod = parseInt(String(articleStr || ''), 10);
-      const qty = Number(item.quantity || item.amount || item.count || 1);
+    // Получаем интеграцию для product_mappings
+    const integration = await this.syncService.resolveIntegration(tenantId);
 
-      if (!isNaN(tcod) && tcod > 0 && qty > 0) {
-        try {
-          const deduction = await this.limanService.deductStock(
-            tenant,
-            tcod,
-            qty,
-          );
-
-          results.push({
-            tcod,
-            requestedQty: qty,
-            oldStock: deduction.oldStock,
-            newStock: deduction.newStock,
-          });
-        } catch (err: any) {
-          this.logger.error(
-            `❌ [${tenantId}] Не удалось списать остаток tcod=${tcod}:`,
-            err.message,
-          );
-        }
-      }
-    }
+    const result = await this.limanOrderService.processIncomingOrder(
+      tenant,
+      dto,
+      integration?.id || null,
+    );
 
     return {
-      success: true,
+      success: result.success,
       orderId,
       source: 'horoshop',
-      processedItems: results,
+      mode: result.mode,
+      processedItems: result.deductedItems.map((d) => ({
+        tcod: d.tcod,
+        requestedQty: d.qty,
+        oldStock: d.oldStock,
+        newStock: d.newStock,
+      })),
+      skippedArticles: result.skippedArticles,
+      warnings: result.warnings.length > 0 ? result.warnings : undefined,
       timestamp: new Date().toISOString(),
     };
   }

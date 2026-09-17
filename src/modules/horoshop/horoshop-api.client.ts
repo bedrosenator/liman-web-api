@@ -445,11 +445,27 @@ export class HoroshopApiClient {
   }
 
   /**
-   * Получить список заказов из Хорошоп
+   * Получить список заказов из Хорошоп.
+   *
+   * ИСПРАВЛЕНИЕ (TASK-29): API Хорошоп ожидает числовой код статуса `stat_status`,
+   * а не строковое поле `status`. Коды статусов Хорошоп:
+   *   1 — Новий (new)
+   *   2 — В обробці (processing)
+   *   3 — Виконано (completed)
+   *   4 — Скасовано (cancelled)
+   *
+   * Принимает как числовой `stat_status`, так и строковый алиас `status`
+   * для обратной совместимости.
    */
   async getOrders(
     tenant: Tenant,
-    filter: { date_from?: string; status?: string; limit?: number } = {},
+    filter: {
+      date_from?: string;
+      stat_status?: number;
+      /** @deprecated Используйте stat_status (числовой). 'new' → 1, 'processing' → 2 */
+      status?: string;
+      limit?: number;
+    } = {},
   ): Promise<any> {
     if (this.isMockMode(tenant)) {
       this.logger.log(
@@ -462,6 +478,7 @@ export class HoroshopApiClient {
             {
               id: 10421,
               status: 'new',
+              stat_status: 1,
               created: new Date().toISOString(),
               total: 332.86,
               currency: 'UAH',
@@ -484,6 +501,7 @@ export class HoroshopApiClient {
             {
               id: 10422,
               status: 'processing',
+              stat_status: 2,
               created: new Date().toISOString(),
               total: 142.86,
               currency: 'UAH',
@@ -502,7 +520,45 @@ export class HoroshopApiClient {
       };
     }
 
-    return this.request(tenant, 'orders/get/', filter);
+    // Маппинг строкового статуса → числовой код Хорошоп API
+    const STATUS_MAP: Record<string, number> = {
+      new: 1,
+      processing: 2,
+      completed: 3,
+      cancelled: 4,
+    };
+
+    // Строим правильный payload для API Хорошоп
+    const apiFilter: Record<string, any> = {};
+
+    if (filter.date_from) {
+      apiFilter.date_from = filter.date_from;
+    }
+    if (filter.limit) {
+      apiFilter.limit = filter.limit;
+    }
+
+    // Числовой stat_status имеет приоритет над строковым status
+    if (filter.stat_status !== undefined) {
+      apiFilter.stat_status = filter.stat_status;
+    } else if (filter.status) {
+      const mappedStatus = STATUS_MAP[filter.status.toLowerCase()];
+      if (mappedStatus !== undefined) {
+        apiFilter.stat_status = mappedStatus;
+      } else {
+        // Неизвестный строковый статус — передаём как есть (на случай новых кодов API)
+        this.logger.warn(
+          `[${tenant.id}] getOrders: неизвестный статус «${filter.status}», передаётся как строка`,
+        );
+        apiFilter.stat_status = filter.status;
+      }
+    }
+
+    this.logger.debug(
+      `[${tenant.id}] getOrders: запрос с фильтром ${JSON.stringify(apiFilter)}`,
+    );
+
+    return this.request(tenant, 'orders/get/', apiFilter);
   }
 
   /**

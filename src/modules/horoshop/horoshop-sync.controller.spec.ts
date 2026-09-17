@@ -3,6 +3,7 @@ import { HoroshopSyncController } from './horoshop-sync.controller';
 import { HoroshopApiClient } from './horoshop-api.client';
 import { HoroshopSyncService } from './horoshop-sync.service';
 import { LimanService } from '../liman/liman.service';
+import { LimanOrderService } from '../liman/liman-order.service';
 import { TenantService } from '../tenant/tenant.service';
 import { getQueueToken } from '@nestjs/bullmq';
 import { QUEUE_NAMES } from '../queue/queue.constants';
@@ -56,6 +57,12 @@ describe('HoroshopSyncController', () => {
         { provide: HoroshopApiClient, useValue: mockClient },
         { provide: HoroshopSyncService, useValue: mockSyncSvc },
         { provide: LimanService, useValue: mockLimanSvc },
+        { provide: LimanOrderService, useValue: {
+          markOrderProcessed: jest.fn().mockReturnValue(true),
+          processIncomingOrder: jest.fn().mockResolvedValue({
+            success: true, mode: 'deduct_only', deductedItems: [], skippedArticles: [], warnings: [],
+          }),
+        }},
         { provide: TenantService, useValue: mockTenantSvc },
         {
           provide: getQueueToken(QUEUE_NAMES.IMPORT_HOROSHOP_CATALOG),

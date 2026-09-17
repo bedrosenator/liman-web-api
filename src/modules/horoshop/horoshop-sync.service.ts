@@ -1,5 +1,6 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import { LimanService } from '../liman/liman.service';
+import { LimanOrderService } from '../liman/liman-order.service';
 import { Tenant } from '../tenant/tenant.entity';
 import {
   HoroshopApiClient,
@@ -13,6 +14,7 @@ import { ProductMappingService } from '../tenant/product-mapping.service';
 import { TenantIntegration } from '../tenant/tenant-integration.entity';
 import { MappingSyncStatus } from '../tenant/product-mapping.entity';
 import { LimanProductDto } from '../liman/dto/liman-product.dto';
+import { UnifiedIncomingOrderDto } from '../liman/dto/unified-order.dto';
 
 export interface HoroshopActivityItem {
   id: string;
@@ -32,6 +34,7 @@ export class HoroshopSyncService {
 
   constructor(
     private readonly limanService: LimanService,
+    private readonly limanOrderService: LimanOrderService,
     private readonly horoshopClient: HoroshopApiClient,
     private readonly tenantService: TenantService,
     @Optional() private readonly productMappingService?: ProductMappingService,
@@ -325,29 +328,33 @@ export class HoroshopSyncService {
     };
   }
 
-  // Кэш обработанных заказов (ключ: "tenantId:orderId") для предотвращения повторных списаний
-  private readonly processedOrderIds = new Set<string>();
-
   /**
-   * Проверить и пометить заказ как обработанный
+   * Проверить и пометить заказ как обработанный (делегируем в LimanOrderService).
    * @returns true если заказ новый, false если уже был обработан
    */
   markOrderProcessed(tenantId: string, orderId: string | number): boolean {
-    const key = `${tenantId}:${orderId}`;
-    if (this.processedOrderIds.has(key)) {
-      return false;
-    }
-    this.processedOrderIds.add(key);
-    return true;
+    return this.limanOrderService.markOrderProcessed(tenantId, 'horoshop', String(orderId));
   }
 
   /**
-   * Опрос новых заказов из Хорошоп (Polling) с автоматическим списанием складских остатков
+   * Опрос новых заказов из Хорошоп (Polling) с автоматическим списанием складских остатков.
    * Используется клиентами, у которых на тарифе Хорошоп нет вебхуков.
+   *
+   * ИСПРАВЛЕНИЕ (TASK-29):
+   * - Передаём stat_status: 1 (числовой) вместо status: 'new' (строкового).
+   * - Маппинг каждого заказа в UnifiedIncomingOrderDto.
+   * - Делегируем в LimanOrderService.processIncomingOrder для резолва
+   *   строковых артикулов (ELE-23-0557) через product_mappings.
    */
   async syncOrders(
     tenant: Tenant,
-    options: { status?: string; dateFrom?: string; limit?: number } = {},
+    options: {
+      stat_status?: number;
+      /** @deprecated используйте stat_status */
+      status?: string;
+      dateFrom?: string;
+      limit?: number;
+    } = {},
   ): Promise<{
     totalFetched: number;
     processedOrders: number;
@@ -360,19 +367,23 @@ export class HoroshopSyncService {
       newStock: number;
     }>;
   }> {
-    const statusFilter = options.status || 'new';
+    // По умолчанию — только Новые заказы (stat_status: 1)
+    const statStatus = options.stat_status ?? (options.status === 'new' || !options.status ? 1 : undefined);
     this.logger.log(
-      `📥 [${tenant.id}] Опрос заказов Хорошоп (статус: ${statusFilter})...`,
+      `📥 [${tenant.id}] Опрос заказов Хорошоп (stat_status: ${statStatus ?? 'все'})...`,
     );
 
     const ordersResponse = await this.horoshopClient.getOrders(tenant, {
-      status: statusFilter,
+      stat_status: statStatus,
       date_from: options.dateFrom,
       limit: options.limit || 50,
     });
 
     const ordersList: any[] =
       ordersResponse?.response?.orders || ordersResponse?.orders || [];
+
+    // Получаем активную интеграцию для поиска в product_mappings
+    const integration = await this.resolveIntegration(tenant.id);
 
     let processedOrders = 0;
     let skippedOrders = 0;
@@ -388,51 +399,56 @@ export class HoroshopSyncService {
       const orderId = order.id || order.order_id;
       if (!orderId) continue;
 
-      if (!this.markOrderProcessed(tenant.id, orderId)) {
+      // Дедупликация через LimanOrderService
+      if (!this.limanOrderService.markOrderProcessed(tenant.id, 'horoshop', String(orderId))) {
         this.logger.log(
-          `⏭️ [${tenant.id}] Заказ №${orderId} уже был списан ранее. Пропускаем.`,
+          `⏭️ [${tenant.id}] Заказ №${orderId} уже был обработан ранее. Пропускаем.`,
         );
         skippedOrders++;
         continue;
       }
 
+      // Маппинг заказа Хорошоп → UnifiedIncomingOrderDto
       const products: any[] = order.products || order.items || [];
-      for (const item of products) {
-        const articleStr = item.article || item.vendorCode || item.sku;
-        const tcod = parseInt(String(articleStr || ''), 10);
-        const qty = Number(item.quantity || item.amount || 1);
+      const dto: UnifiedIncomingOrderDto = {
+        source: 'horoshop',
+        externalOrderId: String(orderId),
+        customerName: order.client?.name || order.customer?.name,
+        customerPhone: order.client?.phone || order.customer?.phone,
+        deliveryAddress:
+          order.delivery?.address ||
+          [order.delivery?.city, order.delivery?.department]
+            .filter(Boolean)
+            .join(', '),
+        deliveryService: this.mapDeliveryServicePublic(order.delivery?.title || order.delivery?.type),
+        deliveryWarehouse: order.delivery?.department || order.delivery?.warehouse,
+        paymentMethod: order.payment?.title || order.payment?.type,
+        totalAmount: order.total ? Number(order.total) : undefined,
+        currency: order.currency || 'UAH',
+        lineItems: products.map((item: any) => ({
+          externalArticle: String(item.article || item.vendorCode || item.sku || ''),
+          name: item.title || item.name,
+          quantity: Number(item.quantity || item.amount || 1),
+          price: Number(item.price || 0),
+          discount: item.discount ? Number(item.discount) : undefined,
+        })).filter((li) => li.externalArticle && li.quantity > 0),
+        rawPayload: order,
+      };
 
-        if (!isNaN(tcod) && tcod > 0 && qty > 0) {
-          try {
-            const deduction = await this.limanService.deductStock(
-              tenant,
-              tcod,
-              qty,
-            );
+      const result = await this.limanOrderService.processIncomingOrder(
+        tenant,
+        dto,
+        integration?.id || null,
+      );
 
-            itemsDeducted.push({
-              orderId,
-              tcod,
-              qty,
-              oldStock: deduction.oldStock,
-              newStock: deduction.newStock,
-            });
-          } catch (err: any) {
-            this.logger.error(
-              `❌ [${tenant.id}] Ошибка списания остатка для заказа №${orderId} (tcod=${tcod}):`,
-              err.message,
-            );
-
-            void this.alertService?.sendCritical(
-              'horoshop',
-              `Ошибка списания остатка Хорошоп [${tenant.id}]`,
-              `Не удалось списать ${qty} шт. для товара tcod=${tcod} по заказу №${orderId}: ${err.message}`,
-              err.stack,
-              tenant.id,
-              { orderId, tcod, qty },
-            );
-          }
-        }
+      for (const deducted of result.deductedItems) {
+        itemsDeducted.push({
+          orderId,
+          tcod: deducted.tcod,
+          qty: deducted.qty,
+          oldStock: deducted.oldStock,
+          newStock: deducted.newStock,
+        });
       }
 
       processedOrders++;
@@ -449,5 +465,18 @@ export class HoroshopSyncService {
       skippedOrders,
       itemsDeducted,
     };
+  }
+
+  /**
+   * Маппинг названия службы доставки Хорошоп → стандартный код (публичный для контроллера)
+   */
+  mapDeliveryServicePublic(title?: string): string | undefined {
+    if (!title) return undefined;
+    const t = title.toLowerCase();
+    if (t.includes('нова пошта') || t.includes('nova poshta') || t.includes('нп')) return 'nova_poshta';
+    if (t.includes('укрпошта') || t.includes('ukrposhta')) return 'ukrposhta';
+    if (t.includes('самовивіз') || t.includes('самовывоз') || t.includes('pickup')) return 'selfpickup';
+    if (t.includes('кур') || t.includes('courier')) return 'courier';
+    return 'other';
   }
 }

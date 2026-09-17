@@ -1,11 +1,13 @@
 import { HoroshopSyncService } from './horoshop-sync.service';
 import { LimanService } from '../liman/liman.service';
+import { LimanOrderService } from '../liman/liman-order.service';
 import { HoroshopApiClient } from './horoshop-api.client';
 import { Tenant } from '../tenant/tenant.entity';
 
 describe('HoroshopSyncService', () => {
   let service: HoroshopSyncService;
   let limanService: jest.Mocked<LimanService>;
+  let limanOrderService: jest.Mocked<LimanOrderService>;
   let horoshopClient: jest.Mocked<HoroshopApiClient>;
   let tenantService: jest.Mocked<any>;
 
@@ -15,12 +17,31 @@ describe('HoroshopSyncService', () => {
     horoshopDomain: 'test.horoshop.ua',
     horoshopLogin: 'admin',
     horoshopPassword: 'password',
+    horoshopOrderWebhookEnabled: true,
+    horoshopProductCreationWebhookEnabled: false,
+    horoshopCreateOrderDocumentEnabled: false,
   } as any;
 
   beforeEach(() => {
     limanService = {
       getProducts: jest.fn(),
       deductStock: jest.fn(),
+      findProductBySkuOrBarcode: jest.fn(),
+    } as any;
+
+    limanOrderService = {
+      markOrderProcessed: jest.fn().mockReturnValue(true),
+      processIncomingOrder: jest.fn().mockResolvedValue({
+        externalOrderId: 'HORO-1001',
+        source: 'horoshop',
+        mode: 'deduct_only',
+        resolvedItems: [],
+        deductedItems: [],
+        skippedArticles: [],
+        warnings: [],
+        success: true,
+      }),
+      resolveProductTcod: jest.fn(),
     } as any;
 
     horoshopClient = {
@@ -35,6 +56,7 @@ describe('HoroshopSyncService', () => {
 
     service = new HoroshopSyncService(
       limanService,
+      limanOrderService,
       horoshopClient,
       tenantService,
     );
@@ -94,6 +116,7 @@ describe('HoroshopSyncService', () => {
 
       const syncServiceWithMappings = new HoroshopSyncService(
         limanService,
+        limanOrderService,
         horoshopClient,
         tenantService,
         productMappingService,
@@ -156,26 +179,29 @@ describe('HoroshopSyncService', () => {
   });
 
   describe('syncOrders', () => {
-    it('should poll orders and deduct stock with deduplication', async () => {
+    it('should poll orders and delegate to LimanOrderService with deduplication', async () => {
       horoshopClient.getOrders.mockResolvedValue({
         status: 'OK',
         response: {
           orders: [
             {
               id: 'HORO-1001',
-              products: [{ article: '251', quantity: 2 }],
+              products: [{ article: '251', quantity: 2, price: 47 }],
             },
           ],
         },
       } as any);
 
-      limanService.deductStock.mockResolvedValue({
+      limanOrderService.processIncomingOrder.mockResolvedValue({
+        externalOrderId: 'HORO-1001',
+        source: 'horoshop',
+        mode: 'deduct_only',
+        resolvedItems: [{ externalArticle: '251', tcod: 251, quantity: 2, price: 47, resolvedVia: 'tcod_direct' }],
+        deductedItems: [{ tcod: 251, qty: 2, oldStock: 10, newStock: 8 }],
+        skippedArticles: [],
+        warnings: [],
         success: true,
-        tcod: 251,
-        oldStock: 10,
-        newStock: 8,
-        deducted: 2,
-      });
+      } as any);
 
       const firstSync = await service.syncOrders(mockTenant);
       expect(firstSync.processedOrders).toBe(1);
@@ -190,13 +216,45 @@ describe('HoroshopSyncService', () => {
           newStock: 8,
         }),
       );
-      expect(limanService.deductStock).toHaveBeenCalledWith(mockTenant, 251, 2);
+      expect(limanOrderService.processIncomingOrder).toHaveBeenCalledTimes(1);
 
       // Second sync of the same order should be skipped due to deduplication
+      limanOrderService.markOrderProcessed.mockReturnValue(false);
       const secondSync = await service.syncOrders(mockTenant);
       expect(secondSync.processedOrders).toBe(0);
       expect(secondSync.skippedOrders).toBe(1);
       expect(secondSync.itemsDeducted).toHaveLength(0);
+    });
+
+    it('should use stat_status: 1 by default instead of status: new', async () => {
+      horoshopClient.getOrders.mockResolvedValue({ response: { orders: [] } } as any);
+
+      await service.syncOrders(mockTenant);
+
+      expect(horoshopClient.getOrders).toHaveBeenCalledWith(
+        mockTenant,
+        expect.objectContaining({ stat_status: 1 }),
+      );
+    });
+  });
+
+  describe('mapDeliveryServicePublic', () => {
+    it('should map Nova Poshta correctly', () => {
+      expect(service.mapDeliveryServicePublic('Нова Пошта')).toBe('nova_poshta');
+      expect(service.mapDeliveryServicePublic('nova poshta')).toBe('nova_poshta');
+      expect(service.mapDeliveryServicePublic('НП відділення')).toBe('nova_poshta');
+    });
+
+    it('should map Ukrposhta correctly', () => {
+      expect(service.mapDeliveryServicePublic('УкрПошта')).toBe('ukrposhta');
+    });
+
+    it('should map selfpickup correctly', () => {
+      expect(service.mapDeliveryServicePublic('Самовивіз')).toBe('selfpickup');
+    });
+
+    it('should return undefined for empty input', () => {
+      expect(service.mapDeliveryServicePublic(undefined)).toBeUndefined();
     });
   });
 });

@@ -1,5 +1,5 @@
 import { LimanService } from './liman.service';
-import { TenantConnectionManager } from './tenant-connection.manager';
+import { TenantConnectionManager } from './tenant-connection-manager.service';
 import { Tenant } from '../tenant/tenant.entity';
 
 describe('LimanService', () => {
@@ -21,9 +21,13 @@ describe('LimanService', () => {
     isActive: true,
     promExportEnabled: false,
     woocommerceSyncEnabled: false,
+    woocommerceImportEnabled: false,
     woocommerceSyncIntervalMinutes: 15,
     rozetkaExportEnabled: false,
     horoshopExportEnabled: false,
+    horoshopOrderWebhookEnabled: true,
+    horoshopProductCreationWebhookEnabled: false,
+    horoshopCreateOrderDocumentEnabled: false,
     horoshopSyncIntervalMinutes: 15,
     createdAt: new Date(),
     updatedAt: new Date(),

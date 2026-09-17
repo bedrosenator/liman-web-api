@@ -89,6 +89,9 @@ export class Tenant {
   @Column({ type: 'boolean', default: false })
   horoshopProductCreationWebhookEnabled!: boolean; // Webhook/trigger on new product creation
 
+  @Column({ type: 'boolean', default: false })
+  horoshopCreateOrderDocumentEnabled!: boolean; // Experimental: create draft order document in Limansoft (tip_dok: 85)
+
   @Column({ type: 'integer', default: 15 })
   horoshopSyncIntervalMinutes!: number;
 

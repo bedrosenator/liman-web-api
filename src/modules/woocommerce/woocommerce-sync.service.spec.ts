@@ -55,9 +55,7 @@ describe('WoocommerceSyncService', () => {
       const mockSkuMap = new Map<string, number>([['251', 1001]]);
       wooClient.getSkuToIdMap.mockResolvedValue(mockSkuMap);
       wooClient.batchUpsertProducts.mockResolvedValue({
-        created: 0,
-        updated: 1,
-        failed: 0,
+        update: [{ id: 1001 }] as any,
       });
 
       const onProgress = jest.fn();
@@ -108,9 +106,7 @@ describe('WoocommerceSyncService', () => {
 
       wooClient.getSkuToIdMap.mockResolvedValue(new Map());
       wooClient.batchUpsertProducts.mockResolvedValue({
-        created: 1,
-        updated: 0,
-        failed: 0,
+        create: [{ id: 1002 }] as any,
       });
 
       const result = await service.syncStockAndPrices(

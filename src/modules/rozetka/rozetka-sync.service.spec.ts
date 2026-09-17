@@ -169,6 +169,7 @@ describe('RozetkaSyncService', () => {
       });
 
       limanService.deductStock.mockResolvedValue({
+        success: true,
         tcod: 101,
         deducted: 2,
         oldStock: 10,
