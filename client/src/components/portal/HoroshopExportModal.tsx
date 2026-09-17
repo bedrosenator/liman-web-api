@@ -114,7 +114,10 @@ export function HoroshopExportModal({
     } catch (err: any) {
       setStatus('error');
       setErrorMessage(
-        err.response?.data?.message || err.message || 'Ошибка запуска экспорта каталога',
+        err.response?.data?.error?.message ||
+          err.response?.data?.message ||
+          err.message ||
+          'Ошибка запуска экспорта каталога',
       );
     }
   };

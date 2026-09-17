@@ -108,7 +108,10 @@ export function HoroshopImportModal({
     } catch (err: any) {
       setStatus('error');
       setErrorMessage(
-        err.response?.data?.message || err.message || 'Ошибка запуска импорта каталога',
+        err.response?.data?.error?.message ||
+          err.response?.data?.message ||
+          err.message ||
+          'Ошибка запуска импорта каталога',
       );
     }
   };

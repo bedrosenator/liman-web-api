@@ -256,7 +256,11 @@ export function ClientPortalPage() {
     } catch (err: any) {
       setSyncReport({
         success: false,
-        message: err.response?.data?.message || err.message || t('error'),
+        message:
+          err.response?.data?.error?.message ||
+          err.response?.data?.message ||
+          err.message ||
+          t('error'),
       });
     } finally {
       setIsSyncing(false);
