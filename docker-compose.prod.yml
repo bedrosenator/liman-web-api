@@ -99,6 +99,28 @@ services:
       timeout: 3s
       retries: 5
 
+  # ─── MariaDB (База данных Limansoft магазина columb) ─────────────────────────
+  mariadb:
+    image: mariadb:10.11-alpine
+    container_name: liman_mariadb
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DEV_LIMAN_DB_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: columbDB
+    ports:
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    networks:
+      liman_network:
+        aliases:
+          - mariadb
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 networks:
   liman_network:
     name: liman_network
@@ -109,3 +131,5 @@ volumes:
     name: liman_redis_data
   postgres_data:
     name: liman_postgres_data
+  mariadb_data:
+    name: liman_mariadb_data
