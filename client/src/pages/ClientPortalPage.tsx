@@ -436,7 +436,7 @@ export function ClientPortalPage() {
         <HoroshopWizard />
 
         {/* 3. Action Hub & XML фид */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           {/* Карточка 1: Большая кнопка немедленной синхронизации */}
           <div className="card flex flex-col justify-between" id="action-sync-card">
             <div className="card__header">
@@ -450,22 +450,22 @@ export function ClientPortalPage() {
                 Считывает остатки склада и цены из MariaDB Limansoft и обновляет их в магазине Хорошоп через фоновую очередь BullMQ.
               </p>
 
-              <div>
+              <div className="mt-auto">
                 <button
                   type="button"
-                  className="btn btn--primary btn--lg w-full justify-center"
+                  className="btn btn--primary"
                   id="btn-sync-now"
                   onClick={handleSyncPricesStocks}
                   disabled={isSyncing}
                 >
                   {isSyncing ? (
                     <>
-                      <Loader2 size={18} className="spinner" />
+                      <Loader2 size={16} className="spinner" />
                       <span>{t('syncInProgress')}</span>
                     </>
                   ) : (
                     <>
-                      <Zap size={18} />
+                      <Zap size={16} />
                       <span>{t('syncNow')}</span>
                     </>
                   )}
@@ -522,15 +522,17 @@ export function ClientPortalPage() {
                 Выгружает товары и новинки из магазина Хорошоп в учетную базу данных Limansoft с защитой от перезаписи и автобэкапом.
               </p>
 
-              <button
-                type="button"
-                className="btn btn--secondary btn--lg w-full justify-center text-indigo border-indigo/40 hover:bg-indigo/10"
-                id="btn-open-import-modal"
-                onClick={() => setIsImportModalOpen(true)}
-              >
-                <Download size={18} />
-                <span>{t('startImport')}</span>
-              </button>
+              <div className="mt-auto">
+                <button
+                  type="button"
+                  className="btn btn--secondary"
+                  id="btn-open-import-modal"
+                  onClick={() => setIsImportModalOpen(true)}
+                >
+                  <Download size={16} />
+                  <span>{t('startImport')}</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -547,16 +549,18 @@ export function ClientPortalPage() {
                 Прямая выгрузка позиций в Хорошоп в 1 клик через API или подключение по ссылке на фид:
               </p>
 
-              <div>
-                <button
-                  type="button"
-                  className="btn btn--primary w-full justify-center mb-3 text-sm gap-1.5"
-                  id="btn-direct-export"
-                  onClick={() => setIsExportModalOpen(true)}
-                >
-                  <Upload size={16} />
-                  <span>{language === 'uk' ? '🚀 Експортувати каталог в Хорошоп' : '🚀 Экспортировать каталог в Хорошоп'}</span>
-                </button>
+              <div className="mt-auto">
+                <div className="mb-3">
+                  <button
+                    type="button"
+                    className="btn btn--primary"
+                    id="btn-direct-export"
+                    onClick={() => setIsExportModalOpen(true)}
+                  >
+                    <Upload size={16} />
+                    <span>{language === 'uk' ? 'Експортувати каталог в Хорошоп' : 'Экспортировать каталог в Хорошоп'}</span>
+                  </button>
+                </div>
 
                 {/* Индикация выполнения экспорта в Карточке 3 */}
                 {isSyncing && (
@@ -600,14 +604,14 @@ export function ClientPortalPage() {
                   </span>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    className="btn btn--secondary flex-1 justify-center"
+                    className="btn btn--secondary btn--sm"
                     id="btn-copy-feed"
                     onClick={handleCopyFeed}
                   >
-                    {isFeedCopied ? <Check size={16} className="text-emerald" /> : <Copy size={16} />}
+                    {isFeedCopied ? <Check size={14} className="text-emerald" /> : <Copy size={14} />}
                     <span>{isFeedCopied ? t('copySuccess') : t('copyFeedLink')}</span>
                   </button>
 
@@ -615,11 +619,11 @@ export function ClientPortalPage() {
                     href={feedUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="btn btn--secondary justify-center"
+                    className="btn btn--secondary btn--sm"
                     id="btn-open-feed"
                     title={t('openFeed')}
                   >
-                    <ExternalLink size={16} />
+                    <ExternalLink size={14} />
                     <span>{t('openFeed')}</span>
                   </a>
                 </div>
@@ -818,18 +822,20 @@ export function ClientPortalPage() {
                 </div>
               )}
 
-              <button
-                type="submit"
-                className="btn btn--primary w-full justify-center"
-                disabled={isSavingSettings}
-              >
-                {isSavingSettings ? (
-                  <Loader2 size={16} className="spinner" />
-                ) : (
-                  <Save size={16} />
-                )}
-                <span>{t('save')}</span>
-              </button>
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  className="btn btn--primary gap-1.5"
+                  disabled={isSavingSettings}
+                >
+                  {isSavingSettings ? (
+                    <Loader2 size={16} className="spinner" />
+                  ) : (
+                    <Save size={16} />
+                  )}
+                  <span>{t('save')}</span>
+                </button>
+              </div>
             </form>
           </div>
 
