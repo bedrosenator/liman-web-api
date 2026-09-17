@@ -184,6 +184,25 @@ export class CreateTenantDto {
 
   @ApiPropertyOptional({
     description:
+      'Включить автоматическое списание складских остатков по входящему вебхуку заказа из WooCommerce',
+    default: true,
+  })
+  @IsBoolean()
+  @IsOptional()
+  woocommerceOrderWebhookEnabled?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'Экспериментальная функция: создавать черновик накладной tip_dok:85 в Limansoft при получении заказа из WooCommerce. ' +
+      'По умолчанию: выключено (рекомендуемый безопасный режим — только списание остатка name2ost).',
+    default: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  woocommerceCreateOrderDocumentEnabled?: boolean;
+
+  @ApiPropertyOptional({
+    description:
       'Интервал фоновой синхронизации с WooCommerce (минуты: 15, 30, 60)',
     example: 15,
     default: 15,

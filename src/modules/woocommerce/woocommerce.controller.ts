@@ -27,6 +27,8 @@ import { WoocommerceApiClient } from './woocommerce-api.client';
 import { WoocommerceImportService } from './woocommerce-import.service';
 import { TenantService } from '../tenant/tenant.service';
 import { LimanService } from '../liman/liman.service';
+import { LimanOrderService } from '../liman/liman-order.service';
+import { ProductMappingService } from '../tenant/product-mapping.service';
 import { Public } from '../../common/decorators/public.decorator';
 import { AlertService } from '../alert/alert.service';
 import { QUEUE_NAMES, ImportWooCatalogJobData } from '../queue/queue.constants';
@@ -44,7 +46,9 @@ export class WoocommerceController {
     private readonly limanService: LimanService,
     @InjectQueue(QUEUE_NAMES.IMPORT_WOO_CATALOG)
     private readonly wooImportQueue: Queue<ImportWooCatalogJobData>,
+    private readonly limanOrderService: LimanOrderService,
     @Optional() private readonly alertService?: AlertService,
+    @Optional() private readonly productMappingService?: ProductMappingService,
   ) {}
 
   @Get('ping')
@@ -174,9 +178,11 @@ export class WoocommerceController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary:
-      'Вебхук: приём заказа из WooCommerce → мгновенное списание остатка в Limansoft',
+      'Вебхук: приём заказа из WooCommerce → авто-списание остатка в Limansoft через LimanOrderService',
     description:
-      'Плагин WooCommerce отправляет этот запрос при оформлении заказа. Остатки списываются из name2ost и фиксируется источник "woocommerce".',
+      'Плагин WooCommerce отправляет этот запрос при оформлении заказа. ' +
+      'Для каждой позиции резолвирует артикул/SKU в tcod Limansoft (через product_mappings, tcod, nnom, strihcod) ' +
+      'и уменьшает складской остаток в таблице name2ost (Режим 1) либо создает черновик накладной tip_dok:85 (Режим 2).',
   })
   @ApiParam({ name: 'tenantId', example: 'columb' })
   @ApiBody({
@@ -190,11 +196,11 @@ export class WoocommerceController {
           items: {
             type: 'object',
             properties: {
-              product_id: { type: 'number' },
-              sku: { type: 'string', example: '251' },
-              name: { type: 'string', example: 'Burn 0.25 Original' },
-              quantity: { type: 'number', example: 2 },
-              price: { type: 'string', example: '47' },
+              product_id: { type: 'number', example: 1042 },
+              sku: { type: 'string', example: 'ELE-23-0557' },
+              name: { type: 'string', example: 'iPhone 13' },
+              quantity: { type: 'number', example: 1 },
+              price: { type: 'string', example: '35000' },
             },
           },
         },
@@ -206,63 +212,115 @@ export class WoocommerceController {
     @Body() payload: any,
   ) {
     const tenant = await this.tenantService.findOne(tenantId);
+    const orderId = payload?.id || payload?.order_id || 'N/A';
 
-    this.logger.log(
-      `🛒 [${tenantId}] Вебхук заказа №${payload?.id ?? payload?.order_id} из WooCommerce: ${payload?.line_items?.length ?? 0} позиций`,
+    this.logger.log(`🛒 [${tenantId}] Вебхук заказа WooCommerce №${orderId}`);
+
+    // Проверяем активность вебхука списания остатков
+    if (tenant.woocommerceOrderWebhookEnabled === false) {
+      this.logger.log(
+        `⏸️ [${tenantId}] Вебхук заказа WooCommerce №${orderId} пропущен: авто-списание отключено в настройках тенанта`,
+      );
+      return {
+        success: false,
+        disabled: true,
+        orderId,
+        message:
+          'Автоматическое списание по вебхуку заказов WooCommerce отключено в настройках тенанта',
+        processedItems: [],
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    // Дедупликация
+    if (
+      orderId !== 'N/A' &&
+      !this.limanOrderService.markOrderProcessed(
+        tenantId,
+        'woocommerce',
+        String(orderId),
+      )
+    ) {
+      this.logger.log(
+        `⏭️ [${tenantId}] Вебхук: заказ WooCommerce №${orderId} уже был обработан ранее.`,
+      );
+      return {
+        success: true,
+        orderId,
+        message: 'Заказ уже был обработан ранее, повторное списание пропущено',
+        processedItems: [],
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    // Маппинг payload WooCommerce -> UnifiedIncomingOrderDto
+    const dto = this.syncService.mapWooOrderToUnifiedDto(payload);
+
+    // Получаем интеграцию для product_mappings
+    const integration = await this.syncService.resolveIntegration(tenantId);
+
+    const result = await this.limanOrderService.processIncomingOrder(
+      tenant,
+      dto,
+      integration?.id || null,
     );
 
-    const results: Array<{
-      tcod: number;
-      productName: string;
-      requestedQty: number;
-      oldStock: number;
-      newStock: number;
-    }> = [];
+    return {
+      success: result.success,
+      orderId,
+      source: 'woocommerce',
+      mode: result.mode,
+      processedItems: result.deductedItems.map((d) => ({
+        tcod: d.tcod,
+        requestedQty: d.qty,
+        oldStock: d.oldStock,
+        newStock: d.newStock,
+      })),
+      skippedArticles: result.skippedArticles,
+      warnings: result.warnings,
+      timestamp: new Date().toISOString(),
+    };
+  }
 
-    const lineItems: any[] = payload?.line_items ?? payload?.products ?? [];
+  @Post('orders/sync')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      'Опрос новых заказов из WooCommerce (Polling) с автоматическим списанием остатков',
+    description:
+      'Запрашивает список заказов через REST API WooCommerce (по умолчанию статус "processing") ' +
+      'и выполняет безопасное списание остатков через LimanOrderService.',
+  })
+  @ApiParam({ name: 'tenantId', example: 'columb' })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    description: 'Статус заказов WooCommerce (по умолчанию "processing")',
+    example: 'processing',
+  })
+  @ApiQuery({
+    name: 'perPage',
+    required: false,
+    description: 'Количество заказов за один запрос (по умолчанию 50)',
+    example: 50,
+  })
+  async syncOrders(
+    @Param('tenantId') tenantId: string,
+    @Query('status') status?: string,
+    @Query('perPage') perPage?: string,
+  ) {
+    const tenant = await this.tenantService.findOne(tenantId);
+    const limit = perPage ? parseInt(perPage, 10) : 50;
 
-    for (const item of lineItems) {
-      // SKU в WooCommerce = наш tcod
-      const sku = item.sku || item.external_id;
-      const qty = Number(item.quantity ?? 1);
-      const tcod = parseInt(String(sku), 10);
-
-      if (!isNaN(tcod) && tcod > 0 && qty > 0) {
-        try {
-          const deduction = await this.limanService.deductStock(
-            tenant,
-            tcod,
-            qty,
-          );
-          results.push({
-            tcod,
-            productName: item.name ?? `tcod: ${tcod}`,
-            requestedQty: qty,
-            oldStock: deduction.oldStock,
-            newStock: deduction.newStock,
-          });
-        } catch (err) {
-          this.logger.error(
-            `Не удалось списать остаток для tcod=${tcod}:`,
-            err,
-          );
-          void this.alertService?.sendCritical(
-            'woocommerce',
-            `Ошибка списания остатка WooCommerce [${tenantId}]`,
-            `Не удалось списать остаток (${qty} шт.) для товара tcod=${tcod} по заказу #${payload?.id ?? payload?.order_id}: ${err instanceof Error ? err.message : String(err)}`,
-            err instanceof Error ? err.stack : undefined,
-            tenantId,
-            { orderId: payload?.id ?? payload?.order_id, tcod, qty },
-          );
-        }
-      }
-    }
+    const result = await this.syncService.syncOrders(tenant, {
+      status: status || 'processing',
+      perPage: isNaN(limit) ? 50 : limit,
+    });
 
     return {
       success: true,
-      orderId: payload?.id ?? payload?.order_id,
-      source: 'woocommerce',
-      processedItems: results,
+      tenantId,
+      ...result,
       timestamp: new Date().toISOString(),
     };
   }

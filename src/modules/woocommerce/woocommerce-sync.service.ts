@@ -1,5 +1,9 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import { LimanService } from '../liman/liman.service';
+import { LimanOrderService } from '../liman/liman-order.service';
+import { UnifiedIncomingOrderDto } from '../liman/dto/unified-order.dto';
+import { ProductMappingService } from '../tenant/product-mapping.service';
+import { TenantIntegration } from '../tenant/tenant-integration.entity';
 import { WoocommerceApiClient, WooProduct } from './woocommerce-api.client';
 import { Tenant } from '../tenant/tenant.entity';
 import { AlertService } from '../alert/alert.service';
@@ -44,6 +48,8 @@ export class WoocommerceSyncService {
     private readonly limanService: LimanService,
     private readonly wooClient: WoocommerceApiClient,
     @Optional() private readonly alertService?: AlertService,
+    @Optional() private readonly limanOrderService?: LimanOrderService,
+    @Optional() private readonly productMappingService?: ProductMappingService,
   ) {}
 
   /**
@@ -307,5 +313,213 @@ export class WoocommerceSyncService {
     }
 
     return { synced, errors };
+  }
+
+  /**
+   * Разрешить активную интеграцию WooCommerce в product_mappings
+   */
+  async resolveIntegration(
+    tenantId: string,
+    integrationId?: string,
+  ): Promise<TenantIntegration | null> {
+    if (!this.productMappingService) return null;
+    return this.productMappingService.resolveActiveIntegration(
+      tenantId,
+      'woocommerce',
+      integrationId,
+    );
+  }
+
+  /**
+   * Маппинг названия / кода доставки WooCommerce в стандартный код
+   */
+  mapDeliveryService(order: any): string | undefined {
+    const shippingLines: any[] = order?.shipping_lines || [];
+    const methodTitle =
+      shippingLines[0]?.method_title ||
+      shippingLines[0]?.method_id ||
+      order?.shipping_method ||
+      '';
+    if (!methodTitle) return undefined;
+
+    const t = String(methodTitle).toLowerCase();
+    if (
+      t.includes('нова пошта') ||
+      t.includes('nova poshta') ||
+      t.includes('np') ||
+      t.includes('novaposhta')
+    ) {
+      return 'nova_poshta';
+    }
+    if (t.includes('укрпошта') || t.includes('ukrposhta')) {
+      return 'ukrposhta';
+    }
+    if (
+      t.includes('самовивіз') ||
+      t.includes('самовывоз') ||
+      t.includes('pickup') ||
+      t.includes('local_pickup')
+    ) {
+      return 'selfpickup';
+    }
+    if (t.includes('кур') || t.includes('courier')) {
+      return 'courier';
+    }
+    return 'other';
+  }
+
+  /**
+   * Преобразовать входящий заказ WooCommerce (Webhook или REST API)
+   * в унифицированный объект UnifiedIncomingOrderDto (ACL)
+   */
+  mapWooOrderToUnifiedDto(order: any): UnifiedIncomingOrderDto {
+    const orderId = String(order?.id || order?.order_id || 'N/A');
+    const rawLineItems: any[] = order?.line_items || order?.products || [];
+
+    const customerName =
+      [order?.billing?.first_name, order?.billing?.last_name].filter(Boolean).join(' ') ||
+      [order?.shipping?.first_name, order?.shipping?.last_name].filter(Boolean).join(' ') ||
+      order?.customer_name ||
+      undefined;
+
+    const customerPhone =
+      order?.billing?.phone ||
+      order?.shipping?.phone ||
+      order?.phone ||
+      undefined;
+
+    const deliveryAddress =
+      [order?.shipping?.address_1, order?.shipping?.city, order?.shipping?.state, order?.shipping?.postcode]
+        .filter(Boolean)
+        .join(', ') ||
+      [order?.billing?.address_1, order?.billing?.city].filter(Boolean).join(', ') ||
+      undefined;
+
+    const deliveryWarehouse =
+      order?.shipping?.address_2 ||
+      order?.billing?.address_2 ||
+      undefined;
+
+    const lineItems = rawLineItems
+      .map((item: any) => ({
+        externalArticle: String(item.sku || item.product_id || item.id || '').trim(),
+        name: item.name || item.title || undefined,
+        quantity: Number(item.quantity ?? item.count ?? 1),
+        price: Number(item.price ?? 0),
+        discount:
+          item.total && item.subtotal && Number(item.subtotal) > Number(item.total)
+            ? Number(item.subtotal) - Number(item.total)
+            : undefined,
+      }))
+      .filter((li) => li.externalArticle && li.quantity > 0);
+
+    return {
+      source: 'woocommerce',
+      externalOrderId: orderId,
+      customerName,
+      customerPhone,
+      deliveryAddress,
+      deliveryService: this.mapDeliveryService(order),
+      deliveryWarehouse,
+      paymentMethod:
+        order?.payment_method_title ||
+        order?.payment_method ||
+        undefined,
+      totalAmount: order?.total ? Number(order.total) : undefined,
+      currency: order?.currency || 'UAH',
+      lineItems,
+      rawPayload: order,
+    };
+  }
+
+  /**
+   * Опрос новых заказов из WooCommerce (Polling) с автоматическим списанием остатков
+   */
+  async syncOrders(
+    tenant: Tenant,
+    options: { status?: string; perPage?: number } = {},
+  ): Promise<{
+    totalFetched: number;
+    processedOrders: number;
+    skippedOrders: number;
+    itemsDeducted: Array<{
+      orderId: string | number;
+      tcod: number;
+      qty: number;
+      oldStock: number;
+      newStock: number;
+    }>;
+  }> {
+    if (!this.limanOrderService) {
+      throw new Error('LimanOrderService не внедрен в WoocommerceSyncService');
+    }
+
+    const statusFilter = options.status || 'processing';
+    this.logger.log(
+      `📥 [${tenant.id}] Опрос заказов WooCommerce (статус: ${statusFilter})...`,
+    );
+
+    const orders = await this.wooClient.getOrders(
+      tenant,
+      statusFilter,
+      options.perPage || 50,
+    );
+
+    const integration = await this.resolveIntegration(tenant.id);
+
+    let processedOrders = 0;
+    let skippedOrders = 0;
+    const itemsDeducted: Array<{
+      orderId: string | number;
+      tcod: number;
+      qty: number;
+      oldStock: number;
+      newStock: number;
+    }> = [];
+
+    for (const order of orders) {
+      const orderId = String(order.id || (order as any).order_id);
+      if (!orderId) continue;
+
+      if (!this.limanOrderService.markOrderProcessed(tenant.id, 'woocommerce', orderId)) {
+        this.logger.log(
+          `⏭️ [${tenant.id}] Заказ WooCommerce №${orderId} уже был обработан ранее. Пропускаем.`,
+        );
+        skippedOrders++;
+        continue;
+      }
+
+      const dto = this.mapWooOrderToUnifiedDto(order);
+
+      const result = await this.limanOrderService.processIncomingOrder(
+        tenant,
+        dto,
+        integration?.id || null,
+      );
+
+      for (const deducted of result.deductedItems) {
+        itemsDeducted.push({
+          orderId,
+          tcod: deducted.tcod,
+          qty: deducted.qty,
+          oldStock: deducted.oldStock,
+          newStock: deducted.newStock,
+        });
+      }
+
+      processedOrders++;
+    }
+
+    this.logger.log(
+      `✅ [${tenant.id}] Опрос заказов WooCommerce завершен: получено ${orders.length}, ` +
+        `обработано ${processedOrders}, пропущено (дубли) ${skippedOrders}, списано позиций ${itemsDeducted.length}`,
+    );
+
+    return {
+      totalFetched: orders.length,
+      processedOrders,
+      skippedOrders,
+      itemsDeducted,
+    };
   }
 }

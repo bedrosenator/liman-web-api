@@ -4,6 +4,7 @@ import { WoocommerceApiClient } from './woocommerce-api.client';
 import { WoocommerceImportService } from './woocommerce-import.service';
 import { TenantService } from '../tenant/tenant.service';
 import { LimanService } from '../liman/liman.service';
+import { LimanOrderService } from '../liman/liman-order.service';
 import { Queue } from 'bullmq';
 import { NotFoundException } from '@nestjs/common';
 import { QUEUE_NAMES } from '../queue/queue.constants';
@@ -16,15 +17,22 @@ describe('WoocommerceController', () => {
   let tenantService: jest.Mocked<TenantService>;
   let limanService: jest.Mocked<LimanService>;
   let wooImportQueue: jest.Mocked<Queue>;
+  let limanOrderService: jest.Mocked<LimanOrderService>;
 
   const mockTenant = {
     id: 'columb',
     name: 'Columb Shop',
     woocommerceUrl: 'http://localhost:8080',
+    woocommerceOrderWebhookEnabled: true,
+    woocommerceCreateOrderDocumentEnabled: false,
   } as any;
 
   beforeEach(() => {
-    syncService = {} as any;
+    syncService = {
+      mapWooOrderToUnifiedDto: jest.fn(),
+      resolveIntegration: jest.fn(),
+      syncOrders: jest.fn(),
+    } as any;
     wooClient = {} as any;
     importService = {
       importProductById: jest.fn(),
@@ -36,6 +44,10 @@ describe('WoocommerceController', () => {
     wooImportQueue = {
       add: jest.fn(),
     } as any;
+    limanOrderService = {
+      markOrderProcessed: jest.fn(),
+      processIncomingOrder: jest.fn(),
+    } as any;
 
     controller = new WoocommerceController(
       syncService,
@@ -44,6 +56,7 @@ describe('WoocommerceController', () => {
       tenantService,
       limanService,
       wooImportQueue,
+      limanOrderService,
     );
   });
 
@@ -124,6 +137,97 @@ describe('WoocommerceController', () => {
         tcod: 789,
         action: 'created',
       });
+    });
+  });
+
+  describe('handleOrderWebhook', () => {
+    it('should process order through LimanOrderService when webhook enabled', async () => {
+      tenantService.findOne.mockResolvedValueOnce(mockTenant);
+      limanOrderService.markOrderProcessed.mockReturnValueOnce(true);
+      syncService.mapWooOrderToUnifiedDto.mockReturnValueOnce({
+        source: 'woocommerce',
+        externalOrderId: '12345',
+        lineItems: [{ externalArticle: '251', quantity: 2, price: 50 }],
+      } as any);
+      syncService.resolveIntegration.mockResolvedValueOnce({ id: 'integ-1' } as any);
+      limanOrderService.processIncomingOrder.mockResolvedValueOnce({
+        success: true,
+        externalOrderId: '12345',
+        source: 'woocommerce',
+        mode: 'deduct_only',
+        resolvedItems: [],
+        deductedItems: [{ tcod: 251, qty: 2, oldStock: 10, newStock: 8 }],
+        skippedArticles: [],
+        warnings: [],
+      });
+
+      const payload = {
+        id: 12345,
+        line_items: [{ sku: '251', quantity: 2, price: '50' }],
+      };
+
+      const result = await controller.handleOrderWebhook('columb', payload);
+
+      expect(result.success).toBe(true);
+      expect(result.orderId).toBe(12345);
+      expect(result.source).toBe('woocommerce');
+      expect(result.processedItems).toEqual([
+        { tcod: 251, requestedQty: 2, oldStock: 10, newStock: 8 },
+      ]);
+      expect(limanOrderService.processIncomingOrder).toHaveBeenCalledWith(
+        mockTenant,
+        expect.any(Object),
+        'integ-1',
+      );
+    });
+
+    it('should skip order when woocommerceOrderWebhookEnabled is false', async () => {
+      tenantService.findOne.mockResolvedValueOnce({
+        ...mockTenant,
+        woocommerceOrderWebhookEnabled: false,
+      });
+
+      const payload = { id: 12345 };
+      const result = await controller.handleOrderWebhook('columb', payload);
+
+      expect(result.success).toBe(false);
+      expect(result.disabled).toBe(true);
+      expect(limanOrderService.processIncomingOrder).not.toHaveBeenCalled();
+    });
+
+    it('should skip duplicate order when already processed', async () => {
+      tenantService.findOne.mockResolvedValueOnce(mockTenant);
+      limanOrderService.markOrderProcessed.mockReturnValueOnce(false);
+
+      const payload = { id: 12345 };
+      const result = await controller.handleOrderWebhook('columb', payload);
+
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('уже был обработан');
+      expect(limanOrderService.processIncomingOrder).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('syncOrders', () => {
+    it('should call syncService.syncOrders with options and return result', async () => {
+      tenantService.findOne.mockResolvedValueOnce(mockTenant);
+      syncService.syncOrders.mockResolvedValueOnce({
+        totalFetched: 2,
+        processedOrders: 2,
+        skippedOrders: 0,
+        itemsDeducted: [{ orderId: '501', tcod: 251, qty: 1, oldStock: 5, newStock: 4 }],
+      });
+
+      const result = await controller.syncOrders('columb', 'processing', '20');
+
+      expect(tenantService.findOne).toHaveBeenCalledWith('columb');
+      expect(syncService.syncOrders).toHaveBeenCalledWith(mockTenant, {
+        status: 'processing',
+        perPage: 20,
+      });
+      expect(result.success).toBe(true);
+      expect(result.processedOrders).toBe(2);
+      expect(result.itemsDeducted.length).toBe(1);
     });
   });
 });

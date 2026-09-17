@@ -54,6 +54,12 @@ export class Tenant {
   @Column({ type: 'boolean', default: false })
   woocommerceImportEnabled!: boolean;
 
+  @Column({ type: 'boolean', default: true })
+  woocommerceOrderWebhookEnabled!: boolean; // Webhook for auto-deducting stock on WooCommerce order
+
+  @Column({ type: 'boolean', default: false })
+  woocommerceCreateOrderDocumentEnabled!: boolean; // Experimental: create draft order document in Limansoft (tip_dok: 85)
+
   @Column({ type: 'integer', default: 15 })
   woocommerceSyncIntervalMinutes!: number;
 

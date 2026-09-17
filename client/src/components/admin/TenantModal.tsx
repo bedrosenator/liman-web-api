@@ -42,6 +42,8 @@ export interface TenantData {
   woocommerceConsumerKey?: string;
   woocommerceConsumerSecret?: string;
   woocommerceSyncEnabled?: boolean;
+  woocommerceOrderWebhookEnabled?: boolean;
+  woocommerceCreateOrderDocumentEnabled?: boolean;
   apiKey?: string;
 }
 
@@ -81,6 +83,8 @@ export function TenantModal({ isOpen, onClose, onSaved, tenant }: TenantModalPro
     woocommerceConsumerKey: '',
     woocommerceConsumerSecret: '',
     woocommerceSyncEnabled: false,
+    woocommerceOrderWebhookEnabled: true,
+    woocommerceCreateOrderDocumentEnabled: false,
   });
 
   const [activeTab, setActiveTab] = useState<'general' | 'database' | 'horoshop' | 'marketplaces'>('general');
@@ -128,6 +132,8 @@ export function TenantModal({ isOpen, onClose, onSaved, tenant }: TenantModalPro
         woocommerceConsumerKey: '',
         woocommerceConsumerSecret: '',
         woocommerceSyncEnabled: false,
+        woocommerceOrderWebhookEnabled: true,
+        woocommerceCreateOrderDocumentEnabled: false,
       });
     }
     setShowPassword(false);
@@ -724,6 +730,35 @@ export function TenantModal({ isOpen, onClose, onSaved, tenant }: TenantModalPro
                       </button>
                     </div>
                   </div>
+                </div>
+
+                <div className="form-group form-group--full mt-2 space-y-2">
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={formData.woocommerceSyncEnabled || false}
+                      onChange={(e) => handleChange('woocommerceSyncEnabled', e.target.checked)}
+                    />
+                    <span>{t('autoSync')} WooCommerce</span>
+                  </label>
+
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={formData.woocommerceOrderWebhookEnabled ?? true}
+                      onChange={(e) => handleChange('woocommerceOrderWebhookEnabled', e.target.checked)}
+                    />
+                    <span>Авто-списание по вебхуку заказов WooCommerce</span>
+                  </label>
+
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={formData.woocommerceCreateOrderDocumentEnabled || false}
+                      onChange={(e) => handleChange('woocommerceCreateOrderDocumentEnabled', e.target.checked)}
+                    />
+                    <span>Создавать черновик накладной tip_dok:85 в Limansoft (экспериментально)</span>
+                  </label>
                 </div>
               </div>
             </div>
