@@ -57,6 +57,29 @@ export function HoroshopExportModal({
 
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const handleReset = () => {
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+    setStatus('idle');
+    setProgress(0);
+    setErrorMessage(null);
+    setStats(null);
+  };
+
+  const handleClose = () => {
+    handleReset();
+    onClose();
+  };
+
+  // Reset modal state every time it is opened or closed
+  useEffect(() => {
+    if (isOpen) {
+      handleReset();
+    }
+  }, [isOpen]);
+
   useEffect(() => {
     return () => {
       if (pollTimerRef.current) {
@@ -126,7 +149,7 @@ export function HoroshopExportModal({
   return (
     <div className="modal-overlay" id="horoshop-export-modal-overlay" role="dialog" aria-modal="true">
       <div
-        className="modal-content modal-content--wide"
+        className="modal-content modal-content--export"
         id="horoshop-export-modal"
       >
         {/* Header */}
@@ -141,7 +164,7 @@ export function HoroshopExportModal({
             <button
               type="button"
               className="btn-icon"
-              onClick={onClose}
+              onClick={handleClose}
               aria-label={t('close')}
             >
               <X size={20} />
@@ -401,8 +424,8 @@ export function HoroshopExportModal({
           {/* Completed Screen */}
           {status === 'completed' && (
             <div className="py-4 space-y-5 text-center" id="export-completed-screen">
-              <div className="w-12 h-12 bg-emerald/10 border border-emerald/30 rounded-full flex items-center justify-center mx-auto text-emerald">
-                <CheckCircle2 size={28} />
+              <div className="success-badge-glow">
+                <CheckCircle2 size={30} className="text-emerald" />
               </div>
 
               <div>
@@ -449,8 +472,8 @@ export function HoroshopExportModal({
               )}
 
               {stats?.durationMs && (
-                <div className="text-xs text-muted flex items-center justify-center gap-1.5 font-mono">
-                  <Clock size={13} />
+                <div className="duration-pill">
+                  <Clock size={13} className="text-muted" />
                   <span>
                     {language === 'uk' ? 'Час виконання:' : 'Время выполнения:'} {(stats.durationMs / 1000).toFixed(1)}s
                   </span>
@@ -484,7 +507,7 @@ export function HoroshopExportModal({
             <button
               type="button"
               className="btn btn--secondary btn--sm"
-              onClick={onClose}
+              onClick={handleClose}
             >
               {t('cancel')}
             </button>
@@ -504,30 +527,40 @@ export function HoroshopExportModal({
           <div className="modal-footer">
             <button
               type="button"
-              className="btn btn--primary btn--sm w-full justify-center"
+              className="btn btn--secondary btn--sm"
               id="btn-close-export-modal"
-              onClick={onClose}
+              onClick={handleClose}
             >
               {t('close')}
+            </button>
+            <button
+              type="button"
+              className="btn btn--primary btn--sm gap-1.5"
+              id="btn-new-export-modal"
+              onClick={handleReset}
+            >
+              <RefreshCw size={14} />
+              <span>{language === 'uk' ? 'Нова вигрузка' : 'Новая выгрузка'}</span>
             </button>
           </div>
         )}
 
         {status === 'error' && (
-          <div className="modal-footer justify-center">
+          <div className="modal-footer justify-end">
             <button
               type="button"
               className="btn btn--secondary btn--sm"
-              onClick={onClose}
+              onClick={handleClose}
             >
               {t('close')}
             </button>
             <button
               type="button"
-              className="btn btn--primary btn--sm"
-              onClick={() => setStatus('idle')}
+              className="btn btn--primary btn--sm gap-1.5"
+              onClick={handleReset}
             >
-              {language === 'uk' ? 'Спробувати знову' : 'Попробовать снова'}
+              <RefreshCw size={14} />
+              <span>{language === 'uk' ? 'Спробувати знову' : 'Попробовать снова'}</span>
             </button>
           </div>
         )}

@@ -859,6 +859,9 @@ export function ClientPortalPage() {
           tenantId={tenantId}
           onExportFinished={() => {
             loadActivity();
+            loadTenant();
+            checkHoroshop();
+            checkMariaDb();
           }}
         />
       </div>

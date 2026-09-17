@@ -14,6 +14,7 @@ import {
   DollarSign,
   Package,
   Check,
+  RefreshCw,
 } from 'lucide-react';
 
 interface HoroshopImportModalProps {
@@ -51,6 +52,30 @@ export function HoroshopImportModal({
   } | null>(null);
 
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const handleReset = () => {
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+    setStatus('idle');
+    setProgress(0);
+    setErrorMessage(null);
+    setStats(null);
+    setRiskAccepted(false);
+  };
+
+  const handleClose = () => {
+    handleReset();
+    onClose();
+  };
+
+  // Reset modal state every time it is opened or closed
+  useEffect(() => {
+    if (isOpen) {
+      handleReset();
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     return () => {
@@ -123,7 +148,7 @@ export function HoroshopImportModal({
   return (
     <div className="modal-overlay" id="horoshop-import-modal-overlay" role="dialog" aria-modal="true">
       <div
-        className="modal-content modal-content--wide"
+        className="modal-content modal-content--export"
         id="horoshop-import-modal"
       >
         {/* Header */}
@@ -138,7 +163,7 @@ export function HoroshopImportModal({
             <button
               type="button"
               className="btn-icon"
-              onClick={onClose}
+              onClick={handleClose}
               aria-label={t('close')}
             >
               <X size={20} />
@@ -345,13 +370,15 @@ export function HoroshopImportModal({
 
           {/* Completed state with Counters Report */}
           {status === 'completed' && (
-            <div className="py-6 text-center space-y-4" id="import-completed-box">
-              <CheckCircle2 size={42} className="text-emerald mx-auto" />
+            <div className="py-4 space-y-5 text-center" id="import-completed-box">
+              <div className="success-badge-glow">
+                <CheckCircle2 size={30} className="text-emerald" />
+              </div>
               <div>
-                <h3 className="text-base font-bold text-primary">
+                <h3 className="text-base font-bold text-primary mb-1">
                   {language === 'uk' ? 'Імпорт каталогу успішно завершено!' : 'Импорт каталога успешно завершен!'}
                 </h3>
-                <p className="text-xs text-secondary mt-1">
+                <p className="text-xs text-secondary">
                   {language === 'uk'
                     ? 'Товари з магазину Хорошоп синхронізовані в MariaDB Limansoft.'
                     : 'Товары из магазина Хорошоп синхронизированы в MariaDB Limansoft.'}
@@ -361,29 +388,29 @@ export function HoroshopImportModal({
               {stats && (
                 <div className="stat-grid">
                   <div className="stat-box">
-                    <div className="stat-box__value">{stats.totalFetched ?? 0}</div>
                     <div className="stat-box__label">{t('importProgress')}</div>
+                    <div className="stat-box__value">{stats.totalFetched ?? 0}</div>
                   </div>
                   <div className="stat-box">
-                    <div className="stat-box__value text-emerald">{stats.created ?? 0}</div>
                     <div className="stat-box__label">{t('importCreated')}</div>
+                    <div className="stat-box__value text-emerald">{stats.created ?? 0}</div>
                   </div>
                   <div className="stat-box">
-                    <div className="stat-box__value text-indigo">{stats.updated ?? 0}</div>
                     <div className="stat-box__label">{t('importUpdated')}</div>
+                    <div className="stat-box__value text-sky">{stats.updated ?? 0}</div>
                   </div>
                   <div className="stat-box">
-                    <div className="stat-box__value text-amber">{stats.skipped ?? 0}</div>
                     <div className="stat-box__label">
                       {language === 'uk' ? 'Пропущено' : 'Пропущено'}
                     </div>
+                    <div className="stat-box__value text-amber">{stats.skipped ?? 0}</div>
                   </div>
                 </div>
               )}
 
               {stats?.backupId && (
-                <div className="text-[11px] text-muted font-mono bg-elevated p-2 rounded border border-subtle">
-                  🛡️ Бэкап: {stats.backupId}
+                <div className="duration-pill">
+                  <span>🛡️ Бэкап: {stats.backupId}</span>
                 </div>
               )}
             </div>
@@ -391,13 +418,15 @@ export function HoroshopImportModal({
 
           {/* Error state */}
           {status === 'error' && (
-            <div className="py-6 text-center space-y-4" id="import-error-box">
-              <AlertCircle size={40} className="text-rose mx-auto" />
+            <div className="py-4 space-y-4 text-center" id="import-error-box">
+              <div className="w-12 h-12 bg-rose/10 border border-rose/30 rounded-full flex items-center justify-center mx-auto text-rose">
+                <AlertCircle size={28} />
+              </div>
               <div>
-                <h3 className="text-base font-bold text-rose">
+                <h3 className="text-base font-bold text-primary mb-1">
                   {language === 'uk' ? 'Помилка імпорту каталогу' : 'Ошибка импорта каталога'}
                 </h3>
-                <p className="text-xs text-secondary mt-1">{errorMessage}</p>
+                <p className="text-xs text-rose max-w-sm mx-auto">{errorMessage}</p>
               </div>
             </div>
           )}
@@ -409,7 +438,7 @@ export function HoroshopImportModal({
             <button
               type="button"
               className="btn btn--secondary btn--sm"
-              onClick={onClose}
+              onClick={handleClose}
             >
               {t('cancel')}
             </button>
@@ -430,29 +459,38 @@ export function HoroshopImportModal({
           <div className="modal-footer">
             <button
               type="button"
-              className="btn btn--primary btn--sm w-full justify-center"
-              onClick={onClose}
+              className="btn btn--secondary btn--sm"
+              onClick={handleClose}
             >
               {language === 'uk' ? 'Закрити' : 'Закрыть'}
+            </button>
+            <button
+              type="button"
+              className="btn btn--primary btn--sm gap-1.5"
+              onClick={handleReset}
+            >
+              <RefreshCw size={14} />
+              <span>{language === 'uk' ? 'Новий імпорт' : 'Новый импорт'}</span>
             </button>
           </div>
         )}
 
         {status === 'error' && (
-          <div className="modal-footer justify-center">
+          <div className="modal-footer justify-end">
             <button
               type="button"
               className="btn btn--secondary btn--sm"
-              onClick={onClose}
+              onClick={handleClose}
             >
               {language === 'uk' ? 'Закрити' : 'Закрыть'}
             </button>
             <button
               type="button"
-              className="btn btn--primary btn--sm"
-              onClick={() => setStatus('idle')}
+              className="btn btn--primary btn--sm gap-1.5"
+              onClick={handleReset}
             >
-              {language === 'uk' ? 'Спробувати знову' : 'Попробовать снова'}
+              <RefreshCw size={14} />
+              <span>{language === 'uk' ? 'Спробувати знову' : 'Попробовать снова'}</span>
             </button>
           </div>
         )}
