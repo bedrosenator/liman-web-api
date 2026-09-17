@@ -36,6 +36,9 @@ services:
 
   # ─── NestJS API (Основной бэкенд и воркеры BullMQ) ───────────────────────────
   api:
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: ghcr.io/bedrosenator/liman-web-api:latest
     container_name: liman_api
     restart: unless-stopped
@@ -62,7 +65,10 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - liman_network
+      liman_network:
+        aliases:
+          - nestjs
+          - api
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/v1/health"]
       interval: 15s

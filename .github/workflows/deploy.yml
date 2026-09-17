@@ -19,7 +19,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           cache: 'npm'
 
       - name: Install dependencies (Root)
@@ -81,29 +81,21 @@ jobs:
       - name: Deploy to Server via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USERNAME }}
+          host: ${{ secrets.SSH_HOST || secrets.HOST }}
+          username: ${{ secrets.SSH_USER || secrets.USERNAME || 'root' }}
           key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
           script: |
-            # 1. Переходим в директорию проекта на сервере
             PROJECT_DIR="/root/liman-web-api"
             if [ ! -d "$PROJECT_DIR" ]; then
-              PROJECT_DIR="$HOME/liman-web-api"
+              echo "📦 Каталог $PROJECT_DIR не найден. Клонируем репозиторий..."
+              git clone https://github.com/bedrosenator/liman-web-api.git "$PROJECT_DIR"
             fi
             
-            cd "$PROJECT_DIR" || {
-              echo "❌ Директория $PROJECT_DIR не найдена. Проверьте путь клонирования репозитория на сервере Hetzner."
-              exit 1
-            }
-            
-            # 2. Обновляем кодовую базу и скрипты
+            cd "$PROJECT_DIR"
             git fetch --all
             git reset --hard origin/main || git reset --hard origin/master
-            
-            # 3. Выставляем права на запуск скрипта развертывания
             chmod +x scripts/deploy.sh
-            
-            # 4. Запускаем деплой через Docker Compose
             ./scripts/deploy.sh
 
   cleanup:

@@ -1,7 +1,7 @@
 # ==============================================================================
 # Stage 1: Build React SPA Frontend (Vite)
 # ==============================================================================
-FROM node:22-alpine AS client-builder
+FROM node:24-alpine AS client-builder
 WORKDIR /app/client
 
 COPY client/package*.json ./
@@ -13,7 +13,7 @@ RUN npm run build
 # ==============================================================================
 # Stage 2: Build NestJS API Backend
 # ==============================================================================
-FROM node:22-alpine AS api-builder
+FROM node:24-alpine AS api-builder
 WORKDIR /app
 
 COPY package*.json ./
@@ -27,7 +27,7 @@ RUN npm run build
 # ==============================================================================
 # Stage 3: Production Runner
 # ==============================================================================
-FROM node:22-alpine AS runner
+FROM node:24-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
