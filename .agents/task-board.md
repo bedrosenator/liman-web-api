@@ -87,6 +87,7 @@
   - Гранулярные фильтры: выбор обновления розничных цен (`cena2`), складских остатков (`skl_k`), фото (`namedesc`);
   - Автоматическое создание бэкапа MariaDB перед импортом (`BackupService.createBackup`) и распределённый Redis lock (`lock:tenant:{id}:busy`);
   - Автономный планировщик `HoroshopSchedulerService` (автовыгрузка каждые 15/30/60 мин и регулярный опрос заказов с автосписанием остатков);
+  - Автоматическое построение иерархии категорий в таблице `name` (`LimanService.resolveCategoryGroup`) и строгий протокол сессионной авторизации Хорошоп API (JSON-body token, запрет Bearer);
   - Асинхронная очередь `sync-stock` для Хорошоп с live progress (0-100%) в Client Portal;
   - 100% покрытие unit и компонентными тестами (Jest + Vitest).
 - [x] **[TASK-24]** Объединение Columb DB Sync и Limansoft Sync в единый плагин WooCommerce с поддержкой двусторонней синхронизации:
