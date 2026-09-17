@@ -29,3 +29,9 @@ coverage
 # SQLite data directory
 /data/*.sqlite
 /data/*.sqlite-journal
+
+# Database backups & dumps
+/data/backups/
+*.sql.gz
+*.sql
+

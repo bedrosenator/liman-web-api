@@ -124,38 +124,23 @@ export class HoroshopApiClient {
       const response = await this.http.post<T>(url, body, config);
       const resData = response.data as any;
 
-      if (
+      const isAuthError =
         resData?.status === 'AUTHORIZATION_ERROR' ||
         resData?.status === 'AUTH_ERROR' ||
         resData?.response?.message === 'Auth required.\n' ||
-        resData?.response?.message?.includes('Bearer')
-      ) {
+        resData?.response?.message?.includes('Bearer');
+
+      if (isAuthError) {
         if (retryOn401) {
           this.logger.warn(
             `[${tenant.id}] Ошибка авторизации (${resData?.response?.message || resData?.status}) от Horoshop API. Обновляем токен и повторяем...`,
           );
           this.authService.clearToken(tenant.id);
-          const newToken = await this.authService.getToken(tenant, true);
-          const retryBody =
-            typeof data === 'object' && data !== null
-              ? { token: newToken, ...data }
-              : data;
-          const retryResponse = await this.http.post<T>(url, retryBody, config);
-          const retryData = retryResponse.data as any;
-          if (
-            retryData?.status === 'AUTHORIZATION_ERROR' ||
-            retryData?.status === 'AUTH_ERROR'
-          ) {
-            throw new UnauthorizedException(
-              retryData?.response?.message || 'Ошибка авторизации Хорошоп',
-            );
-          }
-          return retryResponse.data;
-        } else {
-          throw new UnauthorizedException(
-            resData?.response?.message || 'Ошибка авторизации Хорошоп',
-          );
+          return this.request<T>(tenant, endpoint, data, false);
         }
+        throw new UnauthorizedException(
+          resData?.response?.message || 'Ошибка авторизации Хорошоп',
+        );
       }
 
       if (resData?.status === 'ERROR') {
@@ -169,38 +154,20 @@ export class HoroshopApiClient {
 
       return response.data;
     } catch (error: any) {
-      if (
-        (error.response?.status === 401 ||
-          error instanceof UnauthorizedException) &&
-        retryOn401
-      ) {
+      if (error.response?.status === 401 && retryOn401) {
         this.logger.warn(
           `[${tenant.id}] 401 Unauthorized от Horoshop API. Обновляем токен и повторяем...`,
         );
         this.authService.clearToken(tenant.id);
-        const newToken = await this.authService.getToken(tenant, true);
-        const retryBody =
-          typeof data === 'object' && data !== null
-            ? { token: newToken, ...data }
-            : data;
-        const retryResponse = await this.http.post<T>(url, retryBody, config);
-        const retryData = retryResponse.data as any;
-        if (
-          retryData?.status === 'AUTHORIZATION_ERROR' ||
-          retryData?.status === 'AUTH_ERROR'
-        ) {
-          throw new UnauthorizedException(
-            retryData?.response?.message || 'Ошибка авторизации Хорошоп',
-          );
-        }
-        return retryResponse.data;
+        return this.request<T>(tenant, endpoint, data, false);
+      }
+
+      if (error instanceof HttpException) {
+        throw error;
       }
 
       const status =
-        error.response?.status ||
-        (error instanceof HttpException
-          ? error.getStatus()
-          : HttpStatus.INTERNAL_SERVER_ERROR);
+        error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR;
       const responseData = error.response?.data;
       this.logger.error(
         `❌ [${tenant.id}] Ошибка Horoshop API [${status}] на ${endpoint}:`,

@@ -61,6 +61,7 @@ export const NAMEDESC_PHOTO_COLUMNS = [
 @Injectable()
 export class LimanService {
   private readonly logger = new Logger(LimanService.name);
+  private readonly categoryCache = new Map<string, string>();
 
   constructor(private readonly connectionManager: TenantConnectionManager) {}
 
@@ -679,6 +680,10 @@ export class LimanService {
     }
 
     const cleanPath = categoryName.trim();
+    const cacheKey = `${tenant.id}:${cleanPath}`;
+    if (this.categoryCache.has(cacheKey)) {
+      return this.categoryCache.get(cacheKey)!;
+    }
 
     // 1. Быстрая проверка: точное совпадение полного имени группы
     const [exactRows] = await pool.query<mysql.RowDataPacket[]>(
@@ -686,7 +691,9 @@ export class LimanService {
       [cleanPath.substring(0, 50)],
     );
     if (exactRows.length && exactRows[0].group) {
-      return String(exactRows[0].group).trim();
+      const foundGroup = String(exactRows[0].group).trim();
+      this.setCachedCategory(cacheKey, foundGroup);
+      return foundGroup;
     }
 
     // 2. Разбор иерархического пути (например, "Електроніка/Смартфони/iPhone 13")
@@ -696,7 +703,9 @@ export class LimanService {
       .filter((p) => p.length > 0);
 
     if (parts.length === 0) {
-      return this.getDefaultCategoryGroup(pool);
+      const defGroup = await this.getDefaultCategoryGroup(pool);
+      this.setCachedCategory(cacheKey, defGroup);
+      return defGroup;
     }
 
     // 3. Проход по иерархии с поиском или авто-созданием узлов
@@ -744,6 +753,7 @@ export class LimanService {
       }
 
       if (currentParentGroup) {
+        this.setCachedCategory(cacheKey, currentParentGroup);
         return currentParentGroup;
       }
     } catch (err: any) {
@@ -752,7 +762,22 @@ export class LimanService {
       );
     }
 
-    return this.getDefaultCategoryGroup(pool);
+    const fallbackGroup = await this.getDefaultCategoryGroup(pool);
+    this.setCachedCategory(cacheKey, fallbackGroup);
+    return fallbackGroup;
+  }
+
+  /**
+   * Сохранить разрешенную группу в in-memory кэше (LRU-подобный лимит 2000 записей)
+   */
+  private setCachedCategory(key: string, value: string): void {
+    if (this.categoryCache.size >= 2000) {
+      const firstKey = this.categoryCache.keys().next().value;
+      if (firstKey) {
+        this.categoryCache.delete(firstKey);
+      }
+    }
+    this.categoryCache.set(key, value);
   }
 
   /**
@@ -787,6 +812,14 @@ export class LimanService {
       return String(Date.now()).slice(-6);
     }
 
+    // Защита от переполнения char(10) для глубокой иерархии (> 5 уровней)
+    if (parentGroup.length >= LIMAN_LIMITS.CATEGORY_GROUP_MAX_LEN) {
+      this.logger.warn(
+        `⚠️ Достигнута предельная длина кода группы (${LIMAN_LIMITS.CATEGORY_GROUP_MAX_LEN}) для родителя "${parentGroup}". Назначен родительский код.`,
+      );
+      return parentGroup;
+    }
+
     // Дочерняя группа под parentGroup
     const [children] = await pool.query<mysql.RowDataPacket[]>(
       'SELECT `group` FROM `name` WHERE parent = ?',
@@ -794,8 +827,12 @@ export class LimanService {
     );
     const usedSet = new Set(children.map((c) => String(c.group).trim()));
 
-    for (let n = 1; n <= 99; n++) {
-      const candidate = (parentGroup + String(n).padStart(2, '0')).substring(
+    const remainingLen = LIMAN_LIMITS.CATEGORY_GROUP_MAX_LEN - parentGroup.length;
+    const padLen = Math.min(2, remainingLen);
+    const maxN = padLen === 1 ? 9 : 99;
+
+    for (let n = 1; n <= maxN; n++) {
+      const candidate = (parentGroup + String(n).padStart(padLen, '0')).substring(
         0,
         LIMAN_LIMITS.CATEGORY_GROUP_MAX_LEN,
       );
@@ -804,7 +841,7 @@ export class LimanService {
       }
     }
 
-    return (parentGroup + String(Date.now()).slice(-3)).substring(
+    return (parentGroup + String(Date.now()).slice(-padLen)).substring(
       0,
       LIMAN_LIMITS.CATEGORY_GROUP_MAX_LEN,
     );

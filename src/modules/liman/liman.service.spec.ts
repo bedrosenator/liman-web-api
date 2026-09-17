@@ -206,6 +206,36 @@ describe('LimanService', () => {
       );
       expect(result).toBe('3001');
     });
+
+    it('should return cached group on subsequent calls without querying DB', async () => {
+      mockPool.query.mockResolvedValueOnce([[{ group: '05' }]]);
+
+      const result1 = await (service as any).resolveCategoryGroup(
+        mockTenant,
+        undefined,
+        'ОДЯГ',
+      );
+      expect(result1).toBe('05');
+      expect(mockPool.query).toHaveBeenCalledTimes(1);
+
+      // Second call with same path should hit categoryCache
+      const result2 = await (service as any).resolveCategoryGroup(
+        mockTenant,
+        undefined,
+        'ОДЯГ',
+      );
+      expect(result2).toBe('05');
+      expect(mockPool.query).toHaveBeenCalledTimes(1);
+    });
+
+    it('should safely limit category code length when parent code reaches maximum', async () => {
+      const parentWithMaxLen = '1234567890'; // 10 chars
+      const nextGroup = await (service as any).generateNextCategoryGroup(
+        mockPool,
+        parentWithMaxLen,
+      );
+      expect(nextGroup).toBe(parentWithMaxLen);
+    });
   });
 });
 
