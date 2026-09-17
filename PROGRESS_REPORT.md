@@ -181,8 +181,10 @@
    - 🟡 В разработке: `LimanOrderService`, единый `UnifiedIncomingOrderDto`, безопасное создание черновиков заказов `tip_dok: 85`, `prov = 'f'`, `ndok` lock, `checkdok`, `dmonitor`.
    - Тумблер `horoshopCreateOrderDocumentEnabled` (по умолчанию: выключено, экспериментальная функция).
 9. **CI/CD пайплайн и деплой на сервер Hetzner (TASK-30):**
-   - 🟢 Подготовлено: Dockerfile multi-stage, `.github/workflows/deploy.yml`, `scripts/deploy.sh`, `docker-compose.prod.yml`.
-   - Полная изоляция от проекта `restaurantify` на сервере Hetzner (порт 8088 + Caddy SSL).
+   - 🟢 Завершено: Dockerfile multi-stage на базе Node 24 Alpine, `.dockerignore`, исправлен CI/CD workflow GitHub Actions (Jest тесты и сборка в GHCR).
+   - Развернуто на сервере Hetzner (`188.245.254.12`), домен `https://liman.terrace.pp.ua`.
+   - Полная изоляция от проекта `restaurantify` (приватная сеть `liman_network`, Caddy reverse proxy с автоматическим SSL-сертификатом Let's Encrypt/ZeroSSL, отдельные PostgreSQL 16 и Redis 7).
+   - Успешно протестированы все healthchecks, Swagger docs, Master API Key и раздача React SPA.
 10. **Унификация обработки заказов WooCommerce (TASK-31):**
    - ⚪ Запланировано: подключение WooCommerce к единому сервису `LimanOrderService`, радиокнопка `woocommerceCreateOrderDocumentEnabled`.
 
