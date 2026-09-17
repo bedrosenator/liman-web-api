@@ -67,6 +67,25 @@ export class TenantController {
     return this.tenantService.sanitizeTenant(tenant);
   }
 
+  @Post(':id/reveal-credentials')
+  @ApiOperation({
+    summary: 'Раскрыть реальные учетные данные клиента',
+    description: 'Возвращает не замаскированные пароли и ключи тенанта.',
+  })
+  @ApiParam({ name: 'id', example: 'columb' })
+  @ApiResponse({ status: 200 })
+  async revealCredentials(@Param('id') id: string) {
+    const tenant = await this.tenantService.findOne(id);
+    return {
+      id: tenant.id,
+      dbPassword: tenant.dbPassword || '',
+      horoshopPassword: tenant.horoshopPassword || '',
+      promApiKey: tenant.promApiKey || '',
+      rozetkaClientSecret: tenant.rozetkaClientSecret || '',
+      woocommerceConsumerSecret: tenant.woocommerceConsumerSecret || '',
+    };
+  }
+
   @Post(':id/rotate-key')
   @ApiOperation({
     summary: 'Сгенерировать новый API Key для клиента (ротация ключа)',

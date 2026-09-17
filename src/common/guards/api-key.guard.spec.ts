@@ -167,6 +167,29 @@ describe('ApiKeyGuard', () => {
     expect(result).toBe(true);
   });
 
+  it('should allow tenant key to reveal own credentials at /api/v1/tenants/:id/reveal-credentials', async () => {
+    reflector.getAllAndOverride.mockReturnValue(false);
+    configService.get.mockReturnValue('master-secret-key');
+
+    const mockTenant: Partial<Tenant> = {
+      id: 'columb',
+      apiKey: 'tenant-key-123',
+      isActive: true,
+    };
+    tenantRepository.findOne.mockResolvedValue(mockTenant as Tenant);
+
+    const req: Record<string, any> = {
+      headers: { 'x-api-key': 'tenant-key-123' },
+      params: { id: 'columb' },
+      method: 'POST',
+      path: '/api/v1/tenants/columb/reveal-credentials',
+    };
+    const context = createMockContext(req);
+
+    const result = await guard.canActivate(context);
+    expect(result).toBe(true);
+  });
+
   it('should throw UnauthorizedException if API key is invalid or tenant is inactive', async () => {
     reflector.getAllAndOverride.mockReturnValue(false);
     configService.get.mockReturnValue('master-secret-key');

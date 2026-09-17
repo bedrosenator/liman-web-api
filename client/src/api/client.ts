@@ -30,12 +30,24 @@ function createApiClient(): AxiosInstance {
       if (axios.isAxiosError(error)) {
         const status = error.response?.status;
         if (status === 401 || status === 403) {
-          // Очищаем сессию и редиректим на login
-          sessionStorage.removeItem('liman_api_key');
-          sessionStorage.removeItem('liman_role');
-          sessionStorage.removeItem('liman_tenant_id');
-          if (typeof window !== 'undefined') {
-            window.location.href = '/login?reason=session_expired';
+          const isLoginPage =
+            typeof window !== 'undefined' &&
+            window.location.pathname.startsWith('/login');
+
+          if (!isLoginPage) {
+            const role = sessionStorage.getItem('liman_role');
+            const tenantId = sessionStorage.getItem('liman_tenant_id');
+
+            // Очищаем сессию и редиректим на login
+            sessionStorage.removeItem('liman_api_key');
+            sessionStorage.removeItem('liman_role');
+            sessionStorage.removeItem('liman_tenant_id');
+            if (typeof window !== 'undefined') {
+              const redirectParams = new URLSearchParams({ reason: 'session_expired' });
+              if (role) redirectParams.set('role', role);
+              if (tenantId) redirectParams.set('tenant', tenantId);
+              window.location.href = `/login?${redirectParams.toString()}`;
+            }
           }
         }
       }
@@ -71,13 +83,13 @@ export const backupApi = {
 
 export const tenantsApi = {
   list: () => apiClient.get('/admin/tenants'),
-  get: (id: string) => apiClient.get(`/admin/tenants/${id}`),
+  get: (id: string) => apiClient.get(`/tenants/${id}`),
   create: (data: unknown) => apiClient.post('/admin/tenants', data),
-  update: (id: string, data: unknown) => apiClient.patch(`/admin/tenants/${id}`, data),
+  update: (id: string, data: unknown) => apiClient.patch(`/tenants/${id}`, data),
   delete: (id: string) => apiClient.delete(`/admin/tenants/${id}`),
   ping: (id: string) => apiClient.get(`/liman/${id}/ping`),
   revealCredentials: (id: string) =>
-    apiClient.post(`/admin/tenants/${id}/reveal-credentials`),
+    apiClient.post(`/tenants/${id}/reveal-credentials`),
   rotateKey: (id: string) => apiClient.post(`/admin/tenants/${id}/rotate-key`),
 };
 
@@ -101,7 +113,7 @@ export const horoshopApi = {
     apiClient.post(`/horoshop/${tenantId}/sync/prices-stocks?async=true`),
   getActivity: (tenantId: string) => apiClient.get(`/horoshop/${tenantId}/activity`),
   saveSettings: (tenantId: string, data: unknown) =>
-    apiClient.patch(`/admin/tenants/${tenantId}`, data),
+    apiClient.patch(`/tenants/${tenantId}`, data),
   importCatalog: (
     tenantId: string,
     payload: {

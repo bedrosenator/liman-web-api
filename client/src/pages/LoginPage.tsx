@@ -11,15 +11,29 @@ import { apiClient } from '@/api/client';
  * Поддерживает вход по Master Key (superadmin) или по ключу тенанта.
  */
 export function LoginPage() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { login } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
+  const paramRole = searchParams.get('role');
+  const paramTenant =
+    searchParams.get('tenant') ||
+    searchParams.get('tenantId') ||
+    searchParams.get('tid') ||
+    sessionStorage.getItem('liman_tenant_id') ||
+    '';
+
   const [apiKey, setApiKey] = useState('');
   const [showKey, setShowKey] = useState(false);
-  const [tenantIdInput, setTenantIdInput] = useState('');
-  const [mode, setMode] = useState<'superadmin' | 'tenant'>('superadmin');
+  const [tenantIdInput, setTenantIdInput] = useState(paramTenant);
+  const [mode, setMode] = useState<'superadmin' | 'tenant'>(() => {
+    if (paramRole === 'tenant' || paramTenant) return 'tenant';
+    if (paramRole === 'superadmin') return 'superadmin';
+    const savedRole = sessionStorage.getItem('liman_role');
+    if (savedRole === 'tenant') return 'tenant';
+    return 'superadmin';
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,6 +44,14 @@ export function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!apiKey.trim()) return;
+    if (mode === 'tenant' && !tenantIdInput.trim()) {
+      setError(
+        language === 'uk'
+          ? 'Вкажіть ID магазину'
+          : 'Укажите ID магазина',
+      );
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -57,7 +79,19 @@ export function LoginPage() {
         navigate(`/portal/${tenantIdInput.trim()}`);
       }
     } catch {
-      setError(t('loginError'));
+      const isUuidKey =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          apiKey.trim(),
+        );
+      if (mode === 'superadmin' && isUuidKey) {
+        setError(
+          language === 'uk'
+            ? 'Невірний Master Key. Для входу в магазин перемкніться на вкладку «Особистий кабінет».'
+            : 'Неверный Master Key. Для входа в магазин переключитесь на вкладку «Личный кабинет».',
+        );
+      } else {
+        setError(t('loginError'));
+      }
     } finally {
       setLoading(false);
     }

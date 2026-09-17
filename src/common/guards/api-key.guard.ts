@@ -94,11 +94,13 @@ export class ApiKeyGuard implements CanActivate {
         );
       }
       if (path.includes('/api/v1/tenants')) {
-        // Разрешаем тенанту только чтение или обновление своего собственного профиля (/tenants/:id где id === tenant.id)
+        // Разрешаем тенанту только чтение, обновление или просмотр реквизитов своего собственного профиля (/tenants/:id где id === tenant.id)
         const targetId = request.params?.id;
         const isSelfProfile =
           targetId === tenant.id &&
-          (request.method === 'GET' || request.method === 'PATCH');
+          (request.method === 'GET' ||
+            request.method === 'PATCH' ||
+            (request.method === 'POST' && path.endsWith('/reveal-credentials')));
         if (!isSelfProfile) {
           this.logger.warn(
             `⛔ [Privilege Escalation Предотвращен] Тенант "${tenant.id}" попытался выполнить ${request.method} ${path}`,
