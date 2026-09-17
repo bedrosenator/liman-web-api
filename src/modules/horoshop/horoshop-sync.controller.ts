@@ -76,6 +76,21 @@ export class HoroshopSyncController {
     return this.syncService.getActivities(tenantId);
   }
 
+  @Get('mappings/stats')
+  @ApiOperation({
+    summary: 'Получить статистику сопоставления товаров (product_mappings)',
+    description:
+      'Возвращает количество связанных (synced), ошибочных (error) и общее число товаров для витрины Хорошоп.',
+  })
+  @ApiParam({ name: 'tenantId', example: 'columb' })
+  @ApiQuery({ name: 'integrationId', required: false })
+  async getMappingStats(
+    @Param('tenantId') tenantId: string,
+    @Query('integrationId') integrationId?: string,
+  ) {
+    return this.syncService.getMappingStats(tenantId, integrationId);
+  }
+
   /**
    * Ручной запуск синхронизации цен и остатков → Horoshop API
    */
@@ -101,22 +116,32 @@ export class HoroshopSyncController {
     description: 'Выполнить асинхронно через очередь BullMQ с отслеживанием прогресса',
     example: true,
   })
+  @ApiQuery({
+    name: 'integrationId',
+    required: false,
+    description: 'Идентификатор конкретной интеграции Хорошоп (UUID)',
+  })
   @ApiResponse({ status: 202, description: 'Синхронизация завершена или поставлена в очередь' })
   async syncPricesStocks(
     @Param('tenantId') tenantId: string,
     @Query('limit') limitStr?: string,
     @Query('async') isAsync?: string,
+    @Query('integrationId') integrationId?: string,
   ) {
     const tenant = await this.tenantService.findOne(tenantId);
+    const limit = limitStr ? parseInt(limitStr, 10) : undefined;
 
     // Если запрошен асинхронный режим через BullMQ
     if ((isAsync === 'true' || isAsync === '1') && this.queueSyncService) {
-      return this.queueSyncService.triggerStockSync(tenantId, 'horoshop');
+      return this.queueSyncService.triggerStockSync(tenantId, 'horoshop', {
+        integrationId,
+        limit,
+      });
     }
 
-    const limit = limitStr ? parseInt(limitStr, 10) : undefined;
     const result = await this.syncService.syncPricesAndStocks(tenant, {
       limit,
+      integrationId,
     });
 
     return {
@@ -419,6 +444,7 @@ export class HoroshopSyncController {
       'import-horoshop-catalog-job',
       {
         tenantId,
+        integrationId: body.integrationId,
         mode: body.mode || 'only_new',
         updatePrices: body.updatePrices !== false,
         updateStock: body.updateStock !== false,

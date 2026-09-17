@@ -4,9 +4,15 @@ import { Tenant } from '../tenant/tenant.entity';
 import {
   HoroshopApiClient,
   HoroshopStockPriceItem,
+  HoroshopUpdateResponse,
+  HOROSHOP_CONSTANTS,
 } from './horoshop-api.client';
 import { TenantService } from '../tenant/tenant.service';
 import { AlertService } from '../alert/alert.service';
+import { ProductMappingService } from '../tenant/product-mapping.service';
+import { TenantIntegration } from '../tenant/tenant-integration.entity';
+import { MappingSyncStatus } from '../tenant/product-mapping.entity';
+import { LimanProductDto } from '../liman/dto/liman-product.dto';
 
 export interface HoroshopActivityItem {
   id: string;
@@ -28,6 +34,7 @@ export class HoroshopSyncService {
     private readonly limanService: LimanService,
     private readonly horoshopClient: HoroshopApiClient,
     private readonly tenantService: TenantService,
+    @Optional() private readonly productMappingService?: ProductMappingService,
     @Optional() private readonly alertService?: AlertService,
   ) {}
 
@@ -79,24 +86,162 @@ export class HoroshopSyncService {
   }
 
   /**
+   * Найти целевую интеграцию Хорошоп для тенанта
+   */
+  async resolveIntegration(
+    tenantId: string,
+    integrationId?: string,
+  ): Promise<TenantIntegration | null> {
+    if (!this.productMappingService) return null;
+
+    const tenant = await this.tenantService.findOne(tenantId);
+    return this.productMappingService.resolveActiveIntegration(
+      tenantId,
+      'horoshop',
+      integrationId,
+      tenant.horoshopDomain
+        ? {
+            name: tenant.horoshopShopTitle || tenant.name || 'Horoshop Store',
+            credentials: {
+              domain: tenant.horoshopDomain,
+              login: tenant.horoshopLogin,
+            },
+            settings: {
+              syncIntervalMinutes: tenant.horoshopSyncIntervalMinutes || 15,
+            },
+          }
+        : undefined,
+    );
+  }
+
+  /**
+   * Получить статистику сопоставления товаров
+   */
+  async getMappingStats(tenantId: string, integrationId?: string) {
+    if (!this.productMappingService) {
+      return { total: 0, synced: 0, error: 0, integrationId: null };
+    }
+    const integration = await this.resolveIntegration(tenantId, integrationId);
+    if (!integration) {
+      return { total: 0, synced: 0, error: 0, integrationId: null };
+    }
+    const stats = await this.productMappingService.getMappingsStats(integration.id);
+    return {
+      ...stats,
+      integrationId: integration.id,
+      integrationName: integration.name,
+      lastSyncAt: integration.lastSyncAt,
+    };
+  }
+
+  /**
+   * Трансформация товаров Limansoft в контракты обновления цен/остатков Хорошоп
+   */
+  private buildStockPriceItems(items: LimanProductDto[]): HoroshopStockPriceItem[] {
+    return items.map((product) => ({
+      article: String(product.tcod),
+      price: product.price,
+      stock: product.stock,
+      presence: product.stock > 0,
+      title: product.name,
+      barcode: product.barcode,
+      parent: product.categoryGroup,
+    }));
+  }
+
+  /**
+   * Безопасное сохранение сопоставлений в PostgreSQL (с изоляцией ошибок БД)
+   */
+  private async persistMappingsSafe(
+    tenant: Tenant,
+    integration: TenantIntegration | null,
+    items: LimanProductDto[],
+    updateRes: HoroshopUpdateResponse,
+  ): Promise<void> {
+    if (!integration || !this.productMappingService) return;
+
+    try {
+      const errorMap = new Map<string, string>();
+      if (Array.isArray(updateRes.log)) {
+        for (const logItem of updateRes.log) {
+          if (logItem.code !== HOROSHOP_CONSTANTS.API_CODE_SUCCESS) {
+            errorMap.set(
+              String(logItem.article),
+              logItem.message || `Код ошибки Хорошоп: ${logItem.code}`,
+            );
+          }
+        }
+      }
+
+      const mappingBatch = items.map((product) => {
+        const extArt = String(product.tcod);
+        const err = errorMap.get(extArt);
+        return {
+          tenantId: tenant.id,
+          integrationId: integration.id,
+          limanTcod: product.tcod,
+          externalArticle: extArt,
+          limanBarcode: product.barcode || null,
+          limanArticul: String(product.tcod),
+          syncStatus: (err ? 'error' : 'synced') as MappingSyncStatus,
+          lastSyncError: err || null,
+          metadata: {
+            categoryGroup: product.categoryGroup,
+            price: product.price,
+            stock: product.stock,
+          },
+        };
+      });
+
+      await this.productMappingService.saveBatchMappings(mappingBatch);
+    } catch (mappingErr: any) {
+      this.logger.warn(
+        `⚠️ [${tenant.id}] Не удалось сохранить сопоставления в product_mappings: ${mappingErr.message}`,
+      );
+    }
+  }
+
+  /**
+   * Обновление отметок времени последней синхронизации
+   */
+  private async updateSyncTimestamps(
+    tenantId: string,
+    integrationId?: string,
+  ): Promise<void> {
+    const now = new Date();
+    await this.tenantService.update(tenantId, { lastSyncAt: now });
+    if (integrationId && this.productMappingService) {
+      await this.productMappingService.updateIntegration(integrationId, {
+        lastSyncAt: now,
+      });
+    }
+  }
+
+  /**
    * Пакетная синхронизация цен и остатков из Limansoft в Хорошоп
    */
   async syncPricesAndStocks(
     tenant: Tenant,
-    options: { batchSize?: number; limit?: number } = {},
+    options: { batchSize?: number; limit?: number; integrationId?: string } = {},
   ): Promise<{
     processed: number;
     updated: number;
     batches: number;
     errors: string[];
     durationMs: number;
+    integrationId?: string;
   }> {
     const startTime = Date.now();
-    const batchSize = options.batchSize || 100;
+    const batchSize = options.batchSize || HOROSHOP_CONSTANTS.DEFAULT_BATCH_SIZE;
     const errors: string[] = [];
 
     this.logger.log(
       `🚀 [${tenant.id}] Начало синхронизации остатков и цен в Хорошоп...`,
+    );
+
+    const integration = await this.resolveIntegration(
+      tenant.id,
+      options.integrationId,
     );
 
     let page = 1;
@@ -114,16 +259,16 @@ export class HoroshopSyncService {
         break;
       }
 
-      const syncItems: HoroshopStockPriceItem[] = items.map((product) => ({
-        article: String(product.tcod),
-        price: product.price,
-        stock: product.stock,
-        presence: product.stock > 0,
-      }));
+      const syncItems = this.buildStockPriceItems(items);
 
       try {
-        await this.horoshopClient.updateStocksAndPrices(tenant, syncItems);
-        updated += syncItems.length;
+        const updateRes = await this.horoshopClient.updateStocksAndPrices(
+          tenant,
+          syncItems,
+        );
+        updated += updateRes.updated || syncItems.length;
+
+        await this.persistMappingsSafe(tenant, integration, items, updateRes);
       } catch (err: any) {
         const msg = `Ошибка обновления пакета #${batches + 1}: ${err.message}`;
         this.logger.error(`[${tenant.id}] ${msg}`);
@@ -153,10 +298,7 @@ export class HoroshopSyncService {
       page++;
     }
 
-    // Фиксируем дату последней синхронизации
-    await this.tenantService.update(tenant.id, {
-      lastSyncAt: new Date(),
-    });
+    await this.updateSyncTimestamps(tenant.id, integration?.id);
 
     const durationMs = Date.now() - startTime;
     this.addActivity(tenant.id, {
@@ -179,6 +321,7 @@ export class HoroshopSyncService {
       batches,
       errors,
       durationMs,
+      integrationId: integration?.id,
     };
   }
 

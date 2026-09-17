@@ -9,6 +9,7 @@ import { HoroshopApiClient } from './horoshop-api.client';
 import { HoroshopSyncService } from './horoshop-sync.service';
 import { BackupService } from '../backup/backup.service';
 import { AlertService } from '../alert/alert.service';
+import { ProductMappingService } from '../tenant/product-mapping.service';
 
 const MAX_IMAGES_PER_PRODUCT = 3;
 const IMAGE_DOWNLOAD_TIMEOUT_MS = 10000;
@@ -37,6 +38,7 @@ export class HoroshopImportProcessor extends WorkerHost {
     private readonly horoshopSyncService: HoroshopSyncService,
     @Optional() private readonly backupService?: BackupService,
     @Optional() private readonly alertService?: AlertService,
+    @Optional() private readonly productMappingService?: ProductMappingService,
   ) {
     super();
   }
@@ -102,6 +104,33 @@ export class HoroshopImportProcessor extends WorkerHost {
 
     try {
       const tenant = await this.tenantService.findOne(tenantId);
+
+      let targetIntegrationId = job.data.integrationId;
+      if (!targetIntegrationId && this.productMappingService) {
+        const activeIntegration =
+          await this.productMappingService.resolveActiveIntegration(
+            tenantId,
+            'horoshop',
+            undefined,
+            tenant.horoshopDomain
+              ? {
+                  name:
+                    tenant.horoshopShopTitle ||
+                    tenant.name ||
+                    'Horoshop Store',
+                  credentials: {
+                    domain: tenant.horoshopDomain,
+                    login: tenant.horoshopLogin,
+                  },
+                  settings: {
+                    syncIntervalMinutes:
+                      tenant.horoshopSyncIntervalMinutes || 15,
+                  },
+                }
+              : undefined,
+          );
+        targetIntegrationId = activeIntegration?.id;
+      }
 
       // 1. Предварительный бэкап базы данных тенанта
       if (createBackup && this.backupService) {
@@ -194,6 +223,28 @@ export class HoroshopImportProcessor extends WorkerHost {
             } else {
               updated++;
             }
+
+            // Фиксация связи в product_mappings
+            if (
+              targetIntegrationId &&
+              this.productMappingService &&
+              upsertResult.tcod
+            ) {
+              await this.productMappingService.saveMapping({
+                tenantId,
+                integrationId: targetIntegrationId,
+                limanTcod: upsertResult.tcod,
+                externalArticle: article,
+                limanBarcode: product.barcode || null,
+                limanArticul: article,
+                syncStatus: 'synced',
+                metadata: {
+                  categoryName: product.category,
+                  source: 'horoshop_import',
+                  importedAt: new Date().toISOString(),
+                },
+              });
+            }
           } catch (itemErr: any) {
             this.logger.error(
               `❌ [${tenantId}] Ошибка импорта позиции article=${product.article}: ${itemErr.message}`,
@@ -227,6 +278,12 @@ export class HoroshopImportProcessor extends WorkerHost {
 
       await job.updateProgress(100);
       const durationMs = Date.now() - startTime;
+
+      if (targetIntegrationId && this.productMappingService) {
+        await this.productMappingService.updateIntegration(targetIntegrationId, {
+          lastSyncAt: new Date(),
+        });
+      }
 
       // Запись в Activity Feed
       this.horoshopSyncService.addActivity(tenantId, {

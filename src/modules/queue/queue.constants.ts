@@ -17,6 +17,8 @@ export interface ExportChunkJobData {
 export interface SyncStockJobData {
   tenantId: string;
   targetPlatform: 'prom' | 'rozetka' | 'woocommerce' | 'horoshop';
+  integrationId?: string;
+  limit?: number;
 }
 
 export interface ImportWooCatalogJobData {
@@ -27,6 +29,7 @@ export interface ImportWooCatalogJobData {
 
 export interface ImportHoroshopCatalogJobData {
   tenantId: string;
+  integrationId?: string;
   mode?: 'only_new' | 'overwrite';
   updatePrices?: boolean;
   updateStock?: boolean;

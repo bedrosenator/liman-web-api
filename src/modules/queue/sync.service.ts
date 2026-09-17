@@ -25,6 +25,7 @@ export class SyncService {
   async triggerStockSync(
     tenantId: string,
     targetPlatform: 'prom' | 'rozetka' | 'woocommerce' | 'horoshop' = 'prom',
+    options: { integrationId?: string; limit?: number } = {},
   ) {
     const tenant = await this.tenantService.findOne(tenantId);
     this.logger.log(
@@ -36,6 +37,8 @@ export class SyncService {
       {
         tenantId: tenant.id,
         targetPlatform,
+        integrationId: options.integrationId,
+        limit: options.limit,
       },
       {
         attempts: 3,

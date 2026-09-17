@@ -5,6 +5,7 @@ import { TenantService } from '../tenant/tenant.service';
 import { HoroshopApiClient } from './horoshop-api.client';
 import { HoroshopSyncService } from './horoshop-sync.service';
 import { BackupService } from '../backup/backup.service';
+import { ProductMappingService } from '../tenant/product-mapping.service';
 
 describe('HoroshopImportProcessor', () => {
   let processor: HoroshopImportProcessor;
@@ -13,6 +14,7 @@ describe('HoroshopImportProcessor', () => {
   let horoshopClient: jest.Mocked<HoroshopApiClient>;
   let horoshopSyncService: jest.Mocked<HoroshopSyncService>;
   let backupService: jest.Mocked<BackupService>;
+  let productMappingService: any;
 
   beforeEach(async () => {
     limanService = {
@@ -45,6 +47,20 @@ describe('HoroshopImportProcessor', () => {
       }),
     } as any;
 
+    productMappingService = {
+      getIntegrations: jest.fn().mockResolvedValue([
+        { id: 'integ-1', tenantId: 'columb', platform: 'horoshop', isActive: true },
+      ]),
+      resolveActiveIntegration: jest.fn().mockResolvedValue({
+        id: 'integ-1',
+        tenantId: 'columb',
+        platform: 'horoshop',
+        isActive: true,
+      }),
+      saveMapping: jest.fn().mockResolvedValue({}),
+      updateIntegration: jest.fn().mockResolvedValue({}),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         HoroshopImportProcessor,
@@ -53,6 +69,7 @@ describe('HoroshopImportProcessor', () => {
         { provide: HoroshopApiClient, useValue: horoshopClient },
         { provide: HoroshopSyncService, useValue: horoshopSyncService },
         { provide: BackupService, useValue: backupService },
+        { provide: ProductMappingService, useValue: productMappingService },
       ],
     }).compile();
 
@@ -111,5 +128,14 @@ describe('HoroshopImportProcessor', () => {
     expect(result.totalFetched).toBe(2);
     expect(result.backupId).toBe('backup_fast.sql.gz');
     expect(horoshopSyncService.addActivity).toHaveBeenCalled();
+    expect(productMappingService.saveMapping).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'columb',
+        integrationId: 'integ-1',
+        limanTcod: 102,
+        externalArticle: '102',
+        syncStatus: 'synced',
+      }),
+    );
   });
 });

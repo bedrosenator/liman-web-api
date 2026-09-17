@@ -69,6 +69,44 @@ export class ProductMappingService {
   }
 
   /**
+   * Resolve active integration for a tenant or create a fallback one
+   */
+  async resolveActiveIntegration(
+    tenantId: string,
+    platform: IntegrationPlatform,
+    integrationId?: string,
+    fallback?: {
+      name: string;
+      credentials?: Record<string, any>;
+      settings?: Record<string, any>;
+    },
+  ): Promise<TenantIntegration | null> {
+    if (integrationId) {
+      return this.getIntegration(integrationId);
+    }
+
+    const integrations = await this.getIntegrations(tenantId);
+    const active = integrations.find(
+      (it) => it.platform === platform && it.isActive,
+    );
+    if (active) {
+      return active;
+    }
+
+    if (fallback) {
+      return this.findOrCreateIntegration(
+        tenantId,
+        platform,
+        fallback.name,
+        fallback.credentials || {},
+        fallback.settings || {},
+      );
+    }
+
+    return null;
+  }
+
+  /**
    * Update integration credentials or settings
    */
   async updateIntegration(

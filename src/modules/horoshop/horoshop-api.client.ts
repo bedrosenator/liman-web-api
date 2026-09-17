@@ -8,7 +8,31 @@ export interface HoroshopStockPriceItem {
   price: number;
   stock: number;
   presence?: boolean;
+  title?: string | { ua: string; ru?: string };
+  parent?: string | number;
+  barcode?: string;
 }
+
+export interface HoroshopImportLogItem {
+  code: number;
+  article: string;
+  message?: string;
+}
+
+export interface HoroshopUpdateResponse {
+  success: boolean;
+  total: number;
+  updated: number;
+  log: HoroshopImportLogItem[];
+  response: any;
+}
+
+export const HOROSHOP_CONSTANTS = {
+  DEFAULT_BATCH_SIZE: 100,
+  API_CODE_SUCCESS: 0,
+  PRESENCE_IN_STOCK: 1,
+  PRESENCE_OUT_OF_STOCK: 2,
+} as const;
 
 @Injectable()
 export class HoroshopApiClient {
@@ -153,22 +177,26 @@ export class HoroshopApiClient {
   async updateStocksAndPrices(
     tenant: Tenant,
     items: HoroshopStockPriceItem[],
-  ): Promise<{
-    success: boolean;
-    total: number;
-    response: any;
-  }> {
+  ): Promise<HoroshopUpdateResponse> {
     if (this.isMockMode(tenant)) {
       this.logger.log(
         `🧪 [${tenant.id}] MOCK: симуляция отправки ${items.length} позиций в Horoshop API (/catalog/import/)`,
       );
+      const mockLog: HoroshopImportLogItem[] = items.map((item) => ({
+        code: HOROSHOP_CONSTANTS.API_CODE_SUCCESS,
+        article: String(item.article),
+        message: 'MOCK: Товар успешно обновлен',
+      }));
       return {
         success: true,
         total: items.length,
+        updated: items.length,
+        log: mockLog,
         response: {
           status: 'OK',
           response: {
             updated: items.length,
+            log: mockLog,
             message: 'MOCK: товары, цены и остатки успешно обновлены',
           },
         },
@@ -176,22 +204,49 @@ export class HoroshopApiClient {
     }
 
     const payload = {
-      products: items.map((item) => ({
-        article: String(item.article),
-        price: item.price,
-        quantity: Math.max(0, item.stock),
-        presence: item.stock > 0 ? 1 : 2,
-      })),
+      products: items.map((item) => {
+        const productData: any = {
+          article: String(item.article),
+          price: item.price,
+          quantity: Math.max(0, item.stock),
+          presence:
+            item.stock > 0
+              ? HOROSHOP_CONSTANTS.PRESENCE_IN_STOCK
+              : HOROSHOP_CONSTANTS.PRESENCE_OUT_OF_STOCK,
+        };
+        if (item.title !== undefined) productData.title = item.title;
+        if (item.parent !== undefined) productData.parent = item.parent;
+        if (item.barcode !== undefined) productData.barcode = item.barcode;
+        return productData;
+      }),
     };
 
     this.logger.log(
       `📤 [${tenant.id}] Отправка ${items.length} позиций в Horoshop API (/catalog/import/)`,
     );
     const response = await this.request(tenant, 'catalog/import/', payload);
+    const respData = response?.response || response || {};
+    const updatedCount =
+      typeof respData.updated === 'number' ? respData.updated : items.length;
+    const log: HoroshopImportLogItem[] = Array.isArray(respData.log)
+      ? respData.log.map((entry: any) => ({
+          code: Number(entry.code ?? HOROSHOP_CONSTANTS.API_CODE_SUCCESS),
+          article: String(entry.article || ''),
+          message:
+            entry.message ||
+            (entry.code === HOROSHOP_CONSTANTS.API_CODE_SUCCESS ? 'OK' : 'Error'),
+        }))
+      : items.map((item) => ({
+          code: HOROSHOP_CONSTANTS.API_CODE_SUCCESS,
+          article: String(item.article),
+          message: 'OK',
+        }));
 
     return {
       success: true,
       total: items.length,
+      updated: updatedCount,
+      log,
       response,
     };
   }

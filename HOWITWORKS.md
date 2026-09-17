@@ -14,6 +14,7 @@
    - [Как устроен и работает пул соединений (mysql.createPool)](#31-как-устроен-и-работает-пул-соединений-mysqlcreatepool)
    - [Разделение клиентов: WooCommerce vs Rozetka](#32-разделение-клиентов-woocommerce-vs-rozetka)
    - [Как клиенты обновляются и синхронизируются](#33-как-клиенты-обновляются-и-синхронизируются)
+   - [Архитектура мульти-интеграций (Multi-Store) и сопоставление товаров (ProductMapping)](#34-архитектура-мульти-интеграций-multi-store-и-сопоставление-товаров-productmapping)
 4. [Стриминг медиа: BLOB в HTTP URL](#4-стриминг-медиа-blob-в-http-url)
 5. [Синхронизация каталогов (Outbound Sync)](#5-синхронизация-каталогов-outbound-sync)
    - [WooCommerce (REST API, Unified WP Plugin v2.0.0 & Two-Way Sync)](#51-woocommerce-rest-api--wp-plugin)
@@ -160,14 +161,15 @@
 ┌────────────────────────────────────────────────────────────────────────┐
 │             Liman Web API (Единое ядро приложения)                     │
 │                                                                        │
-│   Мастер-БД SQLite (tenants.sqlite): реестр клиентов и их ключей      │
+│   Мастер-БД PostgreSQL 16 (liman_postgres :5433)                      │
 │   ┌────────────────────────────────────────────────────────────────┐   │
-│   │ id: "client-a" (WooCommerce) -> база: 192.168.1.10/liman_clientA│   │
-│   │ id: "client-b" (Rozetka)     -> база: 10.0.0.5/liman_clientB   │   │
+│   │ tenants: id: "columb", dbHost: 127.0.0.1, dbName: columbDB     │   │
+│   │ tenant_integrations: Horoshop 1, Horoshop 2, Prom, Rozetka     │   │
+│   │ product_mappings: limanTcod <-> externalArticle (O(1) B-tree)   │   │
 │   └────────────────────────────────────────────────────────────────┘   │
 └───────────────┬────────────────────────────────────────┬───────────────┘
                 │                                        │
-        Запрос к /client-a                       Запрос к /client-b
+        Запрос к /columb                         Запрос к /client-b
                 │                                        │
         ┌───────▼────────┐                       ┌───────▼────────┐
         │  Пул коннектов │                       │  Пул коннектов │
@@ -176,14 +178,14 @@
                 │                                        │
     ┌───────────▼───────────┐                ┌───────────▼───────────┐
     │ MariaDB 1 (Клиент А)  │                │ MariaDB 2 (Клиент Б)  │
-    │ База: liman_clientA   │                │ База: liman_clientB   │
+    │ База: columbDB        │                │ База: client_b_db     │
     └───────────┬───────────┘                └───────────┬───────────┘
                 │                                        │
         Синхронизация                            Синхронизация
                 │                                        │
     ┌───────────▼───────────┐                ┌───────────▼───────────┐
-    │ Магазин WooCommerce   │                │ Маркетплейс Rozetka   │
-    │ (client-a.com/wp-json)│                │ (api-seller.rozetka)  │
+    │ Магазины: Хорошоп 1,2 │                │ Маркетплейс Rozetka   │
+    │ Prom.ua, WooCommerce  │                │ (api-seller.rozetka)  │
     └───────────────────────┘                └───────────────────────┘
 ```
 
@@ -240,10 +242,11 @@ const pool = mysql.createPool({
 
 Разделение и изоляция обеспечиваются на 4 уровнях:
 
-#### Уровень 1: Реестр тенантов (Master Database SQLite)
-В базе `./data/liman_master.sqlite` хранятся раздельные конфигурации:
-- Запись `shop-a`: реквизиты к БД `liman_shopA`, персональный `apiKey`, параметры WooCommerce (`wcUrl`, `wcConsumerKey`, `wcConsumerSecret`).
-- Запись `shop-b`: реквизиты к БД `liman_shopB`, персональный `apiKey`, параметры Rozetka (`rozetkaClientId`, `rozetkaClientSecret`).
+#### Уровень 1: Реестр тенантов и витрин (Master Database PostgreSQL 16)
+В базе PostgreSQL `liman_master` (контейнер `liman_postgres`, хост-порт `5433:5432`) хранятся раздельные конфигурации:
+- Таблица `tenants`: реквизиты MariaDB (`dbHost`, `dbPort`, `dbName`, `dbUser`, `dbPassword`), персональный `apiKey`.
+- Таблица `tenant_integrations`: отдельные записи для каждого магазина клиента (несколько витрин Хорошоп, Prom, Rozetka, WooCommerce) со своими `credentials` и `settings`.
+- Таблица `product_mappings`: сопоставление `liman_tcod` товара учетной системы и внешнего артикула `external_article` для каждой конкретной интеграции.
 
 #### Уровень 2: Изоляция адресного пространства (URL Namespaces)
 Все эндпоинты в API строго привязаны к идентификатору клиента `:tenantId`:
@@ -289,6 +292,72 @@ getPool(tenant: Tenant): Pool {
 | **Фоновые задачи (BullMQ + Redis)** | Отдельная очередь/джоба: `{ tenantId: 'shop-a', type: 'woocommerce' }`. | Отдельная очередь/джоба: `{ tenantId: 'shop-b', type: 'rozetka' }`. |
 
 **Результат**: если база данных Клиента А временно недоступна (например, выключен сервер в магазине), Клиент Б продолжает работать, отдавать XML-фид и синхронизировать остатки с Розеткой без малейших задержек или сбоев.
+
+---
+
+### 3.4 Архитектура мульти-интеграций (Multi-Store) и сопоставление товаров (`ProductMapping`)
+
+В рамках масштабирования системы (Option 2) сервис переведён на внутреннюю Master-базу **PostgreSQL 16** (контейнер `liman_postgres`, порт `5433:5432`), что решило задачу подключения **нескольких магазинов к одному клиенту** без внесения каких-либо изменений в учетную базу MariaDB Лимансофт.
+
+```mermaid
+erDiagram
+    tenants ||--o{ tenant_integrations : "имеет N витрин"
+    tenants ||--o{ product_mappings : "владеет маппингами"
+    tenant_integrations ||--o{ product_mappings : "привязывает артикулы"
+
+    tenants {
+        varchar id PK "e.g. 'columb'"
+        varchar name "Columb Shop"
+        varchar dbHost "127.0.0.1"
+        integer dbPort "3306"
+        varchar dbName "columbDB"
+        varchar dbUser "root"
+        varchar dbPassword
+        varchar apiKey
+        boolean isActive
+    }
+
+    tenant_integrations {
+        uuid id PK
+        varchar tenantId FK "tenants.id"
+        varchar platform "horoshop | rozetka | prom | woocommerce"
+        varchar name "Витрина (e.g. 'Columb Одежда - Розница')"
+        boolean isActive "Активность витрины"
+        boolean syncEnabled "Разрешена ли синхронизация"
+        jsonb credentials "Домены, API-ключи, логины, пароли"
+        jsonb settings "Колонки цен/остатков, интервалы"
+        timestamp lastSyncAt
+    }
+
+    product_mappings {
+        serial id PK
+        varchar tenantId FK "tenants.id"
+        uuid integrationId FK "tenant_integrations.id"
+        integer limanTcod "ID товара в Лимансофт (name2.tcod)"
+        varchar limanBarcode "Штрихкод для сопоставления"
+        varchar limanArticul "Артикул в Limansoft (name2.nnom)"
+        varchar externalId "Внутренний ID у провайдера"
+        varchar externalArticle "Артикул/SKU на витрине"
+        varchar syncStatus "synced | pending | error | ignored"
+        timestamp lastSyncAt
+        text lastSyncError
+        jsonb metadata "Категории, параметры ответа"
+    }
+```
+
+#### Ключевые преимущества и механика работы:
+1. **Поддержка множества магазинов у одного тенанта (`tenant_integrations`)**:
+   - Клиент `columb` может иметь розничный магазин Хорошоп (`shop724088.horoshop.ua`), оптовый магазин Хорошоп (`opt.columb.ua`), магазин на Prom.ua и кабинет продавца Rozetka.
+   - Каждая витрина хранит свои собственные реквизиты (`credentials`), флаги вебхуков и настройки цен (`settings`).
+2. **Изолированное сопоставление товаров (`product_mappings`)**:
+   - Артикулы в разных маркетплейсах могут различаться. Маппинг привязывается к паре `(integrationId, limanTcod)`.
+   - **Уникальные B-tree индексы в PostgreSQL**:
+     - `(integrationId, limanTcod)` — мгновенный поиск внешнего артикула за $O(1)$ при выгрузке цен и остатков из Лимансофт.
+     - `(integrationId, externalArticle)` — мгновенный поиск `tcod` за $O(1)$ при поступлении вебхука заказа из Хорошоп/маркетплейса для списания остатка в MariaDB.
+3. **Абсолютная чистота учетной БД MariaDB**:
+   - База Limansoft не модифицируется: в неё не добавляются служебные колонки или таблицы интеграций. Все связи хранятся в защищённом PostgreSQL сервиса.
+4. **Автоматическая миграция (Zero-Downtime Migration)**:
+   - Сервис `SqliteToPostgresMigrationService` при старте автоматически переносит существующих тенантов из legacy SQLite-файла в PostgreSQL и создаёт соответствующие записи витрин в `tenant_integrations`.
 
 ---
 
@@ -396,18 +465,27 @@ sequenceDiagram
 ### 5.4. Хорошоп (Гибридная схема, Шедулер и Двусторонний импорт)
 
 Платформа Хорошоп (Cartum) поддерживает **гибридный подход** взаимодействия с учетной системой:
-1. **Потоковый XML-фид (`GET /api/v1/horoshop/:tenantId/feed.xml`)**:
-   - Хорошоп забирает каталог по расписанию (раз в 2–4 часа), создавая новые карточки товаров, описания, картинки и дерево категорий.
-2. **Пакетная синхронизация цен и остатков (REST API `/api/catalog/import/`)**:
+1. **Прямой экспорт каталога в 1 клик (`POST /api/v1/horoshop/:tenantId/export/catalog`)**:
+   - Позволяет выгрузить каталог товаров напрямую из MariaDB Лимансофт в Хорошоп без необходимости вручную копировать URL фида и настраивать расписание.
+   - Для новых товаров передаются обязательные для Хорошопа поля: `article` (SKU/tcod), `title: { ua: name }`, `parent: category` (создание или сопоставление по дереву `name.group`), `price`, `quantity`, `presence`, `images`, `description`.
+   - Успешно созданные и обновленные связи автоматически регистрируются в таблице `product_mappings`.
+   - Детальный парсинг логов ответа Хорошопа (`response.log`) с подсчетом `added`, `updated`, `failed` и кодов валидации.
+2. **Потоковый XML-фид (`GET /api/v1/horoshop/:tenantId/feed.xml`)**:
+   - Альтернативный способ: Хорошоп забирает каталог по расписанию (раз в 2–4 часа), создавая новые карточки товаров, описания, картинки и дерево категорий.
+3. **Пакетная синхронизация цен и остатков (REST API `/api/catalog/import/`)**:
    - Быстрый пуш остатков (`remains`/`stock_quantity`) и цен (`price`/`price_old`) порциями по 100 товаров.
    - **Асинхронный режим через BullMQ (`POST /api/v1/horoshop/:tenantId/sync/prices-stocks?async=true`)**:
-     При больших каталогах (5 768+ позиций) операция выносится в фоновую очередь `sync-stock`. Клиент сразу получает `jobId`, а в Личном Кабинете отображается живой прогресс-бар (0–100%). Это гарантирует отсутствие 504 Gateway Timeout от веб-сервера.
-3. **Автономный фоновый планировщик (`HoroshopSchedulerService`)**:
+     При больших каталогах (5 768+ позиций) операция выносится в фоновую очередь `sync-stock`. Клиент сразу получает `jobId`, а в Личном Кабинете отображается живой анимированный прогресс-бар (0–100%) с бейджами состояния очереди. Это гарантирует отсутствие 504 Gateway Timeout от веб-сервера.
+4. **Управление вебхуками (Webhooks Control)**:
+   - **Вебхук списания остатков при покупке (`POST /api/v1/horoshop/:tenantId/webhook/order`)**: при оформлении заказа в магазине Хорошоп хук мгновенно списывает остаток в MariaDB Лимансофт (`UPDATE name2ost ...`). Включается тумблером `horoshopOrderWebhookEnabled` (по умолчанию активен).
+   - **Вебхук создания/модификации товара (`POST /api/v1/horoshop/:tenantId/webhook/product`)**: принимает события добавления товара контент-менеджером на сайте Хорошоп, фиксирует активность и сопоставляет артикул. Включается тумблером `horoshopProductCreationWebhookEnabled`.
+   - В Кабинете Клиента ([ClientPortalPage.tsx](file:///Users/bedrosenator/Work/liman-web-api/client/src/pages/ClientPortalPage.tsx)) выведены удобные переключатели и готовые URL для вставки в вебхуки панели Хорошопа.
+5. **Автономный фоновый планировщик (`HoroshopSchedulerService`)**:
    - Работает на базе `@nestjs/schedule` в фоновом режиме сервиса.
    - **Каждые 60 секунд** сканирует всех тенантов с настроенным доступом к Хорошоп.
    - Если включена автосинхронизация (`horoshopExportEnabled = true`) и наступило время интервала (`horoshopSyncIntervalMinutes`: 15, 30 или 60 минут), шедулер автоматически ставит задачу в очередь `sync-stock` (`targetPlatform: 'horoshop'`).
    - **Каждые 15 минут** шедулер опрашивает новые заказы в статусе `new` (`pollOrdersAndDeductStock`) и автоматически списывает складские остатки в MariaDB Limansoft, фиксируя события в Activity Feed.
-4. **MOCK-режим (Sandbox)**:
+6. **MOCK-режим (Sandbox)**:
    - Если в поле домена указано `mock.horoshop.ua`, API включает встроенную симуляцию ответов (успешная авторизация, генерация заказов и импорт каталога) для сквозного тестирования без привязки к боевому магазину.
 
 #### 5.4.1. Двусторонний импорт каталога (Хорошоп ➔ Limansoft / Two-Way Sync / TASK-22)
@@ -565,14 +643,14 @@ sequenceDiagram
 ### 7.3. Монитор очередей в панели Супер-Админа (Admin Queue Monitor)
 
 Суперадминистратор имеет доступ к выделенному модулю мониторинга фоновых процессов (`AdminQueuesController`):
-- **Сводная статистика (`GET /api/v1/admin/queues`)**:
-  Возвращает распределение задач по всем 5 очередям:
+- **Сводная статистика и Live Auto-Refresh (`GET /api/v1/admin/queues`)**:
+  Интерфейс панели Супер-Админа опрашивает этот эндпоинт **каждые 3 секунды в реальном времени**, отображая актуальные счетчики и бейджи без перезагрузки страницы:
   ```json
   {
     "queues": [
       {
         "name": "sync-stock",
-        "label": "Синхронизация остатков и цен",
+        "label": "Синхронизация остатков и цен (Хорошоп, Prom, Rozetka)",
         "isPaused": false,
         "counts": { "waiting": 0, "active": 1, "completed": 1420, "failed": 0, "delayed": 0 }
       },
@@ -585,6 +663,8 @@ sequenceDiagram
     ]
   }
   ```
+- **Индикация синхронизации в Кабинете Клиента**:
+  В Личном Кабинете клиента в реальном времени отображается статус очереди: живой анимированный прогресс-бар, пульсирующий бейдж «В очереди / Обработка», количество обработанных SKU и алерт об успешном завершении.
 - **Перезапуск упавших задач в 1 клик (`POST /api/v1/admin/queues/:queueName/retry-failed`)**:
   Находит все джобы в статусе `failed` и запускает их повторное выполнение методом `job.retry()`, возвращая количество успешно перезапущенных задач.
 - **Очистка очереди (`POST /api/v1/admin/queues/:queueName/clean`)**:
@@ -734,13 +814,14 @@ sequenceDiagram
   - Полностью изолирован за обратным прокси (`proxy_pass http://nestjs:3000`).
   - Не держит статических middleware в конвейере, что исключает деградацию производительности Event Loop.
 
-### 9.2. Трехуровневая инфраструктура Docker Compose
+### 9.2. Четырехуровневая инфраструктура Docker Compose
 
-Вся система запускается тремя взаимосвязанными контейнерами (`docker-compose.yml`):
+Вся система разворачивается четырьмя изолированными контейнерами (`docker-compose.yml`):
 
-1. `nginx` (`nginx:alpine`): точка входа (порт `80:80`), монтирует `./docker/nginx.conf` и директорию фронтенд-билда `./public/app:/usr/share/nginx/html:ro`.
-2. `nestjs` (`node:20-alpine`): ядро API (порт `3000`), монтирует локальное хранилище `./data:/app/data` (база SQLite и архивы бекапов MariaDB).
-3. `redis` (`redis:7-alpine`): оперативная память очередей BullMQ и распределенных мьютексов (порт `6379:6379`).
+1. `nginx` (`nginx:1.27-alpine`): точка входа (порт `80:80`), монтирует `./docker/nginx.conf` и директорию фронтенд-билда `./public/app:/app/static:ro`.
+2. `nestjs` (`node:20-alpine`): ядро API (порт `3000`), монтирует локальное хранилище `./data:/app/data` (дампы резервных копий MariaDB).
+3. `postgres` (`postgres:16-alpine`, контейнер `liman_postgres`): внутренняя Master-база данных сервиса (порт `5433:5432`, БД `liman_master`, volume `postgres_data`), хранящая реестр тенантов, мульти-интеграций (`tenant_integrations`) и таблицу сопоставления товаров (`product_mappings`).
+4. `redis` (`redis:7-alpine`): оперативная память очередей BullMQ и распределенных мьютексов (порт `6379:6379`).
 
 ### 9.3. Фронтенд React SPA: Стек и архитектура
 
@@ -761,15 +842,20 @@ sequenceDiagram
 - **Безопасность учетных данных**:
   Пароли к базам данных и API-токены маскируются символами `••••••••`. Раскрытие пароля по клику на иконку `👁` фиксируется в системном Security Audit Log.
 - **Интегрированный монитор очередей BullMQ**:
-  Отображает живое состояние очередей (`sync-stock`, `import-horoshop-catalog`, `import-woo-catalog` и др.), счетчики задач (активные, ожидающие, упавшие) и предоставляет кнопку перезапуска упавших задач в один клик.
+  Отображает живое состояние очередей с авто-обновлением каждые 3 секунды (`sync-stock`, `import-horoshop-catalog`, `import-woo-catalog` и др.), счетчики задач (активные, ожидающие, упавшие) и предоставляет кнопку перезапуска упавших задач в один клик.
 
 #### 9.3.2. Кабинет Клиента (Client Portal `/portal/:tenantId`)
+- **Динамическое наименование витрины в шапке**:
+  Отображает реальное название магазина Хорошоп (`horoshopShopTitle || horoshopDomain`) вместо статичных меток.
 - **Диагностический 3-точечный «Светофор здоровья» (Health Bar)**:
   - Индикатор связи с локальной базой данных Limansoft MariaDB (время отклика, статус).
   - Индикатор авторизации в API внешней платформы (Хорошоп, WooCommerce и т.д.).
   - Статус службы фоновой автосинхронизации (Включена / Отключена, интервал).
 - **Интерактивный Action Hub**:
-  - **Обновление остатков и цен сейчас**: отправляет задачу в BullMQ и показывает плавный прогресс-бар (0–100%) без риска зависания страницы.
+  - **Прямой экспорт каталога в Хорошоп в 1 клик (Card 3)**: выгружает товары с категориями и ценами напрямую через API Хорошопа с сопоставлением в `product_mappings`.
+  - **Индикация процесса синхронизации**: живой анимированный прогресс-бар (0–100%), статус очереди в BullMQ, спиннер выполнения и итоговый информативный алерт.
+  - **Управление вебхуками заказов и товаров**: наглядные переключатели для автоматического списания остатков при покупке (`horoshopOrderWebhookEnabled`) и вебхука создания товаров (`horoshopProductCreationWebhookEnabled`) с копируемыми URL.
+  - **Обновление остатков и цен сейчас**: отправляет задачу в BullMQ и показывает плавный прогресс-бар без риска зависания страницы.
   - **Импорт каталога из Хорошоп в Limansoft (TASK-22)**: открывает модальное окно с выбором режимов («Только новинки» vs «Полная перезапись»), защитным подтверждением рисков, фильтрацией обновляемых полей и живой статистикой.
   - **Блок XML-каталога фида**: отображает прямую ссылку на фид, кнопку мгновенного копирования в буфер обмена и переход по ссылке.
 - **Хронологическая лента событий (Activity Feed)**:
@@ -841,12 +927,13 @@ sequenceDiagram
 | Сущность в Limansoft | Колонка / Таблица | WooCommerce | Rozetka Marketplace | Хорошоп (Cartum) | Prom.ua |
 |---|---|---|---|---|---|
 | **Идентификатор товара** | `name2.tcod` | `SKU` | `id`, `<vendorCode>` | `article`, `<vendorCode>` | `id`, `<vendorCode>` |
+| **Связка с витриной** | `product_mappings` | `limanTcod ⟷ SKU` | `limanTcod ⟷ id` | `limanTcod ⟷ externalArticle` | `limanTcod ⟷ id` |
 | **Штрихкод** | `name2.nnom`, `strihcod.barcode` | `_barcode` (meta) | `<param name="Штрихкод">` | `<barcode>` | `<barcode>` |
 | **Розничная цена** | `name2.cena2` | `regular_price` | `<price>` | `price`, `<price>` | `<price>` |
 | **Складской остаток** | `name2ost.skl_k` | `stock_quantity` | `stock`, `<param name="Кількість">` | `remains`, `<stock_quantity>` | `<presence_sure>` |
 | **Наличие товара** | `skl_k > 0` | `instock / outofstock` | `available="true/false"` | `presence (boolean)` | `available="true/false"` |
 | **Фотография** | `namedesc.photo1` (BLOB) | `images[0].src` (URL) | `<picture>` (URL) | `<picture>` (URL) | `<picture>` (URL) |
-| **Категория** | `name2.group` ➔ `name.group` | `categories[].name` | `<categoryId>` | `<categoryId>` | `<categoryId>` |
+| **Категория** | `name2.group` ➔ `name.group` | `categories[].name` | `<categoryId>` | `parent` (название/ID) | `<categoryId>` |
 
 ---
 
@@ -865,7 +952,7 @@ sequenceDiagram
 | | `GET` | `/api/v1/tenants/:id` | Получение настроек конкретного магазина по ID |
 | | `PATCH` | `/api/v1/tenants/:id` | Редактирование реквизитов подключения и параметров синхронизации |
 | | `POST` | `/api/v1/tenants/:id/rotate-key` | Мгновенная генерация нового персонального API-ключа клиента |
-| | `DELETE` | `/api/v1/tenants/:id` | Удаление тенанта из реестра SQLite |
+| | `DELETE` | `/api/v1/tenants/:id` | Удаление тенанта из базы PostgreSQL |
 | | `GET` | `/api/v1/liman/:tenantId/ping` | Живая проверка сетевого отклика MariaDB тенанта (мс) |
 | **Резервное копирование и откат** | `POST` | `/api/v1/liman/:tenantId/backups` | Создание Fast (1–3с) или Full дампа базы с контрольной суммой SHA-256 |
 | | `GET` | `/api/v1/liman/:tenantId/backups` | Список всех сохраненных копий магазина с размерами и датами |
@@ -873,12 +960,14 @@ sequenceDiagram
 | | `POST` | `/api/v1/liman/:tenantId/backups/:filename/restore` | Гарантированный откат базы данных Limansoft до выбранного дампа |
 | | `DELETE` | `/api/v1/liman/:tenantId/backups/:filename` | Удаление архива резервной копии и `.meta.json` файла |
 | **Интеграция с Хорошоп (Cartum)** | `GET` | `/api/v1/horoshop/:tenantId/ping` | Проверка авторизации в API магазина Хорошоп |
+| | `POST` | `/api/v1/horoshop/:tenantId/export/catalog` | **Прямой экспорт каталога** в Хорошоп с категориями и фиксацией связей в `product_mappings` |
 | | `POST` | `/api/v1/horoshop/:tenantId/sync/prices-stocks` | Синхронизация цен и остатков (`?async=true` запускает задачу в BullMQ) |
 | | `POST` | `/api/v1/horoshop/:tenantId/import/catalog` | **TASK-22**: Двусторонний импорт каталога в MariaDB через BullMQ с бэкапом и мьютексом |
 | | `GET` | `/api/v1/horoshop/:tenantId/activity` | Хронологическая лента событий синхронизации для Activity Feed |
 | | `POST` | `/api/v1/horoshop/:tenantId/settings` | Сохранение домена, логина, пароля и интервала автосинхронизации |
 | | `GET` | `/api/v1/horoshop/:tenantId/feed.xml` | Публичный потоковый XML-каталог фид для витрины Хорошоп |
 | | `POST` | `/api/v1/horoshop/:tenantId/webhook/order` | Входящий вебхук заказа из Хорошоп для списания остатков в MariaDB |
+| | `POST` | `/api/v1/horoshop/:tenantId/webhook/product` | Входящий вебхук создания/модификации товара в магазине Хорошоп |
 | **Очереди и асинхронные задачи** | `POST` | `/api/v1/sync/:tenantId/stock` | Постановка задачи обновления остатков в очередь `sync-stock` |
 | | `GET` | `/api/v1/sync/jobs/:queueName/:jobId` | Опрос состояния (`waiting`, `active`, `completed`, `failed`) и процента прогресса |
 | **WooCommerce & WordPress** | `POST` | `/api/v1/woocommerce/:tenantId/sync` | Пакетный пуш цен и остатков через REST API WooCommerce |

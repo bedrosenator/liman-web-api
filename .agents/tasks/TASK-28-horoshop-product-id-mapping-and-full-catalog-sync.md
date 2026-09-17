@@ -2,7 +2,7 @@
 
 - **ID:** TASK-28
 - **Эпик:** Database Architecture & Multi-Platform Catalog Sync
-- **Статус:** In Progress
+- **Статус:** Done
 - **Приоритет:** Highest
 - **Исполнитель:** Backend & Integration Architect
 
@@ -90,32 +90,34 @@ erDiagram
 ## 📋 План реализации
 
 ### 1. Инфраструктура
-- [ ] Добавить сервис `postgres` (`postgres:16-alpine`, порт `5433:5432`, db `liman_master`, volume `postgres_data`) в `docker-compose.yml`.
-- [ ] Добавить переменные окружения PostgreSQL в `.env`.
-- [ ] Установить драйвер `pg` и `@types/pg`.
-- [ ] Запустить контейнер `liman_postgres` на порту `5433`.
+- [x] Добавить сервис `postgres` (`postgres:16-alpine`, порт `5433:5432`, db `liman_master`, volume `postgres_data`) в `docker-compose.yml`.
+- [x] Добавить переменные окружения PostgreSQL в `.env`.
+- [x] Установить драйвер `pg` и `@types/pg`.
+- [x] Запустить контейнер `liman_postgres` на порту `5433`.
 
 ### 2. Бэкенд и сущности
-- [ ] Создать сущность `TenantIntegration` (`tenant-integration.entity.ts`).
-- [ ] Создать сущность `ProductMapping` (`product-mapping.entity.ts`).
-- [ ] Переключить конфигурацию `TypeOrmModule` в `app.module.ts` на PostgreSQL с поддержкой `DB_TYPE=sqlite` для тестов.
-- [ ] Разработать сервис автомиграции из SQLite (`sqlite-to-postgres-migration.service.ts`):
+- [x] Создать сущность `TenantIntegration` (`tenant-integration.entity.ts`).
+- [x] Создать сущность `ProductMapping` (`product-mapping.entity.ts`).
+- [x] Переключить конфигурацию `TypeOrmModule` в `app.module.ts` на PostgreSQL с поддержкой `DB_TYPE=sqlite` для тестов.
+- [x] Разработать сервис автомиграции из SQLite (`sqlite-to-postgres-migration.service.ts`):
   - Перенос тенанта `columb` из SQLite.
   - Автоматическое создание первой записи в `tenant_integrations` (платформа `horoshop`, перенос домена `shop724088.horoshop.ua`, логина и пароля).
-- [ ] Разработать `ProductMappingService` для CRUD-операций сопоставления и авто-матчинга.
+- [x] Разработать `ProductMappingService` для CRUD-операций сопоставления и авто-матчинга.
 
 ### 3. Экспорт каталога и синхронизация
-- [ ] Обновить `HoroshopExportService` и `HoroshopApiClient`:
-  - Использование `ProductMappingService` при экспорте.
-  - Отправка полных данных для новых товаров (`article`, `title`, `parent`, `price`, `quantity`, `presence`).
-  - Сохранение маппинга после успешного добавления.
+- [x] Обновить `HoroshopSyncService`, `HoroshopImportProcessor` и `HoroshopApiClient`:
+  - Использование `ProductMappingService` при экспорте и обратном импорте.
+  - Отправка полных данных для новых товаров (`article`, `title`, `parent`, `price`, `quantity`, `presence`, `barcode`).
+  - Сохранение связей в `product_mappings`.
   - Разбор `response.log` с кодами `0` (успех) и `7` (ошибка) и передача детальной статистики.
+  - Эндпоинт `GET /api/v1/horoshop/:tenantId/mappings/stats`.
 
 ---
 
 ## 🧪 Критерии приемки
-- [ ] PostgreSQL запущен в Docker на порту `5433` и доступен для сервиса `liman-web-api`.
-- [ ] Таблицы `tenants`, `tenant_integrations`, `product_mappings` успешно инициализированы в PostgreSQL.
-- [ ] Данные тенанта `columb` и его интеграция с Хорошопом перенесены из SQLite в Postgres.
-- [ ] Все 20 наборов backend-тестов и 7 наборов frontend-тестов проходят без ошибок.
-- [ ] Эндпоинт `GET /api/v1/horoshop/:tenantId/ping` возвращает `ok: true`.
+- [x] PostgreSQL запущен в Docker на порту `5433` и доступен для сервиса `liman-web-api`.
+- [x] Таблицы `tenants`, `tenant_integrations`, `product_mappings` успешно инициализированы в PostgreSQL.
+- [x] Данные тенанта `columb` и его интеграция с Хорошопом перенесены из SQLite в Postgres.
+- [x] Все 20 наборов backend-тестов и 7 наборов frontend-тестов проходят без ошибок.
+- [x] Эндпоинт `GET /api/v1/horoshop/:tenantId/ping` возвращает `ok: true`.
+- [x] Эндпоинт `GET /api/v1/horoshop/:tenantId/mappings/stats` возвращает актуальную статистику сопоставлений из PostgreSQL.

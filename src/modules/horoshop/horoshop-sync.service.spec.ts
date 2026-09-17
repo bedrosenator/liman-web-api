@@ -29,6 +29,7 @@ describe('HoroshopSyncService', () => {
     } as any;
 
     tenantService = {
+      findOne: jest.fn().mockResolvedValue(mockTenant),
       update: jest.fn().mockResolvedValue(mockTenant),
     };
 
@@ -66,10 +67,91 @@ describe('HoroshopSyncService', () => {
       expect(horoshopClient.updateStocksAndPrices).toHaveBeenCalledWith(
         mockTenant,
         [
-          { article: '101', price: 99.9, stock: 5, presence: true },
-          { article: '102', price: 150, stock: 0, presence: false },
+          expect.objectContaining({ article: '101', price: 99.9, stock: 5, presence: true }),
+          expect.objectContaining({ article: '102', price: 150, stock: 0, presence: false }),
         ],
       );
+    });
+
+    it('should save product mappings and handle Horoshop response.log errors', async () => {
+      const mockIntegration = {
+        id: 'integ-uuid-1',
+        tenantId: 'columb',
+        platform: 'horoshop',
+        name: 'Horoshop Store',
+        isActive: true,
+      };
+
+      const productMappingService: any = {
+        getIntegrations: jest.fn().mockResolvedValue([mockIntegration]),
+        getIntegration: jest.fn().mockResolvedValue(mockIntegration),
+        resolveActiveIntegration: jest.fn().mockResolvedValue(mockIntegration),
+        findOrCreateIntegration: jest.fn().mockResolvedValue(mockIntegration),
+        saveBatchMappings: jest.fn().mockResolvedValue(2),
+        updateIntegration: jest.fn().mockResolvedValue(mockIntegration),
+        getMappingsStats: jest.fn().mockResolvedValue({ total: 2, synced: 1, error: 1 }),
+      };
+
+      const syncServiceWithMappings = new HoroshopSyncService(
+        limanService,
+        horoshopClient,
+        tenantService,
+        productMappingService,
+      );
+
+      limanService.getProducts.mockResolvedValueOnce({
+        items: [
+          { tcod: 101, price: 99.9, stock: 5, name: 'Item 1' },
+          { tcod: 102, price: 150, stock: 2, name: 'Item 2' },
+        ] as any,
+        total: 2,
+        page: 1,
+        limit: 100,
+      });
+
+      horoshopClient.updateStocksAndPrices.mockResolvedValue({
+        success: true,
+        updated: 1,
+        total: 2,
+        log: [
+          { code: 0, article: '101', message: 'OK' },
+          { code: 7, article: '102', message: 'Parent category missing' },
+        ],
+        response: {},
+      });
+
+      const result = await syncServiceWithMappings.syncPricesAndStocks(mockTenant, {
+        batchSize: 100,
+        integrationId: 'integ-uuid-1',
+      });
+
+      expect(result.processed).toBe(2);
+      expect(result.updated).toBe(1);
+      expect(result.integrationId).toBe('integ-uuid-1');
+
+      expect(productMappingService.saveBatchMappings).toHaveBeenCalledWith([
+        expect.objectContaining({
+          tenantId: 'columb',
+          integrationId: 'integ-uuid-1',
+          limanTcod: 101,
+          externalArticle: '101',
+          syncStatus: 'synced',
+          lastSyncError: null,
+        }),
+        expect.objectContaining({
+          tenantId: 'columb',
+          integrationId: 'integ-uuid-1',
+          limanTcod: 102,
+          externalArticle: '102',
+          syncStatus: 'error',
+          lastSyncError: 'Parent category missing',
+        }),
+      ]);
+
+      const stats = await syncServiceWithMappings.getMappingStats('columb', 'integ-uuid-1');
+      expect(stats.total).toBe(2);
+      expect(stats.synced).toBe(1);
+      expect(stats.error).toBe(1);
     });
   });
 

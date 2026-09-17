@@ -98,7 +98,19 @@ export class StockSyncProcessor extends WorkerHost {
             updatePayload,
           );
         } else if (targetPlatform === 'horoshop') {
-          if (this.horoshopClient) {
+          if (this.horoshopSyncService) {
+            const syncRes = await this.horoshopSyncService.syncPricesAndStocks(
+              tenant,
+              {
+                batchSize: chunkSize,
+                limit: job.data.limit,
+                integrationId: job.data.integrationId,
+              },
+            );
+            totalProcessed = syncRes.processed;
+            await job.updateProgress(100);
+            break;
+          } else if (this.horoshopClient) {
             const updatePayload: HoroshopStockPriceItem[] = items.map((p) => ({
               article: String(p.tcod),
               price: p.price,
