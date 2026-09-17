@@ -43,6 +43,9 @@ RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=api-builder /app/dist ./dist
 COPY --from=api-builder /app/public ./public
 
+# Создаем симлинк dist/main.js на dist/src/main.js для обратной совместимости
+RUN [ -f dist/main.js ] || ln -sf src/main.js dist/main.js
+
 # Создаем директории для хранения данных, медиа и бэкапов
 RUN mkdir -p /app/data/backups && chmod -R 777 /app/data
 
@@ -51,4 +54,4 @@ EXPOSE 3000
 HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
   CMD wget -qO- http://localhost:3000/api/v1/health || exit 1
 
-CMD ["node", "dist/main.js"]
+CMD ["node", "dist/src/main.js"]
