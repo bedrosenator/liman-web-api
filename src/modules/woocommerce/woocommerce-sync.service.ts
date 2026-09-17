@@ -402,7 +402,9 @@ export class WoocommerceSyncService {
 
     const lineItems = rawLineItems
       .map((item: any) => ({
-        externalArticle: String(item.sku || item.product_id || item.id || '').trim(),
+        externalArticle: String(
+          item.sku || item.variation_id || item.product_id || item.id || '',
+        ).trim(),
         name: item.name || item.title || undefined,
         quantity: Number(item.quantity ?? item.count ?? 1),
         price: Number(item.price ?? 0),

@@ -199,6 +199,25 @@ describe('WoocommerceSyncService', () => {
         },
       ]);
     });
+
+    it('should fallback to variation_id when sku is missing on variable product', () => {
+      const rawOrder = {
+        id: 992,
+        line_items: [
+          {
+            sku: '',
+            variation_id: 2045,
+            product_id: 1000,
+            name: 'Футболка Червона XL',
+            quantity: 1,
+            price: '400',
+          },
+        ],
+      };
+
+      const dto = service.mapWooOrderToUnifiedDto(rawOrder);
+      expect(dto.lineItems[0].externalArticle).toBe('2045');
+    });
   });
 
   describe('syncOrders', () => {

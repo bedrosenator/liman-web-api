@@ -748,7 +748,7 @@ export function TenantModal({ isOpen, onClose, onSaved, tenant }: TenantModalPro
                       checked={formData.woocommerceOrderWebhookEnabled ?? true}
                       onChange={(e) => handleChange('woocommerceOrderWebhookEnabled', e.target.checked)}
                     />
-                    <span>Авто-списание по вебхуку заказов WooCommerce</span>
+                    <span>{t('wooOrderWebhook')}</span>
                   </label>
 
                   <label className="checkbox-label">
@@ -757,7 +757,7 @@ export function TenantModal({ isOpen, onClose, onSaved, tenant }: TenantModalPro
                       checked={formData.woocommerceCreateOrderDocumentEnabled || false}
                       onChange={(e) => handleChange('woocommerceCreateOrderDocumentEnabled', e.target.checked)}
                     />
-                    <span>Создавать черновик накладной tip_dok:85 в Limansoft (экспериментально)</span>
+                    <span>{t('wooCreateOrderDocument')}</span>
                   </label>
                 </div>
               </div>
