@@ -32,6 +32,7 @@ import { HoroshopModule } from '../horoshop/horoshop.module';
       { name: QUEUE_NAMES.IMPORT_ORDERS },
       { name: QUEUE_NAMES.IMPORT_WOO_CATALOG },
       { name: QUEUE_NAMES.IMPORT_HOROSHOP_CATALOG },
+      { name: QUEUE_NAMES.EXPORT_HOROSHOP_CATALOG },
     ),
     TenantModule,
     LimanModule,

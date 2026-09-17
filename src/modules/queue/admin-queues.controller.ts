@@ -21,6 +21,8 @@ export class AdminQueuesController {
     private readonly wooQueue: Queue,
     @InjectQueue(QUEUE_NAMES.IMPORT_HOROSHOP_CATALOG)
     private readonly horoshopQueue: Queue,
+    @InjectQueue(QUEUE_NAMES.EXPORT_HOROSHOP_CATALOG)
+    private readonly horoshopExportQueue: Queue,
     private readonly tenantService: TenantService,
   ) {}
 
@@ -36,6 +38,8 @@ export class AdminQueuesController {
         return this.wooQueue;
       case QUEUE_NAMES.IMPORT_HOROSHOP_CATALOG:
         return this.horoshopQueue;
+      case QUEUE_NAMES.EXPORT_HOROSHOP_CATALOG:
+        return this.horoshopExportQueue;
       default:
         throw new NotFoundException(`Очередь "${name}" не найдена`);
     }
@@ -60,6 +64,7 @@ export class AdminQueuesController {
       { name: QUEUE_NAMES.IMPORT_ORDERS, queue: this.ordersQueue, label: 'Импорт заказов' },
       { name: QUEUE_NAMES.IMPORT_WOO_CATALOG, queue: this.wooQueue, label: 'Импорт из WooCommerce' },
       { name: QUEUE_NAMES.IMPORT_HOROSHOP_CATALOG, queue: this.horoshopQueue, label: 'Импорт из Хорошоп (в Limansoft)' },
+      { name: QUEUE_NAMES.EXPORT_HOROSHOP_CATALOG, queue: this.horoshopExportQueue, label: 'Экспорт в Хорошоп (из Limansoft)' },
     ];
 
     const stats = await Promise.all(

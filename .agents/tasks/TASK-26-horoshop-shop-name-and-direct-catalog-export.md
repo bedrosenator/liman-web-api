@@ -2,7 +2,7 @@
 
 - **ID:** TASK-26
 - **Эпик:** Horoshop Integration & Client Portal
-- **Статус:** Planned
+- **Статус:** Done
 - **Приоритет:** High
 - **Исполнитель:** Backend & Frontend Agent
 

@@ -19,6 +19,8 @@ export class SyncService {
     private readonly wooImportQueue: Queue<ImportWooCatalogJobData>,
     @InjectQueue(QUEUE_NAMES.IMPORT_HOROSHOP_CATALOG)
     private readonly horoshopImportQueue: Queue<any>,
+    @InjectQueue(QUEUE_NAMES.EXPORT_HOROSHOP_CATALOG)
+    private readonly horoshopExportQueue: Queue<any>,
     private readonly tenantService: TenantService,
   ) {}
 
@@ -67,6 +69,8 @@ export class SyncService {
       queue = this.wooImportQueue;
     if (queueName === QUEUE_NAMES.IMPORT_HOROSHOP_CATALOG)
       queue = this.horoshopImportQueue;
+    if (queueName === QUEUE_NAMES.EXPORT_HOROSHOP_CATALOG)
+      queue = this.horoshopExportQueue;
 
     if (!queue) {
       throw new NotFoundException(`Очередь "${queueName}" не поддерживается`);

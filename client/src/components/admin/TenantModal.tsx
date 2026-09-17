@@ -25,10 +25,13 @@ export interface TenantData {
   priceColumn: string;
   stockColumn: string;
   syncIntervalMinutes: number;
+  horoshopShopTitle?: string;
   horoshopDomain?: string;
   horoshopLogin?: string;
   horoshopPassword?: string;
   horoshopExportEnabled?: boolean;
+  horoshopOrderWebhookEnabled?: boolean;
+  horoshopProductCreationWebhookEnabled?: boolean;
   horoshopSyncIntervalMinutes?: number;
   promApiKey?: string;
   promExportEnabled?: boolean;

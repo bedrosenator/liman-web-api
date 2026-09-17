@@ -27,11 +27,45 @@ export interface HoroshopUpdateResponse {
   response: any;
 }
 
+export interface HoroshopCatalogProductItem {
+  article: string;
+  title: string;
+  price?: number;
+  quantity?: number;
+  presence?: number;
+  barcode?: string;
+  parent?: string;
+  description?: string;
+  images?: string[];
+}
+
+export interface HoroshopCatalogCategoryItem {
+  id?: string;
+  name: string;
+  parent?: string;
+}
+
+export interface HoroshopDirectExportPayload {
+  products: HoroshopCatalogProductItem[];
+  categories?: HoroshopCatalogCategoryItem[];
+}
+
+export interface HoroshopDirectExportResponse {
+  success: boolean;
+  total: number;
+  created: number;
+  updated: number;
+  log: HoroshopImportLogItem[];
+  response: any;
+}
+
 export const HOROSHOP_CONSTANTS = {
   DEFAULT_BATCH_SIZE: 100,
   API_CODE_SUCCESS: 0,
   PRESENCE_IN_STOCK: 1,
   PRESENCE_OUT_OF_STOCK: 2,
+  FETCH_TITLE_TIMEOUT_MS: 4000,
+  MOCK_NEW_PRODUCTS_RATIO: 0.4,
 } as const;
 
 @Injectable()
@@ -125,12 +159,61 @@ export class HoroshopApiClient {
   }
 
   /**
+   * Получить метаданные или название магазина Хорошоп
+   */
+  async getShopInfo(tenant: Tenant): Promise<{ shopTitle?: string; domain?: string }> {
+    const rawDomain = (tenant.horoshopDomain || '')
+      .replace(/^https?:\/\//, '')
+      .replace(/\/+$/, '');
+
+    if (this.isMockMode(tenant)) {
+      return {
+        shopTitle: tenant.horoshopShopTitle || 'Columb Shop (Хорошоп Розница)',
+        domain: rawDomain || 'columb.horoshop.ua',
+      };
+    }
+
+    if (!rawDomain) {
+      return { shopTitle: tenant.horoshopShopTitle || undefined, domain: undefined };
+    }
+
+    try {
+      const url = `https://${rawDomain}/`;
+      const res = await axios.get(url, {
+        timeout: HOROSHOP_CONSTANTS.FETCH_TITLE_TIMEOUT_MS,
+      });
+      if (typeof res.data === 'string') {
+        const titleMatch = res.data.match(/<title[^>]*>([^<]+)<\/title>/i);
+        if (titleMatch && titleMatch[1]) {
+          const cleanTitle = titleMatch[1]
+            .split(/[-|–—]/)[0]
+            .replace(/\s+/g, ' ')
+            .trim();
+          if (cleanTitle) {
+            return { shopTitle: cleanTitle, domain: rawDomain };
+          }
+        }
+      }
+    } catch (e: any) {
+      this.logger.debug(
+        `[${tenant.id}] Не удалось извлечь заголовок магазина из ${rawDomain}: ${e.message}`,
+      );
+    }
+
+    return {
+      shopTitle: tenant.horoshopShopTitle || rawDomain,
+      domain: rawDomain,
+    };
+  }
+
+  /**
    * Проверка связи с Хорошоп (получение токена)
    */
   async ping(tenant: Tenant): Promise<{
     connected: boolean;
     domain: string;
     authStatus: string;
+    shopTitle?: string;
     timestamp: string;
   }> {
     const domain = tenant.horoshopDomain || '';
@@ -144,20 +227,24 @@ export class HoroshopApiClient {
     }
 
     if (this.isMockMode(tenant)) {
+      const shopInfo = await this.getShopInfo(tenant);
       return {
         connected: true,
         domain: `${domain} (Тестовый Sandbox MOCK)`,
         authStatus: 'Тестовый режим (MOCK): авторизация эмулирована успешно',
+        shopTitle: shopInfo.shopTitle,
         timestamp: new Date().toISOString(),
       };
     }
 
     try {
       const token = await this.authService.getToken(tenant, true);
+      const shopInfo = await this.getShopInfo(tenant);
       return {
         connected: true,
         domain,
         authStatus: `Успешно авторизован (токен: ${token.substring(0, 10)}...)`,
+        shopTitle: shopInfo.shopTitle,
         timestamp: new Date().toISOString(),
       };
     } catch (error: any) {
@@ -245,6 +332,78 @@ export class HoroshopApiClient {
     return {
       success: true,
       total: items.length,
+      updated: updatedCount,
+      log,
+      response,
+    };
+  }
+
+  /**
+   * Прямой экспорт полного каталога (товары, категории, описания, фото) в Хорошоп
+   * Отправляет пакет в /api/catalog/import/
+   */
+  async importCatalog(
+    tenant: Tenant,
+    payload: HoroshopDirectExportPayload,
+  ): Promise<HoroshopDirectExportResponse> {
+    const products = payload.products || [];
+    if (this.isMockMode(tenant)) {
+      this.logger.log(
+        `🧪 [${tenant.id}] MOCK: симуляция прямого экспорта каталога (${products.length} товаров) в Horoshop API (/catalog/import/)`,
+      );
+      const mockLog: HoroshopImportLogItem[] = products.map((item) => ({
+        code: HOROSHOP_CONSTANTS.API_CODE_SUCCESS,
+        article: String(item.article),
+        message: 'MOCK: Товар успешно выгружен в каталог Хорошоп',
+      }));
+      const createdCount = Math.floor(
+        products.length * HOROSHOP_CONSTANTS.MOCK_NEW_PRODUCTS_RATIO,
+      );
+      const updatedCount = products.length - createdCount;
+      return {
+        success: true,
+        total: products.length,
+        created: createdCount,
+        updated: updatedCount,
+        log: mockLog,
+        response: {
+          status: 'OK',
+          response: {
+            created: createdCount,
+            updated: updatedCount,
+            log: mockLog,
+          },
+        },
+      };
+    }
+
+    this.logger.log(
+      `📤 [${tenant.id}] Прямой экспорт ${products.length} позиций в Horoshop API (/catalog/import/)`,
+    );
+    const response = await this.request(tenant, 'catalog/import/', payload);
+    const respData = response?.response || response || {};
+    const createdCount = typeof respData.created === 'number' ? respData.created : 0;
+    const updatedCount =
+      typeof respData.updated === 'number' ? respData.updated : products.length - createdCount;
+
+    const log: HoroshopImportLogItem[] = Array.isArray(respData.log)
+      ? respData.log.map((entry: any) => ({
+          code: Number(entry.code ?? HOROSHOP_CONSTANTS.API_CODE_SUCCESS),
+          article: String(entry.article || ''),
+          message:
+            entry.message ||
+            (entry.code === HOROSHOP_CONSTANTS.API_CODE_SUCCESS ? 'OK' : 'Error'),
+        }))
+      : products.map((item) => ({
+          code: HOROSHOP_CONSTANTS.API_CODE_SUCCESS,
+          article: String(item.article),
+          message: 'OK',
+        }));
+
+    return {
+      success: true,
+      total: products.length,
+      created: createdCount,
       updated: updatedCount,
       log,
       response,

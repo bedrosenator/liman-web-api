@@ -23,7 +23,11 @@ import {
 } from '@nestjs/swagger';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
-import { QUEUE_NAMES, ImportHoroshopCatalogJobData } from '../queue/queue.constants';
+import {
+  QUEUE_NAMES,
+  ImportHoroshopCatalogJobData,
+  ExportHoroshopCatalogJobData,
+} from '../queue/queue.constants';
 import { SyncService } from '../queue/sync.service';
 import { HoroshopApiClient } from './horoshop-api.client';
 import { HoroshopSyncService } from './horoshop-sync.service';
@@ -45,6 +49,9 @@ export class HoroshopSyncController {
     @InjectQueue(QUEUE_NAMES.IMPORT_HOROSHOP_CATALOG)
     private readonly importCatalogQueue?: Queue<ImportHoroshopCatalogJobData>,
     @Optional()
+    @InjectQueue(QUEUE_NAMES.EXPORT_HOROSHOP_CATALOG)
+    private readonly exportCatalogQueue?: Queue<ExportHoroshopCatalogJobData>,
+    @Optional()
     @Inject(forwardRef(() => SyncService))
     private readonly queueSyncService?: SyncService,
   ) {}
@@ -63,6 +70,23 @@ export class HoroshopSyncController {
   async ping(@Param('tenantId') tenantId: string) {
     const tenant = await this.tenantService.findOne(tenantId);
     const result = await this.horoshopClient.ping(tenant);
+
+    // Автоматическое сохранение официального названия магазина Хорошоп (TASK-26)
+    if (
+      result.shopTitle &&
+      (!tenant.horoshopShopTitle || tenant.horoshopShopTitle !== result.shopTitle)
+    ) {
+      try {
+        await this.tenantService.update(tenantId, {
+          horoshopShopTitle: result.shopTitle,
+        });
+      } catch (err: any) {
+        this.logger.warn(
+          `Не удалось обновить horoshopShopTitle для ${tenantId}: ${err.message}`,
+        );
+      }
+    }
+
     return { tenantId, ...result };
   }
 
@@ -466,6 +490,88 @@ export class HoroshopSyncController {
       queue: QUEUE_NAMES.IMPORT_HOROSHOP_CATALOG,
       tenantId,
       mode: body.mode || 'only_new',
+    };
+  }
+
+  /**
+   * Запуск прямого экспорта каталога Limansoft → Хорошоп через фоновую очередь BullMQ (TASK-26)
+   */
+  @Post('export/catalog')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({
+    summary: 'Запустить прямой экспорт каталога Limansoft в Хорошоп',
+    description:
+      'Помещает задачу в фоновую очередь BullMQ (export-horoshop-catalog). ' +
+      'Поддерживает режимы "full_overwrite", "only_new" и "update_existing", а также выбор состава полей.',
+  })
+  @ApiParam({ name: 'tenantId', example: 'columb' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        mode: {
+          type: 'string',
+          enum: ['full_overwrite', 'only_new', 'update_existing'],
+          default: 'full_overwrite',
+          description: 'Режим экспорта: вся база, только новинки или обновление существующих',
+        },
+        exportPrices: { type: 'boolean', default: true },
+        exportStock: { type: 'boolean', default: true },
+        exportDescriptions: { type: 'boolean', default: true },
+        exportImages: { type: 'boolean', default: true },
+        exportCategories: { type: 'boolean', default: true },
+        limit: { type: 'number', example: 50 },
+        integrationId: { type: 'string' },
+      },
+    },
+  })
+  @ApiResponse({ status: 202, description: 'Задача экспорта поставлена в очередь BullMQ' })
+  async triggerCatalogExport(
+    @Param('tenantId') tenantId: string,
+    @Body() body: any = {},
+  ) {
+    const tenant = await this.tenantService.findOne(tenantId);
+    if (!tenant.horoshopDomain) {
+      throw new HttpException(
+        'У тенанта не настроен домен магазина Хорошоп (horoshopDomain)',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    if (!this.exportCatalogQueue) {
+      throw new HttpException(
+        'Очередь экспорта каталога в Хорошоп недоступна',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    const job = await this.exportCatalogQueue.add(
+      'export-horoshop-catalog-job',
+      {
+        tenantId,
+        integrationId: body.integrationId,
+        mode: body.mode || 'full_overwrite',
+        exportPrices: body.exportPrices !== false,
+        exportStock: body.exportStock !== false,
+        exportDescriptions: body.exportDescriptions !== false,
+        exportImages: body.exportImages !== false,
+        exportCategories: body.exportCategories !== false,
+        limit: body.limit ? parseInt(body.limit, 10) : undefined,
+      },
+      {
+        attempts: 2,
+        removeOnComplete: 100,
+        removeOnFail: 50,
+      },
+    );
+
+    return {
+      success: true,
+      message: 'Задача экспорта каталога в Хорошоп успешно поставлена в фоновую очередь BullMQ',
+      jobId: job.id,
+      queue: QUEUE_NAMES.EXPORT_HOROSHOP_CATALOG,
+      tenantId,
+      mode: body.mode || 'full_overwrite',
     };
   }
 }

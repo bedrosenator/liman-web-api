@@ -7,6 +7,7 @@ import { HoroshopSyncService } from './horoshop-sync.service';
 import { HoroshopSyncController } from './horoshop-sync.controller';
 import { HoroshopSchedulerService } from './horoshop-scheduler.service';
 import { HoroshopImportProcessor } from './horoshop-import.processor';
+import { HoroshopExportProcessor } from './horoshop-export.processor';
 import { TenantModule } from '../tenant/tenant.module';
 import { LimanModule } from '../liman/liman.module';
 import { BackupModule } from '../backup/backup.module';
@@ -27,6 +28,7 @@ import { AppQueueModule } from '../queue/queue.module';
     HoroshopSyncService,
     HoroshopSchedulerService,
     HoroshopImportProcessor,
+    HoroshopExportProcessor,
   ],
   exports: [
     HoroshopAuthService,
@@ -35,6 +37,7 @@ import { AppQueueModule } from '../queue/queue.module';
     HoroshopSyncService,
     HoroshopSchedulerService,
     HoroshopImportProcessor,
+    HoroshopExportProcessor,
   ],
 })
 export class HoroshopModule {}

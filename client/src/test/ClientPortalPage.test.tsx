@@ -176,4 +176,35 @@ describe('ClientPortalPage (TASK-20)', () => {
       );
     });
   });
+
+  it('отображает официальное название магазина Хорошоп (TASK-26)', async () => {
+    vi.mocked(tenantsApi.get).mockResolvedValueOnce({
+      data: {
+        ...mockTenant,
+        horoshopShopTitle: 'Columb Store Official 2026',
+      },
+    } as any);
+
+    renderPortal();
+
+    await waitFor(() => {
+      expect(screen.getByText('Columb Store Official 2026')).toBeInTheDocument();
+    });
+  });
+
+  it('открывает модальное окно прямого экспорта каталога по кнопке в Action Hub (TASK-26)', async () => {
+    renderPortal();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Экспортировать каталог в Хорошоп/i)).toBeInTheDocument();
+    });
+
+    const exportBtn = screen.getByRole('button', { name: /Экспортировать каталог в Хорошоп/i });
+    fireEvent.click(exportBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Прямой экспорт каталога в Хорошоп')).toBeInTheDocument();
+      expect(screen.getByText('Все товары')).toBeInTheDocument();
+    });
+  });
 });

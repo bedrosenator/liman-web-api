@@ -6,6 +6,7 @@ import { tenantsApi, horoshopApi, syncApi } from '@/api/client';
 import { HoroshopWizard } from '@/components/portal/HoroshopWizard';
 import { ActivityFeed, type ActivityItem } from '@/components/portal/ActivityFeed';
 import { HoroshopImportModal } from '@/components/portal/HoroshopImportModal';
+import { HoroshopExportModal } from '@/components/portal/HoroshopExportModal';
 import {
   Store,
   Database,
@@ -47,6 +48,8 @@ export function ClientPortalPage() {
     connected?: boolean;
     domain?: string;
     authStatus?: string;
+    success?: boolean;
+    message?: string;
   }>({ loading: true });
 
   // Sync Action State
@@ -56,12 +59,16 @@ export function ClientPortalPage() {
   const [syncReport, setSyncReport] = useState<{
     success: boolean;
     message: string;
+    updated?: number;
+    processed?: number;
   } | null>(null);
 
-  // Import Modal State (TASK-22)
+  // Import / Export Modals State (TASK-22, TASK-26)
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   // Form State
+  const [shopTitle, setShopTitle] = useState('');
   const [domain, setDomain] = useState('');
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
@@ -91,6 +98,7 @@ export function ClientPortalPage() {
       const res = await tenantsApi.get(tenantId);
       const data = res.data;
       setTenant(data);
+      setShopTitle(data.horoshopShopTitle || '');
       setDomain(data.horoshopDomain || '');
       setLogin(data.horoshopLogin || '');
       setAutoSyncEnabled(Boolean(data.horoshopExportEnabled));
@@ -128,6 +136,9 @@ export function ClientPortalPage() {
     try {
       const res = await horoshopApi.ping(tenantId);
       const isConnected = Boolean(res.data.connected ?? res.data.success);
+      if (res.data.shopTitle) {
+        setShopTitle((prev) => prev || res.data.shopTitle);
+      }
       setHoroshopStatus({
         loading: false,
         success: isConnected,
@@ -261,6 +272,7 @@ export function ClientPortalPage() {
     setSaveSuccess(false);
 
     const payload: Record<string, any> = {
+      horoshopShopTitle: shopTitle.trim() || undefined,
       horoshopDomain: domain.trim(),
       horoshopLogin: login.trim(),
       horoshopExportEnabled: autoSyncEnabled,
@@ -300,7 +312,8 @@ export function ClientPortalPage() {
           <div>
             <h1 className="page-title">
               <Store size={24} className="text-indigo" />
-              {tenant?.horoshopShopTitle ||
+              {shopTitle ||
+                tenant?.horoshopShopTitle ||
                 (tenant?.name && tenant.name.replace(/\s*\(Локальная MariaDB\)/i, '')) ||
                 (tenant?.horoshopDomain && tenant.horoshopDomain.replace(/^https?:\/\//, '')) ||
                 `Магазин ${tenantId}`}
@@ -533,22 +546,12 @@ export function ClientPortalPage() {
               <div>
                 <button
                   type="button"
-                  className="btn btn--primary w-full justify-center mb-3 text-sm"
+                  className="btn btn--primary w-full justify-center mb-3 text-sm gap-1.5"
                   id="btn-direct-export"
-                  onClick={handleSyncPricesStocks}
-                  disabled={isSyncing}
+                  onClick={() => setIsExportModalOpen(true)}
                 >
-                  {isSyncing ? (
-                    <>
-                      <Loader2 size={16} className="spinner" />
-                      <span>{t('syncInProgress')}... ({syncProgress ?? 0}%)</span>
-                    </>
-                  ) : (
-                    <>
-                      <Upload size={16} />
-                      <span>{t('exportCatalogBtn')}</span>
-                    </>
-                  )}
+                  <Upload size={16} />
+                  <span>{language === 'uk' ? '🚀 Експортувати каталог в Хорошоп' : '🚀 Экспортировать каталог в Хорошоп'}</span>
                 </button>
 
                 {/* Индикация выполнения экспорта в Карточке 3 */}
@@ -633,6 +636,20 @@ export function ClientPortalPage() {
             </div>
 
             <form onSubmit={handleSaveSettings} className="card__body space-y-4">
+              <div className="form-group">
+                <label className="form-label" htmlFor="horoshop-shop-title">
+                  {language === 'uk' ? 'Назва магазину в Хорошоп' : 'Название магазина в Хорошоп'}
+                </label>
+                <input
+                  id="horoshop-shop-title"
+                  type="text"
+                  className="input"
+                  value={shopTitle}
+                  onChange={(e) => setShopTitle(e.target.value)}
+                  placeholder={language === 'uk' ? 'Наприклад, Columb Store' : 'Например, Columb Store'}
+                />
+              </div>
+
               <div className="form-group">
                 <label className="form-label">{t('horoshopDomain')} *</label>
                 <input
@@ -828,6 +845,16 @@ export function ClientPortalPage() {
           onImportFinished={() => {
             loadActivity();
             checkMariaDb();
+          }}
+        />
+
+        {/* Modal прямого экспорта каталога в Хорошоп (TASK-26) */}
+        <HoroshopExportModal
+          isOpen={isExportModalOpen}
+          onClose={() => setIsExportModalOpen(false)}
+          tenantId={tenantId}
+          onExportFinished={() => {
+            loadActivity();
           }}
         />
       </div>

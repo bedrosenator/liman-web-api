@@ -113,5 +113,17 @@ export const horoshopApi = {
       limit?: number;
     },
   ) => apiClient.post(`/horoshop/${tenantId}/import/catalog`, payload),
+  exportCatalog: (
+    tenantId: string,
+    payload: {
+      mode?: 'full_overwrite' | 'only_new' | 'update_existing';
+      exportPrices?: boolean;
+      exportStock?: boolean;
+      exportDescriptions?: boolean;
+      exportImages?: boolean;
+      exportCategories?: boolean;
+      limit?: number;
+    },
+  ) => apiClient.post(`/horoshop/${tenantId}/export/catalog`, payload),
 };
 

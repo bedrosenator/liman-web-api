@@ -236,4 +236,15 @@ export class ProductMappingService {
     });
     return { total, synced, error };
   }
+
+  /**
+   * Get all mapped Limansoft tcods as a Set for fast in-memory lookup
+   */
+  async getAllMappedTcods(integrationId: string): Promise<Set<number>> {
+    const records = await this.mappingRepo.find({
+      select: { limanTcod: true },
+      where: { integrationId },
+    });
+    return new Set(records.map((r) => r.limanTcod));
+  }
 }
