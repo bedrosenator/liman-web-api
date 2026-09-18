@@ -6,10 +6,12 @@ import {
   Body,
   Query,
   Req,
+  Res,
   Logger,
   HttpCode,
   HttpStatus,
   Optional,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -21,7 +23,9 @@ import {
 } from '@nestjs/swagger';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
+import * as path from 'path';
+import * as fs from 'fs';
 import { WoocommerceSyncService } from './woocommerce-sync.service';
 import { WoocommerceApiClient } from './woocommerce-api.client';
 import { WoocommerceImportService } from './woocommerce-import.service';
@@ -61,6 +65,21 @@ export class WoocommerceController {
     return this.wooClient.testConnection(tenant);
   }
 
+  @Get('plugin/download')
+  @Public()
+  @ApiOperation({
+    summary: 'Скачать скомпилированный WordPress-плагин Limansoft Sync (.zip)',
+    description: 'Отдает архив limansoft-sync-woocommerce.zip для быстрой установки в WordPress.',
+  })
+  @ApiParam({ name: 'tenantId', example: 'columb' })
+  async downloadPlugin(@Param('tenantId') tenantId: string, @Res() res: Response) {
+    const pluginPath = path.resolve(process.cwd(), 'packages/dist/limansoft-sync-woocommerce.zip');
+    if (!fs.existsSync(pluginPath)) {
+      throw new NotFoundException('Файл плагина limansoft-sync-woocommerce.zip не найден на сервере');
+    }
+    return res.download(pluginPath, 'limansoft-sync-woocommerce.zip');
+  }
+
   @Get('sync/status')
   @ApiOperation({
     summary: 'Получить текущий статус и прогресс синхронизации каталога',
@@ -70,7 +89,7 @@ export class WoocommerceController {
     return this.syncService.getSyncStatus(tenantId);
   }
 
-  @Post('sync')
+  @Post(['sync', 'sync-catalog', 'sync/products'])
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({
     summary: 'Запустить синхронизацию каталога Limansoft → WooCommerce',
@@ -152,7 +171,7 @@ export class WoocommerceController {
     };
   }
 
-  @Post('sync/stock')
+  @Post(['sync/stock', 'sync-stock'])
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({
     summary: 'Синхронизировать только цены и остатки в WooCommerce',
@@ -325,7 +344,7 @@ export class WoocommerceController {
     };
   }
 
-  @Post('import/products')
+  @Post(['import/products', 'import/catalog', 'import-catalog'])
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({
     summary:

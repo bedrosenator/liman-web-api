@@ -21,6 +21,7 @@ import { RozetkaApiClient } from './rozetka-api.client';
 import { RozetkaSyncService } from './rozetka-sync.service';
 import { LimanService } from '../liman/liman.service';
 import { TenantService } from '../tenant/tenant.service';
+import { Public } from '../../common/decorators/public.decorator';
 
 @ApiTags('Rozetka')
 @Controller('rozetka/:tenantId')
@@ -55,7 +56,7 @@ export class RozetkaSyncController {
   /**
    * Ручной запуск синхронизации цен и остатков → Rozetka Seller API (PUT /items/mass-update)
    */
-  @Post('sync/prices-stocks')
+  @Post(['sync/prices-stocks', 'sync-stock'])
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({
     summary: 'Синхронизировать цены и остатки в Rozetka Seller API',
@@ -111,6 +112,7 @@ export class RozetkaSyncController {
    * Webhook приёма заказов от Rozetka (или эмуляции заказов)
    */
   @Post('webhook/order')
+  @Public()
   @ApiOperation({
     summary:
       'Webhook новых заказов от Rozetka (автоматическое списание остатка)',

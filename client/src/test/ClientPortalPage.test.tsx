@@ -210,4 +210,25 @@ describe('ClientPortalPage (TASK-20)', () => {
       expect(screen.getByText('Все товары')).toBeInTheDocument();
     });
   });
+
+  it('отображает тумблер режима фиксации заказов и переключает индикатор режима', async () => {
+    renderPortal();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Создавать черновик накладной \(tip_dok: 85\)/i)).toBeInTheDocument();
+      expect(screen.getByText(/Режим 1: Прямое списание остатков skl_k/i)).toBeInTheDocument();
+    });
+
+    const card = document.getElementById('horoshop-order-doc-mode-card');
+    expect(card).toBeInTheDocument();
+
+    const toggle = card?.querySelector('input[type="checkbox"]') as HTMLInputElement;
+    expect(toggle).toBeInTheDocument();
+    expect(toggle.checked).toBe(false);
+
+    fireEvent.click(toggle);
+    expect(toggle.checked).toBe(true);
+
+    expect(screen.getByText(/Режим 2: Создание черновика накладной tip_dok: 85/i)).toBeInTheDocument();
+  });
 });

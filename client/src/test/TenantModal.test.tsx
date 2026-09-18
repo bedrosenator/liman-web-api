@@ -114,4 +114,24 @@ describe('TenantModal Password Visibility & Unmasking', () => {
       expect(horoshopInput.value).toBe('horoshop_secret');
     });
   });
+
+  it('отображает тумблер режима создания накладной Лимана с бейджем Экспериментально', () => {
+    renderModal();
+
+    const horoshopTab = screen.getByText('Хорошоп');
+    fireEvent.click(horoshopTab);
+
+    const docCheckbox = screen.getByRole('checkbox', {
+      name: /Создавать черновик накладной/i,
+    }) as HTMLInputElement;
+    expect(docCheckbox).toBeInTheDocument();
+    expect(docCheckbox.checked).toBe(false);
+
+    // Кликаем по чекбоксу
+    fireEvent.click(docCheckbox);
+    expect(docCheckbox.checked).toBe(true);
+
+    // Проверяем наличие бейджа "Экспериментально"
+    expect(screen.getByText('Экспериментально')).toBeInTheDocument();
+  });
 });

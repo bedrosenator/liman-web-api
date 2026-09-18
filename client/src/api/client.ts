@@ -148,3 +148,26 @@ export const horoshopApi = {
     }>(`/horoshop/${tenantId}/export/categories`),
 };
 
+export const promApi = {
+  ping: (tenantId: string) => apiClient.get(`/prom/${tenantId}/ping`),
+  syncStock: (tenantId: string) => apiClient.post(`/sync/${tenantId}/stock`),
+};
+
+export const rozetkaApi = {
+  ping: (tenantId: string) => apiClient.get(`/rozetka/${tenantId}/ping`),
+  syncPricesStocks: (tenantId: string) =>
+    apiClient.post(`/rozetka/${tenantId}/sync/prices-stocks`),
+};
+
+export const woocommerceApi = {
+  ping: (tenantId: string) => apiClient.get(`/woocommerce/${tenantId}/ping`),
+  syncStock: (tenantId: string) =>
+    apiClient.post(`/woocommerce/${tenantId}/sync/stock`),
+  syncProducts: (tenantId: string) =>
+    apiClient.post(`/woocommerce/${tenantId}/sync/products?limit=50`),
+  importCatalog: (tenantId: string) =>
+    apiClient.post(`/woocommerce/${tenantId}/import/catalog`),
+  getPluginDownloadUrl: (tenantId: string) =>
+    `/api/v1/woocommerce/${tenantId}/plugin/download`,
+};
+

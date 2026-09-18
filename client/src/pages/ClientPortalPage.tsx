@@ -7,6 +7,9 @@ import { HoroshopWizard } from '@/components/portal/HoroshopWizard';
 import { ActivityFeed, type ActivityItem } from '@/components/portal/ActivityFeed';
 import { HoroshopImportModal } from '@/components/portal/HoroshopImportModal';
 import { HoroshopExportModal } from '@/components/portal/HoroshopExportModal';
+import { PromTab } from '@/components/portal/PromTab';
+import { RozetkaTab } from '@/components/portal/RozetkaTab';
+import { WooCommerceTab } from '@/components/portal/WooCommerceTab';
 import {
   Store,
   Database,
@@ -26,6 +29,7 @@ import {
   RefreshCw,
   Download,
   Upload,
+  Radio,
 } from 'lucide-react';
 
 export function ClientPortalPage() {
@@ -79,10 +83,14 @@ export function ClientPortalPage() {
   const [syncInterval, setSyncInterval] = useState(15);
   const [orderWebhookEnabled, setOrderWebhookEnabled] = useState(true);
   const [productWebhookEnabled, setProductWebhookEnabled] = useState(false);
+  const [createOrderDocumentEnabled, setCreateOrderDocumentEnabled] = useState(false);
   const [isOrderWebhookCopied, setIsOrderWebhookCopied] = useState(false);
   const [isProductWebhookCopied, setIsProductWebhookCopied] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [selectedPlatform, setSelectedPlatform] = useState<
+    'horoshop' | 'prom' | 'rozetka' | 'woocommerce'
+  >('horoshop');
 
   // Feed Copy State
   const [isFeedCopied, setIsFeedCopied] = useState(false);
@@ -106,6 +114,7 @@ export function ClientPortalPage() {
       setAutoSyncEnabled(Boolean(data.horoshopExportEnabled));
       setOrderWebhookEnabled(data.horoshopOrderWebhookEnabled ?? true);
       setProductWebhookEnabled(data.horoshopProductCreationWebhookEnabled ?? false);
+      setCreateOrderDocumentEnabled(Boolean(data.horoshopCreateOrderDocumentEnabled));
       setSyncInterval(data.horoshopSyncIntervalMinutes || 15);
     } catch (err) {
       console.error('Failed to load tenant:', err);
@@ -284,6 +293,7 @@ export function ClientPortalPage() {
       horoshopExportEnabled: autoSyncEnabled,
       horoshopOrderWebhookEnabled: orderWebhookEnabled,
       horoshopProductCreationWebhookEnabled: productWebhookEnabled,
+      horoshopCreateOrderDocumentEnabled: createOrderDocumentEnabled,
       horoshopSyncIntervalMinutes: syncInterval,
       publicBaseUrl: publicBaseUrl.trim() || undefined,
     };
@@ -326,7 +336,14 @@ export function ClientPortalPage() {
                 `Магазин ${tenantId}`}
             </h1>
             <p className="page-subtitle">
-              {t('clientPortal')} — {t('horoshop')}
+              {t('clientPortal')} —{' '}
+              {selectedPlatform === 'horoshop'
+                ? t('horoshop')
+                : selectedPlatform === 'prom'
+                ? 'Prom.ua'
+                : selectedPlatform === 'rozetka'
+                ? 'Rozetka'
+                : 'WooCommerce'}
             </p>
           </div>
           <button
@@ -344,7 +361,90 @@ export function ClientPortalPage() {
           </button>
         </div>
 
-        {/* 1. Диагностический блок «Светофор» (3-Point Health Bar) */}
+        {/* Витрина интеграций (Showcase & Tabs) */}
+        <div className="flex flex-wrap items-center gap-2 mb-6 border-b border-subtle pb-3" id="platform-tabs">
+          <button
+            type="button"
+            className={`btn btn--sm gap-2 ${
+              selectedPlatform === 'horoshop'
+                ? 'btn--primary'
+                : 'btn--secondary'
+            }`}
+            onClick={() => setSelectedPlatform('horoshop')}
+            id="tab-horoshop"
+          >
+            <Store size={15} />
+            <span>{t('horoshop')}</span>
+            <span className="badge badge--success text-[10px]">{t('connected')}</span>
+          </button>
+
+          <button
+            type="button"
+            className={`btn btn--sm gap-2 ${
+              selectedPlatform === 'prom'
+                ? 'btn--primary'
+                : 'btn--secondary'
+            }`}
+            onClick={() => setSelectedPlatform('prom')}
+            id="tab-prom"
+          >
+            <Radio size={15} />
+            <span>Prom.ua</span>
+            <span
+              className={`badge text-[10px] ${
+                tenant?.promApiKey ? 'badge--success' : 'badge--muted'
+              }`}
+            >
+              {tenant?.promApiKey ? t('connected') : t('availableForConnection')}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            className={`btn btn--sm gap-2 ${
+              selectedPlatform === 'rozetka'
+                ? 'btn--primary'
+                : 'btn--secondary'
+            }`}
+            onClick={() => setSelectedPlatform('rozetka')}
+            id="tab-rozetka"
+          >
+            <Radio size={15} />
+            <span>Rozetka</span>
+            <span
+              className={`badge text-[10px] ${
+                tenant?.rozetkaClientId ? 'badge--success' : 'badge--muted'
+              }`}
+            >
+              {tenant?.rozetkaClientId ? t('connected') : t('availableForConnection')}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            className={`btn btn--sm gap-2 ${
+              selectedPlatform === 'woocommerce'
+                ? 'btn--primary'
+                : 'btn--secondary'
+            }`}
+            onClick={() => setSelectedPlatform('woocommerce')}
+            id="tab-woocommerce"
+          >
+            <Radio size={15} />
+            <span>WooCommerce</span>
+            <span
+              className={`badge text-[10px] ${
+                tenant?.woocommerceUrl ? 'badge--success' : 'badge--muted'
+              }`}
+            >
+              {tenant?.woocommerceUrl ? t('connected') : t('availableForConnection')}
+            </span>
+          </button>
+        </div>
+
+        {selectedPlatform === 'horoshop' && (
+          <>
+            {/* 1. Диагностический блок «Светофор» (3-Point Health Bar) */}
         <div className="health-grid mb-6" id="health-grid">
           {/* Индикатор 1: MariaDB */}
           <div className="health-card" id="health-mariadb">
@@ -837,6 +937,38 @@ export function ClientPortalPage() {
                 </div>
               )}
 
+              {/* Режим фиксации заказов: прямое списание vs черновик накладной tip_dok 85 */}
+              <div className="p-3 bg-elevated rounded-lg border border-subtle space-y-2" id="horoshop-order-doc-mode-card">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-primary">{t('horoshopCreateOrderDocument')}</span>
+                      <span className="badge badge--warning text-[10px]">{t('experimental')}</span>
+                    </div>
+                    <div className="text-[11px] text-muted">{t('horoshopCreateOrderDocumentDesc')}</div>
+                  </div>
+                  <label className="switch">
+                    <input
+                      type="checkbox"
+                      checked={createOrderDocumentEnabled}
+                      onChange={(e) => setCreateOrderDocumentEnabled(e.target.checked)}
+                    />
+                    <span className="slider round" />
+                  </label>
+                </div>
+                <div className="text-[11px] text-muted bg-surface/40 p-2 rounded border border-subtle/50">
+                  {createOrderDocumentEnabled ? (
+                    <span className="text-amber-400 font-mono">
+                      ⚡ {t('orderDocModeDoc')}
+                    </span>
+                  ) : (
+                    <span className="text-emerald font-mono">
+                      🛡️ {t('orderDocModeDirect')}
+                    </span>
+                  )}
+                </div>
+              </div>
+
               {saveSuccess && (
                 <div className="alert alert--success">
                   <CheckCircle2 size={16} />
@@ -868,6 +1000,65 @@ export function ClientPortalPage() {
             onRefresh={loadActivity}
           />
         </div>
+          </>
+        )}
+
+        {selectedPlatform === 'prom' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <div className="lg:col-span-2">
+              <PromTab
+                tenantId={tenantId}
+                tenant={tenant}
+                onTenantUpdated={loadTenant}
+              />
+            </div>
+            <div>
+              <ActivityFeed
+                activities={activities}
+                isLoading={isLoadingActivities}
+                onRefresh={loadActivity}
+              />
+            </div>
+          </div>
+        )}
+
+        {selectedPlatform === 'rozetka' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <div className="lg:col-span-2">
+              <RozetkaTab
+                tenantId={tenantId}
+                tenant={tenant}
+                onTenantUpdated={loadTenant}
+              />
+            </div>
+            <div>
+              <ActivityFeed
+                activities={activities}
+                isLoading={isLoadingActivities}
+                onRefresh={loadActivity}
+              />
+            </div>
+          </div>
+        )}
+
+        {selectedPlatform === 'woocommerce' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <div className="lg:col-span-2">
+              <WooCommerceTab
+                tenantId={tenantId}
+                tenant={tenant}
+                onTenantUpdated={loadTenant}
+              />
+            </div>
+            <div>
+              <ActivityFeed
+                activities={activities}
+                isLoading={isLoadingActivities}
+                onRefresh={loadActivity}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Modal импорта каталога Хорошоп (TASK-22) */}
         <HoroshopImportModal

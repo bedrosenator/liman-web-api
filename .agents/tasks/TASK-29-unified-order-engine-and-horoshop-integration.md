@@ -2,7 +2,7 @@
 
 - **ID:** TASK-29
 - **Эпик:** Order Processing & Multi-Platform Order Synchronization
-- **Статус:** Ready for Dev
+- **Статус:** ✅ Completed
 - **Приоритет:** Highest
 - **Исполнитель:** Lead Architect & Backend Core Agent
 
@@ -20,6 +20,7 @@
      Атомарный декремент остатков в `name2ost.skl_k` без создания документов. 100% безопасен, не затрагивает кассовые и бухгалтерские таблицы десктопного Лимана.
    - **Режим 2 (Экспериментальный / Тумблер `horoshopCreateOrderDocumentEnabled`):**  
      Создание непроведенного черновика заказа покупателя (`tip_dok: 85`, `prov: 'f'`) в таблице `nshap` и строк `nakltelo`.
+   - **UI Контролы (Client Portal & SuperAdmin):** Тумблер с бейджем «Экспериментально» и динамической индикацией активного режима (`orderDocModeDirect` / `orderDocModeDoc`) с поддержкой RU/UK.
 
 3. **Гарантии целостности данных и защиты от сбоев в десктопном Лимане**:
    - **Блокировка счетчика номеров (`ndok`):** `SELECT n_dok FROM ndok WHERE flt5 = 85 FOR UPDATE` в единой транзакции для предотвращения коллизий номеров документов с операторами магазина.
@@ -61,15 +62,23 @@ src/modules/liman/
 src/modules/horoshop/
 ├── horoshop-sync.service.ts               # Маппинг Horoshop Order -> UnifiedIncomingOrderDto
 └── horoshop-sync.controller.ts            # Контроллер вебхука заказа
+
+client/src/
+├── components/admin/TenantModal.tsx       # Тумблер режима заказов в SuperAdmin
+├── pages/ClientPortalPage.tsx             # Тумблер и визуальный бейдж режима заказов в Client Portal
+└── test/
+    ├── TenantModal.test.tsx               # Тест переключения тумблера в SuperAdmin
+    └── ClientPortalPage.test.tsx          # Тест переключения и индикатора в Client Portal
 ```
 
 ---
 
 ## ✅ Критерии приемки (Definition of Done)
 
-- [ ] Создан `UnifiedIncomingOrderDto` и класс `LimanOrderService`;
-- [ ] Метод `resolveProductTcod` успешно сопоставляет строковый артикул `ELE-23-0557` с кодом `7742`;
-- [ ] При выключенном тумблере выполняется только `deductStock` в `name2ost`;
-- [ ] При включенном тумблере корректно создается запись в `nshap`, `nakltelo`, `checkdok`, инкрементируется `ndok` и пишется лог в `dmonitor`;
-- [ ] Фоновый опрос `syncOrders` корректно подтягивает тестовый заказ №1 из магазина `shop724088.horoshop.ua`;
-- [ ] Все unit-тесты `npm run test` проходят успешно (100% pass).
+- [x] Создан `UnifiedIncomingOrderDto` и класс `LimanOrderService`;
+- [x] Метод `resolveProductTcod` успешно сопоставляет строковый артикул `ELE-23-0557` с кодом `7742`;
+- [x] При выключенном тумблере выполняется только `deductStock` в `name2ost`;
+- [x] При включенном тумблере корректно создается запись в `nshap`, `nakltelo`, `checkdok`, инкрементируется `ndok` и пишется лог в `dmonitor`;
+- [x] Фоновый опрос `syncOrders` корректно подтягивает тестовый заказ №1 из магазина `shop724088.horoshop.ua`;
+- [x] Добавлен тумблер `horoshopCreateOrderDocumentEnabled` в UI (SuperAdmin и Client Portal) с локализацией RU/UK и индикацией режима;
+- [x] Все unit-тесты `npm run test` (157 тестов) и Vitest `npm --prefix client test` (46 тестов) проходят успешно (100% pass).

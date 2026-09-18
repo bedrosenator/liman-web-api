@@ -138,9 +138,9 @@
 ## 📈 3. Результаты тестов и метрики
 
 ### Общая сводка автотестов:
-- **Backend (Jest):** 17 тестовых сьютов, **99 тестов passing** (100% успех).
-- **Frontend (Vitest):** 2 тестовых сьюта, **22 теста passing** (100% успех).
-- **Всего автоматических тестов:** **121 тест passing**.
+- **Backend (Jest):** 24 тестовых сьюта, **157 тестов passing** (100% успех).
+- **Frontend (Vitest):** 9 тестовых сьютов, **50 тестов passing** (100% успех).
+- **Всего автоматических тестов:** **207 тестов passing**.
 
 | Эндпоинт / Функция | Результат тестирования | Время ответа |
 |---|---|---|
@@ -154,6 +154,7 @@
 | `POST /api/v1/sync/columb/stock` | BullMQ постановка в очередь, retry policy | 4 ms |
 | `POST /api/v1/liman/columb/backups` (`fast`) | Потоковый gzip-дамп 4 таблиц + SHA256 + Redis lock | ~120 ms |
 | `POST /api/v1/liman/columb/backups/:file/restore` | Сверка SHA256 + атомарное исполнение дампа | ~180 ms |
+| `GET /api/v1/woocommerce/plugin/download` | Стриминг zip-архива плагина WP (73 KB) | ~5 ms |
 | `GET / (Nginx)` | Раздача index.html из статического тома SPA | < 1 ms |
 
 ---
@@ -168,9 +169,14 @@
 3. **Резервное копирование и откат БД (TASK-23):**
    - ✅ Выполнено: BackupModule с режимами Fast/Full, потоковым Gzip, Redis Lock и SHA256 валидацией.
 4. **Мастер-панель управления тенантами (TASK-19):**
-   - Реализация интерфейса SuperAdmin (CRUD тенантов, тест подключения MariaDB, ротация ключей).
+   - ✅ Выполнено: Интерфейс SuperAdmin (All-Tenants Master Grid, CRUD тенантов, тест подключения MariaDB, ротация ключей, аудит паролей, монитор очередей).
 5. **Клиентский портал и модули интеграций (TASK-20, TASK-21):**
-   - Интерфейс управления Хорошоп, Prom.ua, Rozetka, WooCommerce для клиентов.
+   - ✅ Выполнено: Личный кабинет клиента с витриной всех каналов продаж (Хорошоп, Prom.ua, Rozetka, WooCommerce).
+   - Бейджи статусов («Подключено» / «Доступно для подключения» для Upsell).
+   - Вкладки Prom.ua (ping, sync, YML фид, вебхук, форма токена с `👁`).
+   - Вкладка Rozetka (ping Seller API, sync, XML фид, вебхук, Client ID/Secret).
+   - Вкладка WooCommerce (ping REST API, 1-click download плагина `.zip`, Push/Pull, sync, ключи ck/cs).
+   - Двуязычная локализация RU/UK и автотесты.
 6. **Двусторонний импорт каталога Хорошоп ➔ Limansoft (TASK-22):**
    - Режимы `skip_existing` и `overwrite`, предупреждение о бекапе, очередь BullMQ.
 7. **Прямой экспорт каталога в Хорошоп и динамическое название магазина (TASK-26):**
@@ -186,8 +192,8 @@
 9. **Связывание артикулов Limansoft с Хорошоп (TASK-28):**
    - ✅ Выполнено: Модели `TenantIntegration` и `ProductMapping` в PostgreSQL, двусторонняя регистрация связей `limanTcod` <-> `externalArticle`.
 10. **Единый движок обработки заказов и интеграция Хорошоп (TASK-29):**
-   - 🟡 В разработке: `LimanOrderService`, единый `UnifiedIncomingOrderDto`, безопасное создание черновиков заказов `tip_dok: 85`, `prov = 'f'`, `ndok` lock, `checkdok`, `dmonitor`.
-   - Тумблер `horoshopCreateOrderDocumentEnabled` (по умолчанию: выключено, экспериментальная функция).
+    - ✅ Выполнено: `LimanOrderService`, единый `UnifiedIncomingOrderDto`, безопасное создание черновиков заказов `tip_dok: 85`, `prov = 'f'`, `ndok` lock, `checkdok`, `dmonitor`.
+    - Тумблер `horoshopCreateOrderDocumentEnabled` с бейджем «Экспериментально» и динамической индикацией режима в Client Portal и SuperAdmin с полной локализацией RU/UK.
 9. **CI/CD пайплайн и деплой на сервер Hetzner (TASK-30):**
    - 🟢 Завершено: Dockerfile multi-stage на базе Node 24 Alpine, `.dockerignore`, исправлен CI/CD workflow GitHub Actions (Jest тесты и сборка в GHCR).
    - Развернуто на сервере Hetzner (`188.245.254.12`), домен `https://liman.terrace.pp.ua`.
