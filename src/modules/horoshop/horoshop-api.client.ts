@@ -76,6 +76,10 @@ export const HOROSHOP_CONSTANTS = {
   PRESENCE_OUT_OF_STOCK: 2,
   FETCH_TITLE_TIMEOUT_MS: 4000,
   MOCK_NEW_PRODUCTS_RATIO: 0.4,
+  THROTTLE_DELAY_MS: 250,
+  MAX_TRANSIENT_RETRIES: 3,
+  INITIAL_RETRY_DELAY_MS: 1000,
+  MAX_RETRY_DELAY_MS: 8000,
 } as const;
 
 @Injectable()
@@ -102,6 +106,10 @@ export class HoroshopApiClient {
     return `https://${raw}/api`;
   }
 
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
   /**
    * Выполнить авторизованный запрос к Horoshop API
    */
@@ -110,6 +118,7 @@ export class HoroshopApiClient {
     endpoint: string,
     data: any = {},
     retryOn401 = true,
+    attempt = 0,
   ): Promise<T> {
     const token = await this.authService.getToken(tenant);
     const url = `${this.getBaseUrl(tenant)}/${endpoint.replace(/^\/+/, '')}`;
@@ -139,7 +148,7 @@ export class HoroshopApiClient {
             `[${tenant.id}] Ошибка авторизации (${resData?.response?.message || resData?.status}) от Horoshop API. Обновляем токен и повторяем...`,
           );
           this.authService.clearToken(tenant.id);
-          return this.request<T>(tenant, endpoint, data, false);
+          return this.request<T>(tenant, endpoint, data, false, attempt);
         }
         throw new UnauthorizedException(
           resData?.response?.message || 'Ошибка авторизации Хорошоп',
@@ -162,26 +171,59 @@ export class HoroshopApiClient {
           `[${tenant.id}] 401 Unauthorized от Horoshop API. Обновляем токен и повторяем...`,
         );
         this.authService.clearToken(tenant.id);
-        return this.request<T>(tenant, endpoint, data, false);
+        return this.request<T>(tenant, endpoint, data, false, attempt);
+      }
+
+      const status = error.response?.status;
+      const isTransientError =
+        status === 429 ||
+        status === 500 ||
+        status === 502 ||
+        status === 503 ||
+        status === 504 ||
+        error.code === 'ECONNRESET' ||
+        error.code === 'ETIMEDOUT' ||
+        error.code === 'ECONNABORTED' ||
+        error.code === 'EAI_AGAIN';
+
+      if (
+        isTransientError &&
+        attempt < HOROSHOP_CONSTANTS.MAX_TRANSIENT_RETRIES
+      ) {
+        const nextAttempt = attempt + 1;
+        const delay = Math.min(
+          HOROSHOP_CONSTANTS.MAX_RETRY_DELAY_MS,
+          HOROSHOP_CONSTANTS.INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt) +
+            Math.floor(Math.random() * 300),
+        );
+
+        this.logger.warn(
+          `⚠️ [${tenant.id}] Временный сбой Horoshop API [${status || error.code}] на ${endpoint}: ` +
+            `"${error.response?.data?.message || error.message}". ` +
+            `Повторная попытка ${nextAttempt}/${HOROSHOP_CONSTANTS.MAX_TRANSIENT_RETRIES} через ${delay}мс...`,
+        );
+
+        await this.sleep(delay);
+        return this.request<T>(tenant, endpoint, data, retryOn401, nextAttempt);
       }
 
       if (error instanceof HttpException) {
         throw error;
       }
 
-      const status =
+      const finalStatus =
         error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR;
       const responseData = error.response?.data;
       this.logger.error(
-        `❌ [${tenant.id}] Ошибка Horoshop API [${status}] на ${endpoint}:`,
+        `❌ [${tenant.id}] Ошибка Horoshop API [${finalStatus}] на ${endpoint}:`,
         responseData || error.message,
       );
 
       throw new HttpException(
         responseData?.message ||
           error.message ||
-          `Ошибка Horoshop API (${status})`,
-        status,
+          `Ошибка Horoshop API (${finalStatus})`,
+        finalStatus,
       );
     }
   }
