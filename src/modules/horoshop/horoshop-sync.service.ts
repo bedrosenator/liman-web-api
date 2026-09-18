@@ -41,6 +41,10 @@ export class HoroshopSyncService {
     @Optional() private readonly alertService?: AlertService,
   ) {}
 
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
   addActivity(
     tenantId: string,
     item: Omit<HoroshopActivityItem, 'id' | 'timestamp'>,
@@ -297,6 +301,9 @@ export class HoroshopSyncService {
       if (items.length < batchSize) {
         break;
       }
+
+      // Троттлинг между пакетами, чтобы не перегружать облачный балансировщик/воркеры Хорошоп
+      await this.sleep(HOROSHOP_CONSTANTS.THROTTLE_DELAY_MS);
 
       page++;
     }
