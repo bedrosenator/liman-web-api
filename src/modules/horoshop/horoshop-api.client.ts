@@ -403,50 +403,32 @@ export class HoroshopApiClient {
         (i: any) => Number(i.code) === HOROSHOP_CONSTANTS.API_CODE_SUCCESS,
       );
 
-      // Фатальные ошибки (код 7: категория не найдена, неверный шаблон и др.)
-      // Код 11 ("Параметр barcode/gtin не найден") является неблокирующим предупреждением шаблона.
-      // Предупреждения о файлах ("Файл: ... не загружен") при наличии successItem не блокируют создание товара.
-      const isFileWarning = (i: any) => {
-        const msg = String(i?.message || '').toLowerCase();
-        return (
-          msg.includes('файл:') ||
-          msg.includes('не загружен') ||
-          msg.includes('file:')
-        );
-      };
-
-      const fatalErrorItem = entry.info.find(
-        (i: any) =>
-          Number(i.code) !== HOROSHOP_CONSTANTS.API_CODE_SUCCESS &&
-          Number(i.code) !== 11 &&
-          !(successItem && isFileWarning(i)),
-      );
-
-      if (fatalErrorItem || !successItem) {
-        const primaryError = fatalErrorItem || entry.info[0];
+      // Если есть подтверждение добавления/обновления товара (код 0), операция успешна.
+      // Коды 22 (изображение загружено), 28 (галерея очищена), 11 (параметр шаблона) являются деталями/инфо.
+      if (successItem) {
         return {
-          code: Number(primaryError?.code ?? 1),
+          code: HOROSHOP_CONSTANTS.API_CODE_SUCCESS,
           article,
           message:
             entry.info
               .map((i: any) => i.message)
               .filter(Boolean)
-              .join('; ') || 'Ошибка импорта в Хорошоп',
+              .join('; ') ||
+            successItem.message ||
+            'OK',
         };
       }
 
-      const successMsg =
-        successItem.message ||
-        entry.info
-          .map((i: any) => i.message)
-          .filter(Boolean)
-          .join('; ') ||
-        'OK';
-
+      // Если нет кода 0, товар был отклонен (код 7: категория не найдена, ошибка шаблона и др.)
+      const primaryError = entry.info[0];
       return {
-        code: HOROSHOP_CONSTANTS.API_CODE_SUCCESS,
+        code: Number(primaryError?.code ?? 1),
         article,
-        message: successMsg,
+        message:
+          entry.info
+            .map((i: any) => i.message)
+            .filter(Boolean)
+            .join('; ') || 'Ошибка импорта в Хорошоп',
       };
     }
 
