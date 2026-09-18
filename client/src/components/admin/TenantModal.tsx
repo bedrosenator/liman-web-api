@@ -33,6 +33,7 @@ export interface TenantData {
   horoshopExportEnabled?: boolean;
   horoshopOrderWebhookEnabled?: boolean;
   horoshopProductCreationWebhookEnabled?: boolean;
+  horoshopCreateOrderDocumentEnabled?: boolean;
   horoshopSyncIntervalMinutes?: number;
   promApiKey?: string;
   promExportEnabled?: boolean;
@@ -76,6 +77,7 @@ export function TenantModal({ isOpen, onClose, onSaved, tenant }: TenantModalPro
     horoshopLogin: '',
     horoshopPassword: '',
     horoshopExportEnabled: false,
+    horoshopCreateOrderDocumentEnabled: false,
     promApiKey: '',
     promExportEnabled: false,
     rozetkaClientId: '',
@@ -126,6 +128,7 @@ export function TenantModal({ isOpen, onClose, onSaved, tenant }: TenantModalPro
         horoshopLogin: '',
         horoshopPassword: '',
         horoshopExportEnabled: false,
+        horoshopCreateOrderDocumentEnabled: false,
         promApiKey: '',
         promExportEnabled: false,
         rozetkaClientId: '',
@@ -607,6 +610,21 @@ export function TenantModal({ isOpen, onClose, onSaved, tenant }: TenantModalPro
                     onChange={(e) => handleChange('horoshopProductCreationWebhookEnabled', e.target.checked)}
                   />
                   <span>{t('productWebhook')}</span>
+                </label>
+
+                <label className="checkbox-label" id="label-horoshop-order-doc">
+                  <input
+                    type="checkbox"
+                    checked={formData.horoshopCreateOrderDocumentEnabled || false}
+                    onChange={(e) => handleChange('horoshopCreateOrderDocumentEnabled', e.target.checked)}
+                  />
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2">
+                      <span>{t('horoshopCreateOrderDocument')}</span>
+                      <span className="badge badge--warning text-[10px]">{t('experimental')}</span>
+                    </div>
+                    <span className="text-[11px] text-muted">{t('horoshopCreateOrderDocumentDesc')}</span>
+                  </div>
                 </label>
               </div>
             </div>

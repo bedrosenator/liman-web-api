@@ -186,8 +186,8 @@
 9. **Связывание артикулов Limansoft с Хорошоп (TASK-28):**
    - ✅ Выполнено: Модели `TenantIntegration` и `ProductMapping` в PostgreSQL, двусторонняя регистрация связей `limanTcod` <-> `externalArticle`.
 10. **Единый движок обработки заказов и интеграция Хорошоп (TASK-29):**
-   - 🟡 В разработке: `LimanOrderService`, единый `UnifiedIncomingOrderDto`, безопасное создание черновиков заказов `tip_dok: 85`, `prov = 'f'`, `ndok` lock, `checkdok`, `dmonitor`.
-   - Тумблер `horoshopCreateOrderDocumentEnabled` (по умолчанию: выключено, экспериментальная функция).
+    - ✅ Выполнено: `LimanOrderService`, единый `UnifiedIncomingOrderDto`, безопасное создание черновиков заказов `tip_dok: 85`, `prov = 'f'`, `ndok` lock, `checkdok`, `dmonitor`.
+    - Тумблер `horoshopCreateOrderDocumentEnabled` с бейджем «Экспериментально» и динамической индикацией режима в Client Portal и SuperAdmin с полной локализацией RU/UK.
 9. **CI/CD пайплайн и деплой на сервер Hetzner (TASK-30):**
    - 🟢 Завершено: Dockerfile multi-stage на базе Node 24 Alpine, `.dockerignore`, исправлен CI/CD workflow GitHub Actions (Jest тесты и сборка в GHCR).
    - Развернуто на сервере Hetzner (`188.245.254.12`), домен `https://liman.terrace.pp.ua`.

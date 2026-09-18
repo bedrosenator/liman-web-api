@@ -79,6 +79,7 @@ export function ClientPortalPage() {
   const [syncInterval, setSyncInterval] = useState(15);
   const [orderWebhookEnabled, setOrderWebhookEnabled] = useState(true);
   const [productWebhookEnabled, setProductWebhookEnabled] = useState(false);
+  const [createOrderDocumentEnabled, setCreateOrderDocumentEnabled] = useState(false);
   const [isOrderWebhookCopied, setIsOrderWebhookCopied] = useState(false);
   const [isProductWebhookCopied, setIsProductWebhookCopied] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
@@ -106,6 +107,7 @@ export function ClientPortalPage() {
       setAutoSyncEnabled(Boolean(data.horoshopExportEnabled));
       setOrderWebhookEnabled(data.horoshopOrderWebhookEnabled ?? true);
       setProductWebhookEnabled(data.horoshopProductCreationWebhookEnabled ?? false);
+      setCreateOrderDocumentEnabled(Boolean(data.horoshopCreateOrderDocumentEnabled));
       setSyncInterval(data.horoshopSyncIntervalMinutes || 15);
     } catch (err) {
       console.error('Failed to load tenant:', err);
@@ -284,6 +286,7 @@ export function ClientPortalPage() {
       horoshopExportEnabled: autoSyncEnabled,
       horoshopOrderWebhookEnabled: orderWebhookEnabled,
       horoshopProductCreationWebhookEnabled: productWebhookEnabled,
+      horoshopCreateOrderDocumentEnabled: createOrderDocumentEnabled,
       horoshopSyncIntervalMinutes: syncInterval,
       publicBaseUrl: publicBaseUrl.trim() || undefined,
     };
@@ -836,6 +839,38 @@ export function ClientPortalPage() {
                   </button>
                 </div>
               )}
+
+              {/* Режим фиксации заказов: прямое списание vs черновик накладной tip_dok 85 */}
+              <div className="p-3 bg-elevated rounded-lg border border-subtle space-y-2" id="horoshop-order-doc-mode-card">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-primary">{t('horoshopCreateOrderDocument')}</span>
+                      <span className="badge badge--warning text-[10px]">{t('experimental')}</span>
+                    </div>
+                    <div className="text-[11px] text-muted">{t('horoshopCreateOrderDocumentDesc')}</div>
+                  </div>
+                  <label className="switch">
+                    <input
+                      type="checkbox"
+                      checked={createOrderDocumentEnabled}
+                      onChange={(e) => setCreateOrderDocumentEnabled(e.target.checked)}
+                    />
+                    <span className="slider round" />
+                  </label>
+                </div>
+                <div className="text-[11px] text-muted bg-surface/40 p-2 rounded border border-subtle/50">
+                  {createOrderDocumentEnabled ? (
+                    <span className="text-amber-400 font-mono">
+                      ⚡ {t('orderDocModeDoc')}
+                    </span>
+                  ) : (
+                    <span className="text-emerald font-mono">
+                      🛡️ {t('orderDocModeDirect')}
+                    </span>
+                  )}
+                </div>
+              </div>
 
               {saveSuccess && (
                 <div className="alert alert--success">
