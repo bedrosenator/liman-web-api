@@ -148,7 +148,7 @@ export class HoroshopExportProcessor extends WorkerHost {
     }
 
     if (product.barcode) {
-      item.barcode = product.barcode;
+      item.gtin = product.barcode;
     }
 
     if (options.exportCategories !== false) {

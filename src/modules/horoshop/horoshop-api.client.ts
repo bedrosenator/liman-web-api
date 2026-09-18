@@ -42,6 +42,7 @@ export interface HoroshopCatalogProductItem {
   quantity?: number;
   presence?: number;
   barcode?: string;
+  gtin?: string;
   parent?: string;
   description?: string;
   images?: string[];
@@ -398,12 +399,22 @@ export class HoroshopApiClient {
     const article = String(entry?.article ?? defaultArticle);
 
     if (Array.isArray(entry?.info) && entry.info.length > 0) {
-      const errorItem = entry.info.find(
-        (i: any) => Number(i.code) !== HOROSHOP_CONSTANTS.API_CODE_SUCCESS,
+      const successItem = entry.info.find(
+        (i: any) => Number(i.code) === HOROSHOP_CONSTANTS.API_CODE_SUCCESS,
       );
-      if (errorItem) {
+
+      // Фатальные ошибки (код 7: категория не найдена, неверный шаблон и др.)
+      // Код 11 ("Параметр barcode/gtin не найден") является неблокирующим предупреждением шаблона
+      const fatalErrorItem = entry.info.find(
+        (i: any) =>
+          Number(i.code) !== HOROSHOP_CONSTANTS.API_CODE_SUCCESS &&
+          Number(i.code) !== 11,
+      );
+
+      if (fatalErrorItem || !successItem) {
+        const primaryError = fatalErrorItem || entry.info[0];
         return {
-          code: Number(errorItem.code),
+          code: Number(primaryError?.code ?? 1),
           article,
           message:
             entry.info
@@ -412,10 +423,19 @@ export class HoroshopApiClient {
               .join('; ') || 'Ошибка импорта в Хорошоп',
         };
       }
+
+      const successMsg =
+        successItem.message ||
+        entry.info
+          .map((i: any) => i.message)
+          .filter(Boolean)
+          .join('; ') ||
+        'OK';
+
       return {
         code: HOROSHOP_CONSTANTS.API_CODE_SUCCESS,
         article,
-        message: entry.info[0]?.message || 'OK',
+        message: successMsg,
       };
     }
 
