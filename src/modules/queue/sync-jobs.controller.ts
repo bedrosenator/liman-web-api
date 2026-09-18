@@ -25,13 +25,22 @@ export class SyncJobsController {
     example: 'prom',
     enum: ['prom', 'rozetka', 'woocommerce', 'horoshop'],
   })
+  @ApiQuery({
+    name: 'marketplace',
+    required: false,
+    example: 'prom',
+    enum: ['prom', 'rozetka', 'woocommerce', 'horoshop'],
+  })
   @ApiResponse({ status: 202, description: 'Задача поставлена в очередь' })
   async triggerStockSync(
     @Param('tenantId') tenantId: string,
     @Query('platform')
-    platform: 'prom' | 'rozetka' | 'woocommerce' | 'horoshop' = 'prom',
+    platform?: 'prom' | 'rozetka' | 'woocommerce' | 'horoshop',
+    @Query('marketplace')
+    marketplace?: 'prom' | 'rozetka' | 'woocommerce' | 'horoshop',
   ) {
-    return this.syncService.triggerStockSync(tenantId, platform);
+    const target = platform || marketplace || 'prom';
+    return this.syncService.triggerStockSync(tenantId, target);
   }
 
   @Get('jobs/:queueName/:jobId')

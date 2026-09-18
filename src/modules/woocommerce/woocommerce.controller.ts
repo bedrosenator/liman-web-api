@@ -89,7 +89,7 @@ export class WoocommerceController {
     return this.syncService.getSyncStatus(tenantId);
   }
 
-  @Post('sync')
+  @Post(['sync', 'sync-catalog', 'sync/products'])
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({
     summary: 'Запустить синхронизацию каталога Limansoft → WooCommerce',
@@ -171,7 +171,7 @@ export class WoocommerceController {
     };
   }
 
-  @Post('sync/stock')
+  @Post(['sync/stock', 'sync-stock'])
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({
     summary: 'Синхронизировать только цены и остатки в WooCommerce',
@@ -344,7 +344,7 @@ export class WoocommerceController {
     };
   }
 
-  @Post('import/products')
+  @Post(['import/products', 'import/catalog', 'import-catalog'])
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({
     summary:
