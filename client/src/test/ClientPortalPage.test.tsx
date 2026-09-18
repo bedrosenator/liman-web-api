@@ -12,6 +12,13 @@ vi.mock('@/api/client', () => ({
     get: vi.fn(),
     ping: vi.fn(),
   },
+  backupApi: {
+    list: vi.fn().mockResolvedValue({ data: { backups: [] } }),
+    create: vi.fn(),
+    restore: vi.fn(),
+    download: vi.fn(),
+    delete: vi.fn(),
+  },
   horoshopApi: {
     ping: vi.fn(),
     syncPricesStocks: vi.fn(),
@@ -50,13 +57,13 @@ const mockActivities = [
   },
 ];
 
-function renderPortal() {
+function renderPortal(path = '/portal/columb') {
   return render(
     <AuthProvider>
       <LanguageProvider>
-        <MemoryRouter initialEntries={['/portal/columb']}>
+        <MemoryRouter initialEntries={[path]}>
           <Routes>
-            <Route path="/portal/:tenantId" element={<ClientPortalPage />} />
+            <Route path="/portal/:tenantId/*" element={<ClientPortalPage />} />
           </Routes>
         </MemoryRouter>
       </LanguageProvider>
@@ -230,5 +237,23 @@ describe('ClientPortalPage (TASK-20)', () => {
     expect(toggle.checked).toBe(true);
 
     expect(screen.getByText(/Режим 2: Создание черновика накладной tip_dok: 85/i)).toBeInTheDocument();
+  });
+
+  it('переключается на вкладку "Резервные копии" при переходе по роуту /portal/:tenantId/backups', async () => {
+    renderPortal('/portal/columb/backups');
+
+    await waitFor(() => {
+      expect(document.getElementById('backups-tab-content')).toBeInTheDocument();
+      expect(screen.getByText('Резервные копии MariaDB')).toBeInTheDocument();
+    });
+  });
+
+  it('переключается на вкладку "Настройки" при переходе по роуту /portal/:tenantId/settings', async () => {
+    renderPortal('/portal/columb/settings');
+
+    await waitFor(() => {
+      expect(document.getElementById('portal-settings-tab')).toBeInTheDocument();
+      expect(screen.getByText('Настройки магазина и БД')).toBeInTheDocument();
+    });
   });
 });

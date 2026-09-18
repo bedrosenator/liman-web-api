@@ -18,6 +18,7 @@ import {
   Sparkles,
   RefreshCw,
   Check,
+  Layers,
 } from 'lucide-react';
 
 interface HoroshopExportModalProps {
@@ -536,17 +537,17 @@ export function HoroshopExportModal({
 
           {/* Completed Screen */}
           {status === 'completed' && (
-            <div className="py-4 space-y-5 text-center" id="export-completed-screen">
+            <div className="py-2 space-y-5 text-center" id="export-completed-screen">
               {stats && (stats.errors ?? 0) > 0 && (stats.created ?? 0) === 0 && (stats.updated ?? 0) === 0 ? (
                 <>
                   <div className="warning-badge-glow">
-                    <AlertTriangle size={30} className="text-amber" />
+                    <AlertTriangle size={32} className="text-amber" />
                   </div>
-                  <div>
-                    <h3 className="text-base font-bold text-primary mb-1">
+                  <div className="space-y-1">
+                    <h3 className="text-lg font-bold text-primary">
                       {language === 'uk' ? 'Товари відхилено Хорошопом' : 'Товары отклонены Хорошопом'}
                     </h3>
-                    <p className="text-xs text-secondary">
+                    <p className="text-xs text-secondary max-w-md mx-auto leading-relaxed">
                       {language === 'uk'
                         ? 'Хорошоп відхилив позиції (категорія не знайдена або відсутній шаблон). Оберіть цільову категорію в налаштуваннях вивантаження.'
                         : 'Хорошоп отклонил позиции (категория не найдена или отсутствует шаблон). Выберите целевую категорию в настройках выгрузки.'}
@@ -556,13 +557,13 @@ export function HoroshopExportModal({
               ) : (
                 <>
                   <div className="success-badge-glow">
-                    <CheckCircle2 size={30} className="text-emerald" />
+                    <CheckCircle2 size={36} className="text-emerald" />
                   </div>
-                  <div>
-                    <h3 className="text-base font-bold text-primary mb-1">
+                  <div className="space-y-1">
+                    <h3 className="text-lg font-bold text-primary">
                       {language === 'uk' ? 'Каталог успішно експортовано!' : 'Каталог успешно экспортирован!'}
                     </h3>
-                    <p className="text-xs text-secondary">
+                    <p className="text-xs text-secondary max-w-md mx-auto leading-relaxed">
                       {stats && (stats.errors ?? 0) > 0
                         ? (language === 'uk'
                             ? 'Частину позицій збережено, але виникли зауваження до окремих товарів.'
@@ -578,29 +579,41 @@ export function HoroshopExportModal({
               {stats && (
                 <div className="stat-grid">
                   <div className="stat-box">
-                    <div className="stat-box__label">{language === 'uk' ? 'Вивантажено' : 'Выгружено'}</div>
+                    <div className="stat-box__header">
+                      <Layers size={13} className="text-indigo" />
+                      <span className="stat-box__label">{language === 'uk' ? 'Вивантажено' : 'Выгружено'}</span>
+                    </div>
                     <div className="stat-box__value">
                       {stats.totalExported ?? 0}
                     </div>
                   </div>
 
                   <div className="stat-box">
-                    <div className="stat-box__label">{language === 'uk' ? 'Новинок' : 'Новинок'}</div>
+                    <div className="stat-box__header">
+                      <Sparkles size={13} className="text-emerald" />
+                      <span className="stat-box__label">{language === 'uk' ? 'Новинок' : 'Новинок'}</span>
+                    </div>
                     <div className="stat-box__value text-emerald">
                       {stats.created ?? 0}
                     </div>
                   </div>
 
                   <div className="stat-box">
-                    <div className="stat-box__label">{language === 'uk' ? 'Оновлено' : 'Обновлено'}</div>
+                    <div className="stat-box__header">
+                      <RefreshCw size={13} className="text-sky" />
+                      <span className="stat-box__label">{language === 'uk' ? 'Оновлено' : 'Обновлено'}</span>
+                    </div>
                     <div className="stat-box__value text-sky">
                       {stats.updated ?? 0}
                     </div>
                   </div>
 
                   <div className="stat-box">
-                    <div className="stat-box__label">{language === 'uk' ? 'Помилок' : 'Ошибок'}</div>
-                    <div className="stat-box__value text-rose">
+                    <div className="stat-box__header">
+                      <AlertCircle size={13} className={(stats.errors ?? 0) > 0 ? "text-rose" : "text-muted"} />
+                      <span className="stat-box__label">{language === 'uk' ? 'Помилок' : 'Ошибок'}</span>
+                    </div>
+                    <div className={`stat-box__value ${(stats.errors ?? 0) > 0 ? "text-rose" : "text-muted"}`}>
                       {stats.errors ?? 0}
                     </div>
                   </div>
@@ -608,11 +621,18 @@ export function HoroshopExportModal({
               )}
 
               {stats?.durationMs && (
-                <div className="duration-pill">
-                  <Clock size={13} className="text-muted" />
-                  <span>
-                    {language === 'uk' ? 'Час виконання:' : 'Время выполнения:'} {(stats.durationMs / 1000).toFixed(1)}s
-                  </span>
+                <div className="flex items-center justify-center gap-2 pt-1">
+                  <div className="duration-pill">
+                    <Clock size={13} className="text-muted" />
+                    <span>
+                      {language === 'uk' ? 'Час виконання:' : 'Время выполнения:'}{' '}
+                      <strong className="text-primary font-mono font-semibold">{(stats.durationMs / 1000).toFixed(1)}s</strong>
+                    </span>
+                  </div>
+                  <div className="duration-pill">
+                    <Zap size={12} className="text-indigo" />
+                    <span>BullMQ</span>
+                  </div>
                 </div>
               )}
 

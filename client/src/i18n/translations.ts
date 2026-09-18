@@ -45,6 +45,7 @@ export const translations = {
     // Navigation
     superAdmin: 'Суперадмин',
     clientPortal: 'Личный кабинет',
+    integrations: 'Интеграции',
     tenants: 'Клиенты',
     queues: 'Очереди',
     backups: 'Резервные копии',
@@ -312,6 +313,7 @@ export const translations = {
     // Navigation
     superAdmin: 'Суперадмін',
     clientPortal: 'Особистий кабінет',
+    integrations: 'Інтеграції',
     tenants: 'Клієнти',
     queues: 'Черги',
     backups: 'Резервні копії',

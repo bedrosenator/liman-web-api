@@ -35,7 +35,7 @@ export function Layout({ children }: LayoutProps) {
       ]
     : tenantId
     ? [
-        { to: `/portal/${tenantId}`, icon: Store, label: 'Хорошоп', id: 'nav-horoshop' },
+        { to: `/portal/${tenantId}`, icon: Store, label: t('integrations'), id: 'nav-integrations' },
         { to: `/portal/${tenantId}/backups`, icon: Database, label: t('backups'), id: 'nav-backups' },
         { to: `/portal/${tenantId}/settings`, icon: Settings, label: t('settings'), id: 'nav-settings' },
       ]

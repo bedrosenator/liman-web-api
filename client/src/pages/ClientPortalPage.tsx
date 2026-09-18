@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { useLanguage } from '@/context/LanguageContext';
 import { tenantsApi, horoshopApi, syncApi } from '@/api/client';
@@ -10,6 +10,8 @@ import { HoroshopExportModal } from '@/components/portal/HoroshopExportModal';
 import { PromTab } from '@/components/portal/PromTab';
 import { RozetkaTab } from '@/components/portal/RozetkaTab';
 import { WooCommerceTab } from '@/components/portal/WooCommerceTab';
+import { BackupsTab } from '@/components/portal/BackupsTab';
+import { PortalSettingsTab } from '@/components/portal/PortalSettingsTab';
 import {
   Store,
   Database,
@@ -30,11 +32,17 @@ import {
   Download,
   Upload,
   Radio,
+  Settings,
 } from 'lucide-react';
 
 export function ClientPortalPage() {
   const { t, language } = useLanguage();
   const { tenantId = 'columb' } = useParams<{ tenantId: string }>();
+  const location = useLocation();
+
+  const isBackupsTab = location.pathname.includes('/backups');
+  const isSettingsTab = location.pathname.includes('/settings');
+  const isIntegrationsTab = !isBackupsTab && !isSettingsTab;
 
   // Tenant state
   const [tenant, setTenant] = useState<any | null>(null);
@@ -328,7 +336,13 @@ export function ClientPortalPage() {
         <div className="page-header flex justify-between items-center">
           <div>
             <h1 className="page-title">
-              <Store size={24} className="text-indigo" />
+              {isBackupsTab ? (
+                <Database size={24} className="text-indigo" />
+              ) : isSettingsTab ? (
+                <Settings size={24} className="text-indigo" />
+              ) : (
+                <Store size={24} className="text-indigo" />
+              )}
               {shopTitle ||
                 tenant?.horoshopShopTitle ||
                 (tenant?.name && tenant.name.replace(/\s*\(Локальная MariaDB\)/i, '')) ||
@@ -337,7 +351,11 @@ export function ClientPortalPage() {
             </h1>
             <p className="page-subtitle">
               {t('clientPortal')} —{' '}
-              {selectedPlatform === 'horoshop'
+              {isBackupsTab
+                ? t('backups')
+                : isSettingsTab
+                ? t('settings')
+                : selectedPlatform === 'horoshop'
                 ? t('horoshop')
                 : selectedPlatform === 'prom'
                 ? 'Prom.ua'
@@ -361,8 +379,23 @@ export function ClientPortalPage() {
           </button>
         </div>
 
-        {/* Витрина интеграций (Showcase & Tabs) */}
-        <div className="flex flex-wrap items-center gap-2 mb-6 border-b border-subtle pb-3" id="platform-tabs">
+        {/* 1. Резервные копии (Sub-tab) */}
+        {isBackupsTab && <BackupsTab tenantId={tenantId} />}
+
+        {/* 2. Настройки магазина и базы данных (Sub-tab) */}
+        {isSettingsTab && (
+          <PortalSettingsTab
+            tenantId={tenantId}
+            tenant={tenant}
+            onTenantUpdated={loadTenant}
+          />
+        )}
+
+        {/* 3. Интеграции и каналы продаж (Sub-tab) */}
+        {isIntegrationsTab && (
+          <>
+            {/* Витрина интеграций (Showcase & Tabs) */}
+            <div className="flex flex-wrap items-center gap-2 mb-6 border-b border-subtle pb-3" id="platform-tabs">
           <button
             type="button"
             className={`btn btn--sm gap-2 ${
@@ -1058,6 +1091,8 @@ export function ClientPortalPage() {
               />
             </div>
           </div>
+        )}
+        </>
         )}
 
         {/* Modal импорта каталога Хорошоп (TASK-22) */}
