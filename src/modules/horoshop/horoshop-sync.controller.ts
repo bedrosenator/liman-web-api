@@ -541,6 +541,11 @@ export class HoroshopSyncController {
         exportDescriptions: { type: 'boolean', default: true },
         exportImages: { type: 'boolean', default: true },
         exportCategories: { type: 'boolean', default: true },
+        defaultCategoryPath: {
+          type: 'string',
+          example: 'Електроніка/Смартфони/iPhone 13',
+          description: 'Целевая/дефолтная категория Хорошоп для новых товаров',
+        },
         limit: { type: 'number', example: 50 },
         integrationId: { type: 'string' },
       },
@@ -577,6 +582,7 @@ export class HoroshopSyncController {
         exportDescriptions: body.exportDescriptions !== false,
         exportImages: body.exportImages !== false,
         exportCategories: body.exportCategories !== false,
+        defaultCategoryPath: body.defaultCategoryPath,
         limit: body.limit ? parseInt(body.limit, 10) : undefined,
       },
       {
@@ -593,6 +599,30 @@ export class HoroshopSyncController {
       queue: QUEUE_NAMES.EXPORT_HOROSHOP_CATALOG,
       tenantId,
       mode: body.mode || 'full_overwrite',
+    };
+  }
+
+  /**
+   * Получить список категорий магазина Хорошоп для выбора в модальном окне экспорта
+   */
+  @Get('export/categories')
+  @ApiOperation({
+    summary: 'Получить категории Хорошоп для выбора целевой категории при экспорте',
+  })
+  @ApiParam({ name: 'tenantId', example: 'columb' })
+  async getExportCategories(@Param('tenantId') tenantId: string) {
+    const tenant = await this.tenantService.findOne(tenantId);
+    if (!tenant.horoshopDomain) {
+      throw new HttpException(
+        'У тенанта не настроен домен магазина Хорошоп (horoshopDomain)',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const categories = await this.horoshopClient.getCatalogCategories(tenant);
+    return {
+      success: true,
+      categories,
     };
   }
 }

@@ -30,6 +30,7 @@ export interface HoroshopUpdateResponse {
   success: boolean;
   total: number;
   updated: number;
+  errors?: number;
   log: HoroshopImportLogItem[];
   response: any;
 }
@@ -62,6 +63,7 @@ export interface HoroshopDirectExportResponse {
   total: number;
   created: number;
   updated: number;
+  errors?: number;
   log: HoroshopImportLogItem[];
   response: any;
 }
@@ -347,28 +349,83 @@ export class HoroshopApiClient {
     );
     const response = await this.request(tenant, 'catalog/import/', payload);
     const respData = response?.response || response || {};
+
+    let log: HoroshopImportLogItem[];
+    if (Array.isArray(respData.log)) {
+      log = respData.log.map((entry: any, idx: number) =>
+        this.parseHoroshopLogEntry(entry, items[idx]?.article),
+      );
+    } else {
+      const defaultCode =
+        response?.status === 'ERROR'
+          ? 1
+          : HOROSHOP_CONSTANTS.API_CODE_SUCCESS;
+      log = items.map((item) => ({
+        code: defaultCode,
+        article: String(item.article),
+        message: response?.status === 'ERROR' ? 'Ошибка обновления' : 'OK',
+      }));
+    }
+
+    const errorCount = log.filter(
+      (l) => l.code !== HOROSHOP_CONSTANTS.API_CODE_SUCCESS,
+    ).length;
+    const successCount = log.length - errorCount;
     const updatedCount =
-      typeof respData.updated === 'number' ? respData.updated : items.length;
-    const log: HoroshopImportLogItem[] = Array.isArray(respData.log)
-      ? respData.log.map((entry: any) => ({
-          code: Number(entry.code ?? HOROSHOP_CONSTANTS.API_CODE_SUCCESS),
-          article: String(entry.article || ''),
-          message:
-            entry.message ||
-            (entry.code === HOROSHOP_CONSTANTS.API_CODE_SUCCESS ? 'OK' : 'Error'),
-        }))
-      : items.map((item) => ({
-          code: HOROSHOP_CONSTANTS.API_CODE_SUCCESS,
-          article: String(item.article),
-          message: 'OK',
-        }));
+      typeof respData.updated === 'number' ? respData.updated : successCount;
 
     return {
-      success: true,
+      success: errorCount === 0,
       total: items.length,
       updated: updatedCount,
+      errors: errorCount,
       log,
       response,
+    };
+  }
+
+  /**
+   * Корректный разбор записи лога ответа Хорошоп API.
+   * Хорошоп присылает ошибки/предупреждения в формате:
+   * { article: "16", info: [{ code: 7, message: "Категория FMU не найдена..." }] }
+   * Либо при успехе:
+   * { article: "16", info: [{ code: 0, message: "Товар добавлен" }] }
+   */
+  private parseHoroshopLogEntry(
+    entry: any,
+    defaultArticle = '',
+  ): HoroshopImportLogItem {
+    const article = String(entry?.article ?? defaultArticle);
+
+    if (Array.isArray(entry?.info) && entry.info.length > 0) {
+      const errorItem = entry.info.find(
+        (i: any) => Number(i.code) !== HOROSHOP_CONSTANTS.API_CODE_SUCCESS,
+      );
+      if (errorItem) {
+        return {
+          code: Number(errorItem.code),
+          article,
+          message:
+            entry.info
+              .map((i: any) => i.message)
+              .filter(Boolean)
+              .join('; ') || 'Ошибка импорта в Хорошоп',
+        };
+      }
+      return {
+        code: HOROSHOP_CONSTANTS.API_CODE_SUCCESS,
+        article,
+        message: entry.info[0]?.message || 'OK',
+      };
+    }
+
+    const code = Number(entry?.code ?? HOROSHOP_CONSTANTS.API_CODE_SUCCESS);
+    return {
+      code,
+      article,
+      message:
+        entry?.message ||
+        (code === HOROSHOP_CONSTANTS.API_CODE_SUCCESS ? 'OK' : 'Error'),
     };
   }
 
@@ -399,6 +456,7 @@ export class HoroshopApiClient {
         total: products.length,
         created: createdCount,
         updated: updatedCount,
+        errors: 0,
         log: mockLog,
         response: {
           status: 'OK',
@@ -416,32 +474,138 @@ export class HoroshopApiClient {
     );
     const response = await this.request(tenant, 'catalog/import/', payload);
     const respData = response?.response || response || {};
-    const createdCount = typeof respData.created === 'number' ? respData.created : 0;
-    const updatedCount =
-      typeof respData.updated === 'number' ? respData.updated : products.length - createdCount;
 
-    const log: HoroshopImportLogItem[] = Array.isArray(respData.log)
-      ? respData.log.map((entry: any) => ({
-          code: Number(entry.code ?? HOROSHOP_CONSTANTS.API_CODE_SUCCESS),
-          article: String(entry.article || ''),
-          message:
-            entry.message ||
-            (entry.code === HOROSHOP_CONSTANTS.API_CODE_SUCCESS ? 'OK' : 'Error'),
-        }))
-      : products.map((item) => ({
-          code: HOROSHOP_CONSTANTS.API_CODE_SUCCESS,
-          article: String(item.article),
-          message: 'OK',
-        }));
+    let log: HoroshopImportLogItem[];
+    if (Array.isArray(respData.log)) {
+      log = respData.log.map((entry: any, idx: number) =>
+        this.parseHoroshopLogEntry(entry, products[idx]?.article),
+      );
+    } else {
+      const defaultCode =
+        response?.status === 'ERROR'
+          ? 1
+          : HOROSHOP_CONSTANTS.API_CODE_SUCCESS;
+      log = products.map((item) => ({
+        code: defaultCode,
+        article: String(item.article),
+        message: response?.status === 'ERROR' ? 'Ошибка экспорта' : 'OK',
+      }));
+    }
+
+    let createdCount = 0;
+    let updatedCount = 0;
+    let errorCount = 0;
+
+    for (const item of log) {
+      if (item.code !== HOROSHOP_CONSTANTS.API_CODE_SUCCESS) {
+        errorCount++;
+      } else {
+        const msg = (item.message || '').toLowerCase();
+        if (
+          msg.includes('добавлен') ||
+          msg.includes('створен') ||
+          msg.includes('created')
+        ) {
+          createdCount++;
+        } else {
+          updatedCount++;
+        }
+      }
+    }
+
+    if (typeof respData.created === 'number') {
+      createdCount = respData.created;
+    }
+    if (typeof respData.updated === 'number') {
+      updatedCount = respData.updated;
+    }
 
     return {
-      success: true,
+      success: errorCount === 0 || createdCount + updatedCount > 0,
       total: products.length,
       created: createdCount,
       updated: updatedCount,
+      errors: errorCount,
       log,
       response,
     };
+  }
+
+  /**
+   * Получить список категорий магазина Хорошоп через /api/pages/export/
+   */
+  async getCatalogCategories(
+    tenant: Tenant,
+  ): Promise<Array<{ id: number; title: string; fullPath: string }>> {
+    if (this.isMockMode(tenant)) {
+      return [
+        { id: 1055, title: 'Електроніка', fullPath: 'Електроніка' },
+        { id: 1009, title: 'Смартфони', fullPath: 'Електроніка/Смартфони' },
+        {
+          id: 1072,
+          title: 'iPhone 13',
+          fullPath: 'Електроніка/Смартфони/iPhone 13',
+        },
+      ];
+    }
+
+    const response = await this.request(tenant, 'pages/export/', {});
+    const pages = response?.response?.pages || [];
+    const pageMap = new Map<number, any>();
+    for (const p of pages) {
+      pageMap.set(p.id, p);
+    }
+
+    const getFullPath = (id: number): string => {
+      const p = pageMap.get(id);
+      if (!p) return '';
+      const title = p.title?.ua || p.title?.ru || String(id);
+      if (!p.parent || p.parent === 0 || p.parent === 1 || p.parent === 97) {
+        return title;
+      }
+      const parentPath = getFullPath(p.parent);
+      return parentPath ? `${parentPath}/${title}` : title;
+    };
+
+    const categories: Array<{ id: number; title: string; fullPath: string }> =
+      [];
+    for (const p of pages) {
+      if (p.id === 1 || p.id === 97) continue;
+
+      let curr = p;
+      let isUnderCatalog = false;
+      while (curr && curr.parent) {
+        if (curr.parent === 97) {
+          isUnderCatalog = true;
+          break;
+        }
+        curr = pageMap.get(curr.parent);
+      }
+
+      if (isUnderCatalog) {
+        const title = p.title?.ua || p.title?.ru || String(p.id);
+        categories.push({
+          id: p.id,
+          title,
+          fullPath: getFullPath(p.id),
+        });
+      }
+    }
+
+    if (categories.length === 0) {
+      for (const p of pages) {
+        if (p.id !== 1 && p.id !== 97) {
+          const title = p.title?.ua || p.title?.ru || String(p.id);
+          categories.push({
+            id: p.id,
+            title,
+            fullPath: getFullPath(p.id),
+          });
+        }
+      }
+    }
+
+    return categories.sort((a, b) => a.fullPath.localeCompare(b.fullPath));
   }
 
   /**

@@ -202,6 +202,7 @@ export class ProductMappingService {
       limanBarcode?: string | null;
       limanArticul?: string | null;
       syncStatus?: MappingSyncStatus;
+      lastSyncError?: string | null;
       metadata?: Record<string, any> | null;
     }>,
   ): Promise<number> {

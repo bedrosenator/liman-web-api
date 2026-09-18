@@ -134,8 +134,14 @@ export const horoshopApi = {
       exportDescriptions?: boolean;
       exportImages?: boolean;
       exportCategories?: boolean;
+      defaultCategoryPath?: string;
       limit?: number;
     },
   ) => apiClient.post(`/horoshop/${tenantId}/export/catalog`, payload),
+  getExportCategories: (tenantId: string) =>
+    apiClient.get<{
+      success: boolean;
+      categories: Array<{ id: number; title: string; fullPath: string }>;
+    }>(`/horoshop/${tenantId}/export/categories`),
 };
 

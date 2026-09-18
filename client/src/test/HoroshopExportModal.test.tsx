@@ -8,6 +8,9 @@ import { horoshopApi, syncApi } from '@/api/client';
 vi.mock('@/api/client', () => ({
   horoshopApi: {
     exportCatalog: vi.fn(),
+    getExportCategories: vi.fn().mockResolvedValue({
+      data: { success: true, categories: [] },
+    }),
   },
   syncApi: {
     getJobStatus: vi.fn(),

@@ -125,6 +125,10 @@ export class HoroshopExportProcessor extends WorkerHost {
     product: LimanProductDto,
     categoryName: string | undefined,
     options: ExportHoroshopCatalogJobData,
+    horoshopCategoryMap?: {
+      paths: Set<string>;
+      titles: Map<string, string>;
+    },
   ): HoroshopCatalogProductItem {
     const item: HoroshopCatalogProductItem = {
       article: String(product.tcod),
@@ -147,8 +151,29 @@ export class HoroshopExportProcessor extends WorkerHost {
       item.barcode = product.barcode;
     }
 
-    if (options.exportCategories !== false && categoryName) {
-      item.parent = categoryName;
+    if (options.exportCategories !== false) {
+      let targetParent: string | undefined = undefined;
+
+      if (categoryName && horoshopCategoryMap) {
+        const lowerCat = categoryName.trim().toLowerCase();
+        if (horoshopCategoryMap.paths.has(lowerCat)) {
+          targetParent = categoryName.trim();
+        } else if (horoshopCategoryMap.titles.has(lowerCat)) {
+          targetParent = horoshopCategoryMap.titles.get(lowerCat);
+        }
+      }
+
+      if (!targetParent && options.defaultCategoryPath) {
+        targetParent = options.defaultCategoryPath.trim();
+      }
+
+      if (!targetParent && categoryName) {
+        targetParent = categoryName;
+      }
+
+      if (targetParent) {
+        item.parent = targetParent;
+      }
     }
 
     if (options.exportDescriptions !== false && product.description) {
@@ -178,15 +203,17 @@ export class HoroshopExportProcessor extends WorkerHost {
     if (!this.productMappingService) return;
 
     try {
-      const errorArticles = new Set(
-        log
-          .filter((l) => l.code !== HOROSHOP_CONSTANTS.API_CODE_SUCCESS)
-          .map((l) => String(l.article)),
-      );
+      const logMap = new Map<string, { code: number; message?: string }>();
+      for (const l of log) {
+        logMap.set(String(l.article), l);
+      }
 
       const mappingItems = products.map((p) => {
         const art = String(p.tcod);
-        const hasError = errorArticles.has(art);
+        const logEntry = logMap.get(art);
+        const isSuccess = logEntry
+          ? logEntry.code === HOROSHOP_CONSTANTS.API_CODE_SUCCESS
+          : false;
         return {
           tenantId: tenant.id,
           integrationId,
@@ -194,7 +221,10 @@ export class HoroshopExportProcessor extends WorkerHost {
           externalArticle: art,
           limanBarcode: p.barcode || null,
           limanArticul: p.barcode || null,
-          syncStatus: hasError ? ('error' as const) : ('synced' as const),
+          syncStatus: isSuccess ? ('synced' as const) : ('error' as const),
+          lastSyncError: isSuccess
+            ? null
+            : logEntry?.message || 'Ошибка экспорта в Хорошоп',
           metadata: {
             name: p.name,
             price: p.price,
@@ -336,6 +366,28 @@ export class HoroshopExportProcessor extends WorkerHost {
           }))
         : [];
 
+    // 3.1 Загрузка дерева категорий магазина Хорошоп для сопоставления и применения дефолтной категории
+    let horoshopCategoryMap:
+      | {
+          paths: Set<string>;
+          titles: Map<string, string>;
+        }
+      | undefined;
+
+    try {
+      const horoCats = await this.horoshopClient.getCatalogCategories(tenant);
+      horoshopCategoryMap = {
+        paths: new Set(horoCats.map((c) => c.fullPath.trim().toLowerCase())),
+        titles: new Map(
+          horoCats.map((c) => [c.title.trim().toLowerCase(), c.fullPath.trim()]),
+        ),
+      };
+    } catch (err: any) {
+      this.logger.warn(
+        `⚠️ [${tenantId}] Не удалось загрузить дерево категорий Хорошоп: ${err.message}`,
+      );
+    }
+
     let totalCreated = 0;
     let totalUpdated = 0;
     let totalErrors = 0;
@@ -354,6 +406,7 @@ export class HoroshopExportProcessor extends WorkerHost {
           p,
           p.categoryGroup ? categoryMap.get(p.categoryGroup) : undefined,
           job.data,
+          horoshopCategoryMap,
         ),
       );
 

@@ -48,5 +48,6 @@ export interface ExportHoroshopCatalogJobData {
   exportDescriptions?: boolean;
   exportImages?: boolean;
   exportCategories?: boolean;
+  defaultCategoryPath?: string;
   limit?: number;
 }

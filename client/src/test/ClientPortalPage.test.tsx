@@ -19,6 +19,9 @@ vi.mock('@/api/client', () => ({
     getActivity: vi.fn(),
     saveSettings: vi.fn(),
     importCatalog: vi.fn(),
+    getExportCategories: vi.fn().mockResolvedValue({
+      data: { success: true, categories: [] },
+    }),
   },
   syncApi: {
     getJobStatus: vi.fn(),

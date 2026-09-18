@@ -83,6 +83,9 @@ describe('HoroshopExportProcessor', () => {
           { code: 0, article: '102', message: 'OK' },
         ],
       }),
+      getCatalogCategories: jest.fn().mockResolvedValue([
+        { id: 1072, title: 'iPhone 13', fullPath: 'Електроніка/Смартфони/iPhone 13' },
+      ]),
     };
 
     const mockSyncService = {
@@ -291,6 +294,23 @@ describe('HoroshopExportProcessor', () => {
     });
     expect(result.totalFetched).toBe(650);
     expect(result.totalExported).toBe(650);
+  });
+
+  it('should apply defaultCategoryPath when Limansoft category is not found in Horoshop', async () => {
+    const mockJob = {
+      data: {
+        tenantId: 'columb',
+        mode: 'full_overwrite',
+        defaultCategoryPath: 'Електроніка/Смартфони/iPhone 13',
+      } as ExportHoroshopCatalogJobData,
+      updateProgress: jest.fn().mockResolvedValue(undefined),
+    } as unknown as Job<ExportHoroshopCatalogJobData>;
+
+    await processor.process(mockJob);
+
+    expect(horoshopClient.importCatalog).toHaveBeenCalledTimes(1);
+    const callPayload = (horoshopClient.importCatalog as jest.Mock).mock.calls[0][1];
+    expect(callPayload.products[0].parent).toBe('Електроніка/Смартфони/iPhone 13');
   });
 });
 

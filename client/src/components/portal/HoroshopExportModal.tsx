@@ -8,6 +8,7 @@ import {
   Loader2,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
   FolderTree,
   Image as ImageIcon,
   DollarSign,
@@ -40,6 +41,11 @@ export function HoroshopExportModal({
   const [exportDescriptions, setExportDescriptions] = useState(true);
   const [exportImages, setExportImages] = useState(true);
   const [exportCategories, setExportCategories] = useState(true);
+  const [defaultCategoryPath, setDefaultCategoryPath] = useState('');
+  const [categoriesList, setCategoriesList] = useState<
+    Array<{ id: number; title: string; fullPath: string }>
+  >([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
   const [limit, setLimit] = useState<number | ''>('');
 
   const [status, setStatus] = useState<'idle' | 'running' | 'completed' | 'error'>('idle');
@@ -73,12 +79,26 @@ export function HoroshopExportModal({
     onClose();
   };
 
-  // Reset modal state every time it is opened or closed
+  // Reset modal state and fetch Horoshop categories every time modal is opened
   useEffect(() => {
     if (isOpen) {
       handleReset();
+      setLoadingCategories(true);
+      horoshopApi
+        .getExportCategories(tenantId)
+        .then((res) => {
+          if (res.data?.categories) {
+            setCategoriesList(res.data.categories);
+          }
+        })
+        .catch((err) => {
+          console.warn('Failed to load Horoshop categories:', err);
+        })
+        .finally(() => {
+          setLoadingCategories(false);
+        });
     }
-  }, [isOpen]);
+  }, [isOpen, tenantId]);
 
   useEffect(() => {
     return () => {
@@ -104,6 +124,7 @@ export function HoroshopExportModal({
         exportDescriptions,
         exportImages,
         exportCategories,
+        defaultCategoryPath: defaultCategoryPath || undefined,
         limit: limit ? Number(limit) : undefined,
       });
 
@@ -363,6 +384,43 @@ export function HoroshopExportModal({
                 </div>
               </div>
 
+              {/* Выбор целевой/дефолтной категории в Хорошоп */}
+              <div>
+                <label
+                  htmlFor="export-default-category-select"
+                  className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1"
+                >
+                  {language === 'uk'
+                    ? 'Цільова категорія в Хорошоп (для новинок)'
+                    : 'Целевая категория в Хорошоп (для новинок)'}
+                </label>
+                <select
+                  id="export-default-category-select"
+                  value={defaultCategoryPath}
+                  onChange={(e) => setDefaultCategoryPath(e.target.value)}
+                  className="input input--sm w-full"
+                  disabled={loadingCategories}
+                >
+                  <option value="">
+                    {loadingCategories
+                      ? (language === 'uk' ? 'Завантаження категорій Хорошоп...' : 'Загрузка категорий Хорошоп...')
+                      : (language === 'uk'
+                          ? '⚡ Автовизначення за назвою з Limansoft'
+                          : '⚡ Автоопределение по названию из Limansoft')}
+                  </option>
+                  {categoriesList.map((cat) => (
+                    <option key={cat.id} value={cat.fullPath}>
+                      {cat.fullPath}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-[11px] text-muted">
+                  {language === 'uk'
+                    ? 'Хорошоп вимагає категорію з шаблоном для кожного нового товару. Якщо групу з Limansoft не знайдено на сайті, товар буде збережено в цій категорії.'
+                    : 'Хорошоп требует категорию с шаблоном для каждого нового товара. Если группу из Limansoft не найдено на сайте, товар будет сохранен в этой категории.'}
+                </span>
+              </div>
+
               {/* Ограничение количества */}
               <div>
                 <label
@@ -424,20 +482,43 @@ export function HoroshopExportModal({
           {/* Completed Screen */}
           {status === 'completed' && (
             <div className="py-4 space-y-5 text-center" id="export-completed-screen">
-              <div className="success-badge-glow">
-                <CheckCircle2 size={30} className="text-emerald" />
-              </div>
-
-              <div>
-                <h3 className="text-base font-bold text-primary mb-1">
-                  {language === 'uk' ? 'Каталог успішно експортовано!' : 'Каталог успешно экспортирован!'}
-                </h3>
-                <p className="text-xs text-secondary">
-                  {language === 'uk'
-                    ? 'Дані товарів та зв’язки product_mappings успішно оновлено.'
-                    : 'Данные товаров и связи product_mappings успешно обновлены.'}
-                </p>
-              </div>
+              {stats && (stats.errors ?? 0) > 0 && (stats.created ?? 0) === 0 && (stats.updated ?? 0) === 0 ? (
+                <>
+                  <div className="warning-badge-glow">
+                    <AlertTriangle size={30} className="text-amber" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-primary mb-1">
+                      {language === 'uk' ? 'Товари відхилено Хорошопом' : 'Товары отклонены Хорошопом'}
+                    </h3>
+                    <p className="text-xs text-secondary">
+                      {language === 'uk'
+                        ? 'Хорошоп відхилив позиції (категорія не знайдена або відсутній шаблон). Оберіть цільову категорію в налаштуваннях вивантаження.'
+                        : 'Хорошоп отклонил позиции (категория не найдена или отсутствует шаблон). Выберите целевую категорию в настройках выгрузки.'}
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="success-badge-glow">
+                    <CheckCircle2 size={30} className="text-emerald" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-primary mb-1">
+                      {language === 'uk' ? 'Каталог успішно експортовано!' : 'Каталог успешно экспортирован!'}
+                    </h3>
+                    <p className="text-xs text-secondary">
+                      {stats && (stats.errors ?? 0) > 0
+                        ? (language === 'uk'
+                            ? 'Частину товарів оновлено, але виникли помилки з нерозпізнаними категоріями.'
+                            : 'Часть товаров обновлена, но возникли ошибки с нераспознанными категориями.')
+                        : (language === 'uk'
+                            ? 'Дані товарів та зв’язки product_mappings успішно оновлено.'
+                            : 'Данные товаров и связи product_mappings успешно обновлены.')}
+                    </p>
+                  </div>
+                </>
+              )}
 
               {stats && (
                 <div className="stat-grid">
