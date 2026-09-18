@@ -1,5 +1,6 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger, Optional } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Job } from 'bullmq';
 import {
   QUEUE_NAMES,
@@ -35,6 +36,7 @@ export interface HoroshopExportResult {
   skipped: number;
   errors: number;
   durationMs: number;
+  errorDetails?: Array<{ article: string; message: string }>;
 }
 
 /**
@@ -60,6 +62,7 @@ export class HoroshopExportProcessor extends WorkerHost {
     private readonly horoshopSyncService: HoroshopSyncService,
     @Optional() private readonly productMappingService?: ProductMappingService,
     @Optional() private readonly alertService?: AlertService,
+    @Optional() private readonly configService?: ConfigService,
   ) {
     super();
   }
@@ -211,8 +214,12 @@ export class HoroshopExportProcessor extends WorkerHost {
       const mappingItems = products.map((p) => {
         const art = String(p.tcod);
         const logEntry = logMap.get(art);
+        const hasCreatedOrUpdatedMsg =
+          logEntry?.message &&
+          /добавлен|обновлен|створен|created/i.test(logEntry.message);
         const isSuccess = logEntry
-          ? logEntry.code === HOROSHOP_CONSTANTS.API_CODE_SUCCESS
+          ? logEntry.code === HOROSHOP_CONSTANTS.API_CODE_SUCCESS ||
+            Boolean(hasCreatedOrUpdatedMsg)
           : false;
         return {
           tenantId: tenant.id,
@@ -230,6 +237,11 @@ export class HoroshopExportProcessor extends WorkerHost {
             price: p.price,
             stock: p.stock,
             exportedAt: new Date().toISOString(),
+            ...(logEntry?.message &&
+            isSuccess &&
+            logEntry.code !== HOROSHOP_CONSTANTS.API_CODE_SUCCESS
+              ? { warning: logEntry.message }
+              : {}),
           },
         };
       });
@@ -278,6 +290,13 @@ export class HoroshopExportProcessor extends WorkerHost {
     const allProducts: LimanProductDto[] = [];
     let page = 1;
 
+    const baseUrl =
+      job.data.baseUrl ||
+      tenant.publicBaseUrl ||
+      this.configService?.get<string>('publicBaseUrl') ||
+      process.env.PUBLIC_BASE_URL ||
+      'http://localhost:3000';
+
     while (true) {
       const remainingLimit = limit ? limit - allProducts.length : undefined;
       if (remainingLimit !== undefined && remainingLimit <= 0) {
@@ -292,6 +311,7 @@ export class HoroshopExportProcessor extends WorkerHost {
       const pageRes = await this.limanService.getProducts(tenant, {
         page,
         limit: fetchLimit,
+        baseUrl,
       });
 
       const items = pageRes.items || [];
@@ -391,6 +411,7 @@ export class HoroshopExportProcessor extends WorkerHost {
     let totalCreated = 0;
     let totalUpdated = 0;
     let totalErrors = 0;
+    const errorDetails: Array<{ article: string; message: string }> = [];
     const totalTarget = targetProducts.length;
 
     // 4. Пакетная отправка порциями по EXPORT_BATCH_SIZE
@@ -421,8 +442,14 @@ export class HoroshopExportProcessor extends WorkerHost {
 
         const chunkErrors = (res.log || []).filter(
           (l) => l.code !== HOROSHOP_CONSTANTS.API_CODE_SUCCESS,
-        ).length;
-        totalErrors += chunkErrors;
+        );
+        totalErrors += chunkErrors.length;
+        for (const errLog of chunkErrors) {
+          errorDetails.push({
+            article: String(errLog.article),
+            message: errLog.message || 'Ошибка экспорта товара',
+          });
+        }
 
         if (currentIntegrationId) {
           await this.persistExportMappingsSafe(
@@ -434,6 +461,12 @@ export class HoroshopExportProcessor extends WorkerHost {
         }
       } catch (err: any) {
         totalErrors += chunk.length;
+        for (const p of chunk) {
+          errorDetails.push({
+            article: String(p.tcod),
+            message: `Ошибка пакета: ${err.message}`,
+          });
+        }
         this.logger.error(
           `❌ [${tenantId}] Ошибка отправки пакета экспорта #${idx + 1}: ${err.message}`,
         );
@@ -479,6 +512,7 @@ export class HoroshopExportProcessor extends WorkerHost {
       skipped: skippedCount,
       errors: totalErrors,
       durationMs,
+      errorDetails: errorDetails.length > 0 ? errorDetails : undefined,
     };
   }
 }

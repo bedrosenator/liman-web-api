@@ -72,6 +72,7 @@ export function ClientPortalPage() {
   const [domain, setDomain] = useState('');
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
+  const [publicBaseUrl, setPublicBaseUrl] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isRevealingPassword, setIsRevealingPassword] = useState(false);
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
@@ -101,6 +102,7 @@ export function ClientPortalPage() {
       setShopTitle(data.horoshopShopTitle || '');
       setDomain(data.horoshopDomain || '');
       setLogin(data.horoshopLogin || '');
+      setPublicBaseUrl(data.publicBaseUrl || '');
       setAutoSyncEnabled(Boolean(data.horoshopExportEnabled));
       setOrderWebhookEnabled(data.horoshopOrderWebhookEnabled ?? true);
       setProductWebhookEnabled(data.horoshopProductCreationWebhookEnabled ?? false);
@@ -283,6 +285,7 @@ export function ClientPortalPage() {
       horoshopOrderWebhookEnabled: orderWebhookEnabled,
       horoshopProductCreationWebhookEnabled: productWebhookEnabled,
       horoshopSyncIntervalMinutes: syncInterval,
+      publicBaseUrl: publicBaseUrl.trim() || undefined,
     };
     if (password) {
       payload.horoshopPassword = password;
@@ -709,6 +712,25 @@ export function ClientPortalPage() {
                     )}
                   </button>
                 </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="tenant-public-base-url">
+                  {language === 'uk' ? 'Публічна адреса API (для фото)' : 'Публичный адрес API (для фото)'}
+                </label>
+                <input
+                  id="tenant-public-base-url"
+                  type="text"
+                  className="input font-mono"
+                  value={publicBaseUrl}
+                  onChange={(e) => setPublicBaseUrl(e.target.value)}
+                  placeholder={window.location.origin}
+                />
+                <span className="text-[11px] text-muted">
+                  {language === 'uk'
+                    ? 'Використовується Хорошопом для завантаження фотографій товарів (за замовчуванням поточний домен).'
+                    : 'Используется Хорошопом для скачивания фотографий товаров (по умолчанию текущий домен).'}
+                </span>
               </div>
 
               <div className="flex items-center justify-between p-3 bg-elevated rounded-lg border border-subtle">

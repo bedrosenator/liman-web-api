@@ -254,7 +254,7 @@ export class LimanService {
     params.push(limit, offset);
 
     const [rows] = await pool.query<RawProductRow[]>(query, params);
-    const baseUrl = options.baseUrl ?? 'http://localhost:3000';
+    const baseUrl = options.baseUrl || tenant.publicBaseUrl || 'http://localhost:3000';
 
     const items: LimanProductDto[] = rows.map((r) => {
       const imageUrls: string[] = [];
@@ -352,7 +352,7 @@ export class LimanService {
     }
 
     const r = rows[0];
-    const originUrl = baseUrl ?? 'http://localhost:3000';
+    const originUrl = baseUrl || tenant.publicBaseUrl || 'http://localhost:3000';
     const imageUrls: string[] = [];
     if (r.has_photo1)
       imageUrls.push(

@@ -317,4 +317,13 @@ export class CreateTenantDto {
   @IsBoolean()
   @IsOptional()
   horoshopCreateOrderDocumentEnabled?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'Публичный базовый URL API тенанта для раздачи медиафайлов и изображений товаров (например: https://liman.terrace.pp.ua)',
+    example: 'https://liman.terrace.pp.ua',
+  })
+  @IsString()
+  @IsOptional()
+  publicBaseUrl?: string;
 }

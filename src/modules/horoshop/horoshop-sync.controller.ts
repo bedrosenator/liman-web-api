@@ -5,6 +5,7 @@ import {
   Param,
   Body,
   Query,
+  Req,
   Logger,
   HttpCode,
   HttpStatus,
@@ -13,6 +14,8 @@ import {
   forwardRef,
   Optional,
 } from '@nestjs/common';
+import type { Request } from 'express';
+import { ConfigService } from '@nestjs/config';
 import {
   ApiTags,
   ApiOperation,
@@ -57,6 +60,8 @@ export class HoroshopSyncController {
     @Optional()
     @Inject(forwardRef(() => SyncService))
     private readonly queueSyncService?: SyncService,
+    @Optional()
+    private readonly configService?: ConfigService,
   ) {}
 
   /**
@@ -555,6 +560,7 @@ export class HoroshopSyncController {
   async triggerCatalogExport(
     @Param('tenantId') tenantId: string,
     @Body() body: any = {},
+    @Req() req?: Request,
   ) {
     const tenant = await this.tenantService.findOne(tenantId);
     if (!tenant.horoshopDomain) {
@@ -571,6 +577,14 @@ export class HoroshopSyncController {
       );
     }
 
+    const reqBaseUrl = req ? `${req.protocol}://${req.get('host')}` : undefined;
+    const resolvedBaseUrl =
+      body.baseUrl ||
+      tenant.publicBaseUrl ||
+      this.configService?.get<string>('publicBaseUrl') ||
+      process.env.PUBLIC_BASE_URL ||
+      reqBaseUrl;
+
     const job = await this.exportCatalogQueue.add(
       'export-horoshop-catalog-job',
       {
@@ -583,6 +597,7 @@ export class HoroshopSyncController {
         exportImages: body.exportImages !== false,
         exportCategories: body.exportCategories !== false,
         defaultCategoryPath: body.defaultCategoryPath,
+        baseUrl: resolvedBaseUrl,
         limit: body.limit ? parseInt(body.limit, 10) : undefined,
       },
       {

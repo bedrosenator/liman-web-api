@@ -59,6 +59,7 @@ export function HoroshopExportModal({
     skipped?: number;
     errors?: number;
     durationMs?: number;
+    errorDetails?: Array<{ article: string; message: string }>;
   } | null>(null);
 
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -125,6 +126,7 @@ export function HoroshopExportModal({
         exportImages,
         exportCategories,
         defaultCategoryPath: defaultCategoryPath || undefined,
+        baseUrl: window.location.origin,
         limit: limit ? Number(limit) : undefined,
       });
 
@@ -510,8 +512,8 @@ export function HoroshopExportModal({
                     <p className="text-xs text-secondary">
                       {stats && (stats.errors ?? 0) > 0
                         ? (language === 'uk'
-                            ? 'Частину товарів оновлено, але виникли помилки з нерозпізнаними категоріями.'
-                            : 'Часть товаров обновлена, но возникли ошибки с нераспознанными категориями.')
+                            ? 'Частину позицій збережено, але виникли зауваження до окремих товарів.'
+                            : 'Часть позиций сохранена, но возникли замечания по отдельным товарам.')
                         : (language === 'uk'
                             ? 'Дані товарів та зв’язки product_mappings успішно оновлено.'
                             : 'Данные товаров и связи product_mappings успешно обновлены.')}
@@ -558,6 +560,19 @@ export function HoroshopExportModal({
                   <span>
                     {language === 'uk' ? 'Час виконання:' : 'Время выполнения:'} {(stats.durationMs / 1000).toFixed(1)}s
                   </span>
+                </div>
+              )}
+
+              {stats?.errorDetails && stats.errorDetails.length > 0 && (
+                <div className="mt-3 text-left border border-rose/20 bg-rose/5 rounded-lg p-2.5 max-h-36 overflow-y-auto space-y-1.5" id="export-error-details-list">
+                  <div className="text-[11px] font-semibold text-rose uppercase tracking-wider">
+                    {language === 'uk' ? 'Деталі зауважень Хорошоп:' : 'Детали замечаний Хорошоп:'}
+                  </div>
+                  {stats.errorDetails.map((err, i) => (
+                    <div key={i} className="text-[11px] text-muted leading-tight">
+                      <span className="font-semibold text-primary">SKU {err.article}:</span> {err.message}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

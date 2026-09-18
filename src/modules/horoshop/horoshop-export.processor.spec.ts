@@ -155,7 +155,7 @@ describe('HoroshopExportProcessor', () => {
       price: 150,
       quantity: 10,
       presence: 1,
-      barcode: '482000000101',
+      gtin: '482000000101',
       parent: 'Сигареты',
       description: 'Desc 101',
       images: ['https://example.com/101.jpg'],
@@ -287,10 +287,12 @@ describe('HoroshopExportProcessor', () => {
     expect(limanService.getProducts).toHaveBeenNthCalledWith(1, mockTenant, {
       page: 1,
       limit: 500,
+      baseUrl: 'http://localhost:3000',
     });
     expect(limanService.getProducts).toHaveBeenNthCalledWith(2, mockTenant, {
       page: 2,
       limit: 500,
+      baseUrl: 'http://localhost:3000',
     });
     expect(result.totalFetched).toBe(650);
     expect(result.totalExported).toBe(650);
@@ -311,6 +313,30 @@ describe('HoroshopExportProcessor', () => {
     expect(horoshopClient.importCatalog).toHaveBeenCalledTimes(1);
     const callPayload = (horoshopClient.importCatalog as jest.Mock).mock.calls[0][1];
     expect(callPayload.products[0].parent).toBe('Електроніка/Смартфони/iPhone 13');
+  });
+
+  it('should prioritize baseUrl from job data or tenant.publicBaseUrl for product images', async () => {
+    (tenantService.findOne as jest.Mock).mockResolvedValueOnce({
+      ...mockTenant,
+      publicBaseUrl: 'https://tenant-custom.example.com',
+    });
+
+    const mockJob = {
+      data: {
+        tenantId: 'columb',
+        mode: 'full_overwrite',
+      } as ExportHoroshopCatalogJobData,
+      updateProgress: jest.fn().mockResolvedValue(undefined),
+    } as unknown as Job<ExportHoroshopCatalogJobData>;
+
+    await processor.process(mockJob);
+
+    expect(limanService.getProducts).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        baseUrl: 'https://tenant-custom.example.com',
+      }),
+    );
   });
 });
 

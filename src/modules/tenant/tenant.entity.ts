@@ -110,6 +110,9 @@ export class Tenant {
   @Column({ type: 'integer', default: 15 })
   syncIntervalMinutes!: number;
 
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  publicBaseUrl?: string | null; // e.g. "https://liman.terrace.pp.ua"
+
   @Column({ type: 'boolean', default: true })
   isActive!: boolean;
 

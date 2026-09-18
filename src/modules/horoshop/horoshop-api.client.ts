@@ -404,11 +404,22 @@ export class HoroshopApiClient {
       );
 
       // Фатальные ошибки (код 7: категория не найдена, неверный шаблон и др.)
-      // Код 11 ("Параметр barcode/gtin не найден") является неблокирующим предупреждением шаблона
+      // Код 11 ("Параметр barcode/gtin не найден") является неблокирующим предупреждением шаблона.
+      // Предупреждения о файлах ("Файл: ... не загружен") при наличии successItem не блокируют создание товара.
+      const isFileWarning = (i: any) => {
+        const msg = String(i?.message || '').toLowerCase();
+        return (
+          msg.includes('файл:') ||
+          msg.includes('не загружен') ||
+          msg.includes('file:')
+        );
+      };
+
       const fatalErrorItem = entry.info.find(
         (i: any) =>
           Number(i.code) !== HOROSHOP_CONSTANTS.API_CODE_SUCCESS &&
-          Number(i.code) !== 11,
+          Number(i.code) !== 11 &&
+          !(successItem && isFileWarning(i)),
       );
 
       if (fatalErrorItem || !successItem) {

@@ -135,6 +135,7 @@ export const horoshopApi = {
       exportImages?: boolean;
       exportCategories?: boolean;
       defaultCategoryPath?: string;
+      baseUrl?: string;
       limit?: number;
     },
   ) => apiClient.post(`/horoshop/${tenantId}/export/catalog`, payload),

@@ -25,6 +25,7 @@ export interface TenantData {
   priceColumn: string;
   stockColumn: string;
   syncIntervalMinutes: number;
+  publicBaseUrl?: string;
   horoshopShopTitle?: string;
   horoshopDomain?: string;
   horoshopLogin?: string;
@@ -55,7 +56,7 @@ interface TenantModalProps {
 }
 
 export function TenantModal({ isOpen, onClose, onSaved, tenant }: TenantModalProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const isEdit = Boolean(tenant);
 
   const [formData, setFormData] = useState<TenantData>({
@@ -70,6 +71,7 @@ export function TenantModal({ isOpen, onClose, onSaved, tenant }: TenantModalPro
     priceColumn: 'cena2',
     stockColumn: 'skl_k',
     syncIntervalMinutes: 15,
+    publicBaseUrl: '',
     horoshopDomain: '',
     horoshopLogin: '',
     horoshopPassword: '',
@@ -119,6 +121,7 @@ export function TenantModal({ isOpen, onClose, onSaved, tenant }: TenantModalPro
         priceColumn: 'cena2',
         stockColumn: 'skl_k',
         syncIntervalMinutes: 15,
+        publicBaseUrl: '',
         horoshopDomain: '',
         horoshopLogin: '',
         horoshopPassword: '',
@@ -525,6 +528,17 @@ export function TenantModal({ isOpen, onClose, onSaved, tenant }: TenantModalPro
                   value={formData.horoshopDomain || ''}
                   onChange={(e) => handleChange('horoshopDomain', e.target.value.trim())}
                   placeholder="shop724088.horoshop.ua"
+                />
+              </div>
+
+              <div className="form-group form-group--full">
+                <label className="form-label">{language === 'uk' ? 'Публічна адреса API (для фото)' : 'Публичный адрес API (для фото)'}</label>
+                <input
+                  type="text"
+                  className="input font-mono"
+                  value={formData.publicBaseUrl || ''}
+                  onChange={(e) => handleChange('publicBaseUrl', e.target.value.trim())}
+                  placeholder="https://liman.terrace.pp.ua"
                 />
               </div>
 
