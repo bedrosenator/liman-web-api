@@ -354,11 +354,11 @@ describe('HoroshopExportProcessor', () => {
         },
         {
           tcod: 32,
-          name: 'Philip Morris Novel Mix Summer',
-          price: 100,
+          name: 'Samsung Galaxy S24 Ultra',
+          price: 1000,
           stock: 12,
           isAvailable: true,
-          brand: undefined, // multi-word known brand -> 'Philip Morris'
+          brand: undefined, // generic first word -> 'Samsung'
         },
         {
           tcod: 99,
@@ -374,7 +374,7 @@ describe('HoroshopExportProcessor', () => {
           price: 20,
           stock: 1,
           isAvailable: true,
-          brand: undefined, // ignored word -> falls back to defaultBrand (Priority C)
+          brand: undefined, // generic ignored word -> falls back to defaultBrand (Priority C)
         },
       ],
       total: 4,
@@ -401,8 +401,8 @@ describe('HoroshopExportProcessor', () => {
     expect(callPayload.products[0].brand).toBe('Davidoff');
     expect(callPayload.products[0].currency).toBe('EUR');
 
-    // 2. Philip Morris -> extracted from multiword dictionary
-    expect(callPayload.products[1].brand).toBe('Philip Morris');
+    // 2. Samsung -> extracted from first word
+    expect(callPayload.products[1].brand).toBe('Samsung');
     expect(callPayload.products[1].currency).toBe('EUR');
 
     // 3. Explicit brand -> taken from DB (Priority B)

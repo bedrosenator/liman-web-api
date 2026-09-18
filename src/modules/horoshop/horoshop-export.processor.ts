@@ -209,31 +209,10 @@ export class HoroshopExportProcessor extends WorkerHost {
   }
 
   /**
-   * Словарь известных составных брендов для точного распознавания
-   */
-  private static readonly KNOWN_MULTIWORD_BRANDS: string[] = [
-    'Philip Morris',
-    'Bond Street',
-    'British American Tobacco',
-    'Lucky Strike',
-    'Red Bull',
-    'Monster Energy',
-    'Coca-Cola',
-    'Coca Cola',
-    'Black & White',
-    'Johnnie Walker',
-    'Jack Daniel\'s',
-    'Jack Daniels',
-    'Captain Morgan',
-    'Jim Beam',
-    'Grant\'s',
-    'William Lawson\'s',
-    'Ballantine\'s',
-    'San Pellegrino',
-  ];
-
-  /**
-   * Извлечь бренд из товара (варианты Б + В)
+   * Извлечь бренд товара (варианты Б + В) без привязки к конкретной отрасли:
+   * 1. Приоритет Б: значение из базы Limansoft (колонка brand в name2, если заполнена)
+   * 2. Универсальное извлечение первого слова из названия товара (Apple, Samsung, Nike, Davidoff...)
+   * 3. Приоритет В: Бренд по умолчанию, переданный в параметрах экспорта (defaultBrand)
    */
   private resolveProductBrand(
     product: LimanProductDto,
@@ -251,39 +230,27 @@ export class HoroshopExportProcessor extends WorkerHost {
     const name = product.name?.trim();
     if (!name) return defaultBrand?.trim() || undefined;
 
-    // 2. Проверка по словарю составных брендов (без учета регистра)
-    const lowerName = name.toLowerCase();
-    for (const known of HoroshopExportProcessor.KNOWN_MULTIWORD_BRANDS) {
-      const lowerKnown = known.toLowerCase();
-      if (
-        lowerName.startsWith(lowerKnown + ' ') ||
-        lowerName.startsWith(lowerKnown + '-') ||
-        lowerName === lowerKnown
-      ) {
-        return known;
-      }
-    }
-
-    // 3. Извлечение первого слова названия товара (Davidoff, Marlboro, Heets, Burn...)
+    // 2. Универсальное извлечение первого слова названия (любая товарная категория)
     const firstWordMatch = name.match(/^([A-Za-zА-Яа-я0-9&'’\+\-]+)(?:\s+|$)/);
     if (firstWordMatch && firstWordMatch[1]) {
       const candidate = firstWordMatch[1].trim();
-      const ignoredWords = new Set([
+      const genericIgnoredWords = new Set([
         'товар',
         'набір',
         'набор',
         'упаковка',
         'пачка',
         'блок',
-        'сигареты',
-        'сигарети',
       ]);
-      if (!ignoredWords.has(candidate.toLowerCase()) && candidate.length >= 2) {
+      if (
+        !genericIgnoredWords.has(candidate.toLowerCase()) &&
+        candidate.length >= 2
+      ) {
         return candidate;
       }
     }
 
-    // 4. Приоритет В: Бренд по умолчанию
+    // 3. Приоритет В: Бренд по умолчанию
     return defaultBrand?.trim() || undefined;
   }
 
