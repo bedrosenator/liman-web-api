@@ -173,11 +173,19 @@
    - Интерфейс управления Хорошоп, Prom.ua, Rozetka, WooCommerce для клиентов.
 6. **Двусторонний импорт каталога Хорошоп ➔ Limansoft (TASK-22):**
    - Режимы `skip_existing` и `overwrite`, предупреждение о бекапе, очередь BullMQ.
-7. **WooCommerce Integration & WordPress Plugin (TASK-12, TASK-16, TASK-17, TASK-24):**
+7. **Прямой экспорт каталога в Хорошоп и динамическое название магазина (TASK-26):**
+   - ✅ Выполнено: Очередь `export-horoshop-catalog`, процессор `HoroshopExportProcessor`, эндпоинт `GET /api/v1/horoshop/:tenantId/export/categories`.
+   - Поддержка целевой/дефолтной категории `defaultCategoryPath` для сопоставления групп без совпадений.
+   - Корректный маппинг системного поля штрихкода `gtin` и парсинг логов Хорошопа с разделением фатальных ошибок (код 7) и предупреждений шаблона (код 11).
+   - Модальное окно `HoroshopExportModal.tsx` с выбором категорий, прогрессом и отчетом.
+   - Протестировано и верифицировано на сервере Hetzner (10/10 товаров успешно выгружено за 0.6 сек, 0 ошибок).
+8. **WooCommerce Integration & WordPress Plugin (TASK-12, TASK-16, TASK-17, TASK-24):**
    - REST API клиент для WooCommerce v3.
    - Фирменный единый плагин `limansoft-sync-woocommerce` v2.0.0 с прямым подключением MariaDB, группировщиком товаров и автообновлением.
    - Двусторонний импорт каталога WooCommerce ➔ Limansoft.
-8. **Единый движок обработки заказов и интеграция Хорошоп (TASK-29):**
+9. **Связывание артикулов Limansoft с Хорошоп (TASK-28):**
+   - ✅ Выполнено: Модели `TenantIntegration` и `ProductMapping` в PostgreSQL, двусторонняя регистрация связей `limanTcod` <-> `externalArticle`.
+10. **Единый движок обработки заказов и интеграция Хорошоп (TASK-29):**
    - 🟡 В разработке: `LimanOrderService`, единый `UnifiedIncomingOrderDto`, безопасное создание черновиков заказов `tip_dok: 85`, `prov = 'f'`, `ndok` lock, `checkdok`, `dmonitor`.
    - Тумблер `horoshopCreateOrderDocumentEnabled` (по умолчанию: выключено, экспериментальная функция).
 9. **CI/CD пайплайн и деплой на сервер Hetzner (TASK-30):**
