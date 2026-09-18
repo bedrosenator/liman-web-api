@@ -46,6 +46,8 @@ export interface HoroshopCatalogProductItem {
   parent?: string;
   description?: string;
   images?: string[];
+  brand?: string;
+  currency?: string;
 }
 
 export interface HoroshopCatalogCategoryItem {

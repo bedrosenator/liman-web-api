@@ -46,6 +46,8 @@ export function HoroshopExportModal({
     Array<{ id: number; title: string; fullPath: string }>
   >([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
+  const [defaultBrand, setDefaultBrand] = useState('');
+  const [currency, setCurrency] = useState('UAH');
   const [limit, setLimit] = useState<number | ''>('');
 
   const [status, setStatus] = useState<'idle' | 'running' | 'completed' | 'error'>('idle');
@@ -126,6 +128,8 @@ export function HoroshopExportModal({
         exportImages,
         exportCategories,
         defaultCategoryPath: defaultCategoryPath || undefined,
+        defaultBrand: defaultBrand?.trim() || undefined,
+        currency: currency?.trim() || 'UAH',
         baseUrl: window.location.origin,
         limit: limit ? Number(limit) : undefined,
       });
@@ -421,6 +425,55 @@ export function HoroshopExportModal({
                     ? 'Хорошоп вимагає категорію з шаблоном для кожного нового товару. Якщо групу з Limansoft не знайдено на сайті, товар буде збережено в цій категорії.'
                     : 'Хорошоп требует категорию с шаблоном для каждого нового товара. Если группу из Limansoft не найдено на сайте, товар будет сохранен в этой категории.'}
                 </span>
+              </div>
+
+              {/* Бренд по умолчанию и Валюта */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label
+                    htmlFor="export-default-brand-input"
+                    className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1"
+                  >
+                    {language === 'uk' ? 'Бренд за замовчуванням' : 'Бренд по умолчанию'}
+                  </label>
+                  <input
+                    type="text"
+                    id="export-default-brand-input"
+                    placeholder={language === 'uk' ? 'Наприклад, Columb' : 'Например, Columb'}
+                    value={defaultBrand}
+                    onChange={(e) => setDefaultBrand(e.target.value)}
+                    className="input input--sm w-full"
+                  />
+                  <span className="text-[11px] text-muted">
+                    {language === 'uk'
+                      ? 'Пріоритет: поле з бази Liman → автовизначення з назви → бренд за замовчуванням.'
+                      : 'Приоритет: поле из базы Liman → автоопределение по названию → бренд по умолчанию.'}
+                  </span>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="export-currency-select"
+                    className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1"
+                  >
+                    {language === 'uk' ? 'Валюта товарів' : 'Валюта товаров'}
+                  </label>
+                  <select
+                    id="export-currency-select"
+                    value={currency}
+                    onChange={(e) => setCurrency(e.target.value)}
+                    className="input input--sm w-full"
+                  >
+                    <option value="UAH">UAH (₴ Гривня)</option>
+                    <option value="USD">USD ($ Долар)</option>
+                    <option value="EUR">EUR (€ Євро)</option>
+                  </select>
+                  <span className="text-[11px] text-muted">
+                    {language === 'uk'
+                      ? 'Валюта цін при експорті в Хорошоп (за замовчуванням UAH).'
+                      : 'Валюта цен при экспорте в Хорошоп (по умолчанию UAH).'}
+                  </span>
+                </div>
               </div>
 
               {/* Ограничение количества */}

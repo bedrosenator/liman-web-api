@@ -159,6 +159,8 @@ describe('HoroshopExportProcessor', () => {
       parent: 'Сигареты',
       description: 'Desc 101',
       images: ['https://example.com/101.jpg'],
+      brand: 'Product',
+      currency: 'UAH',
     });
 
     expect(productMappingService.saveBatchMappings).toHaveBeenCalledTimes(1);
@@ -337,6 +339,79 @@ describe('HoroshopExportProcessor', () => {
         baseUrl: 'https://tenant-custom.example.com',
       }),
     );
+  });
+
+  it('should resolve brand (options B and C) and currency correctly', async () => {
+    limanService.getProducts.mockResolvedValueOnce({
+      items: [
+        {
+          tcod: 74,
+          name: 'Davidoff Classic',
+          price: 170,
+          stock: 5,
+          isAvailable: true,
+          brand: undefined, // no brand in Liman DB -> should extract 'Davidoff'
+        },
+        {
+          tcod: 32,
+          name: 'Philip Morris Novel Mix Summer',
+          price: 100,
+          stock: 12,
+          isAvailable: true,
+          brand: undefined, // multi-word known brand -> 'Philip Morris'
+        },
+        {
+          tcod: 99,
+          name: 'Custom Product',
+          price: 50,
+          stock: 2,
+          isAvailable: true,
+          brand: 'Explicit Brand', // Priority B: explicit brand from DB
+        },
+        {
+          tcod: 100,
+          name: 'Товар без бренду',
+          price: 20,
+          stock: 1,
+          isAvailable: true,
+          brand: undefined, // ignored word -> falls back to defaultBrand (Priority C)
+        },
+      ],
+      total: 4,
+      page: 1,
+      limit: 100,
+    });
+
+    const mockJob = {
+      data: {
+        tenantId: 'columb',
+        mode: 'full_overwrite',
+        defaultBrand: 'Columb Default',
+        currency: 'EUR',
+      } as ExportHoroshopCatalogJobData,
+      updateProgress: jest.fn().mockResolvedValue(undefined),
+    } as unknown as Job<ExportHoroshopCatalogJobData>;
+
+    await processor.process(mockJob);
+
+    const callPayload = (horoshopClient.importCatalog as jest.Mock).mock.calls.at(-1)[1];
+    expect(callPayload.products).toHaveLength(4);
+
+    // 1. Davidoff -> extracted from first word
+    expect(callPayload.products[0].brand).toBe('Davidoff');
+    expect(callPayload.products[0].currency).toBe('EUR');
+
+    // 2. Philip Morris -> extracted from multiword dictionary
+    expect(callPayload.products[1].brand).toBe('Philip Morris');
+    expect(callPayload.products[1].currency).toBe('EUR');
+
+    // 3. Explicit brand -> taken from DB (Priority B)
+    expect(callPayload.products[2].brand).toBe('Explicit Brand');
+    expect(callPayload.products[2].currency).toBe('EUR');
+
+    // 4. Ignored word -> fallback to defaultBrand (Priority C)
+    expect(callPayload.products[3].brand).toBe('Columb Default');
+    expect(callPayload.products[3].currency).toBe('EUR');
   });
 });
 

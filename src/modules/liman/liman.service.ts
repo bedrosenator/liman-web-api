@@ -23,12 +23,30 @@ interface RawProductRow extends mysql.RowDataPacket {
   cena2: number | null;
   price: number | null;
   stock: number | null;
+  brand: string | number | null;
+  valut: string | null;
   description: Buffer | null;
   has_photo1: number;
   has_photo2: number;
   has_photo3: number;
   has_photo4: number;
   has_photo5: number;
+}
+
+function parseLimanCurrency(valut: string | null | undefined): string {
+  if (!valut || valut === '00') return 'UAH';
+  if (valut === '01') return 'USD';
+  if (valut === '02') return 'EUR';
+  return valut.trim() || 'UAH';
+}
+
+function parseLimanBrand(
+  brand: string | number | null | undefined,
+): string | undefined {
+  if (brand === null || brand === undefined) return undefined;
+  const str = String(brand).trim();
+  if (!str || str === '-1') return undefined;
+  return str;
 }
 
 export const LIMAN_LIMITS = {
@@ -237,6 +255,8 @@ export class LimanService {
         n2.cena2,
         COALESCE(n2.\`${priceCol}\`, n2.cena2, 0) as price,
         COALESCE(ost.\`${stockCol}\`, 0) as stock,
+        n2.brand,
+        n2.valut,
         nd.description,
         (CASE WHEN nd.photo IS NOT NULL AND LENGTH(nd.photo) > 0 THEN 1 ELSE 0 END) as has_photo1,
         (CASE WHEN nd.photo2 IS NOT NULL AND LENGTH(nd.photo2) > 0 THEN 1 ELSE 0 END) as has_photo2,
@@ -298,6 +318,8 @@ export class LimanService {
         isAvailable: stockVal > 0,
         description: descriptionText,
         imageUrls,
+        brand: parseLimanBrand(r.brand),
+        currency: parseLimanCurrency(r.valut),
       };
     });
 
@@ -331,6 +353,8 @@ export class LimanService {
         n2.cena2,
         COALESCE(n2.\`${priceCol}\`, n2.cena2, 0) as price,
         COALESCE(ost.\`${stockCol}\`, 0) as stock,
+        n2.brand,
+        n2.valut,
         nd.description,
         (CASE WHEN nd.photo IS NOT NULL AND LENGTH(nd.photo) > 0 THEN 1 ELSE 0 END) as has_photo1,
         (CASE WHEN nd.photo2 IS NOT NULL AND LENGTH(nd.photo2) > 0 THEN 1 ELSE 0 END) as has_photo2,
@@ -405,6 +429,8 @@ export class LimanService {
       description: descText,
       imageUrls,
       barcodes: extraBarcodes,
+      brand: parseLimanBrand(r.brand),
+      currency: parseLimanCurrency(r.valut),
     };
   }
 

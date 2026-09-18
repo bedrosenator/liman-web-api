@@ -135,6 +135,8 @@ export const horoshopApi = {
       exportImages?: boolean;
       exportCategories?: boolean;
       defaultCategoryPath?: string;
+      defaultBrand?: string;
+      currency?: string;
       baseUrl?: string;
       limit?: number;
     },

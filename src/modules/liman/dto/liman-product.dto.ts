@@ -64,6 +64,18 @@ export class LimanProductDto {
     description: 'Дополнительные штрихкоды из таблицы strihcod',
   })
   barcodes?: string[];
+
+  @ApiPropertyOptional({
+    example: 'Davidoff',
+    description: 'Бренд товара из таблицы name2 (brand)',
+  })
+  brand?: string | null;
+
+  @ApiPropertyOptional({
+    example: 'UAH',
+    description: 'Валюта товара из таблицы name2 (valut) или дефолтная валюта',
+  })
+  currency?: string | null;
 }
 
 export class ExternalProductUpsertDto {

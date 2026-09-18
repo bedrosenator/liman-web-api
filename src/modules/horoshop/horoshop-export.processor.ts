@@ -191,7 +191,100 @@ export class HoroshopExportProcessor extends WorkerHost {
       item.images = product.imageUrls;
     }
 
+    // Экспорт валюты (из опций, из товара или дефолтная UAH)
+    const targetCurrency =
+      options.currency?.trim() || product.currency || 'UAH';
+    item.currency = targetCurrency;
+
+    // Экспорт бренда (комбинация вариантов Б и В)
+    const resolvedBrand = this.resolveProductBrand(
+      product,
+      options.defaultBrand,
+    );
+    if (resolvedBrand) {
+      item.brand = resolvedBrand;
+    }
+
     return item;
+  }
+
+  /**
+   * Словарь известных составных брендов для точного распознавания
+   */
+  private static readonly KNOWN_MULTIWORD_BRANDS: string[] = [
+    'Philip Morris',
+    'Bond Street',
+    'British American Tobacco',
+    'Lucky Strike',
+    'Red Bull',
+    'Monster Energy',
+    'Coca-Cola',
+    'Coca Cola',
+    'Black & White',
+    'Johnnie Walker',
+    'Jack Daniel\'s',
+    'Jack Daniels',
+    'Captain Morgan',
+    'Jim Beam',
+    'Grant\'s',
+    'William Lawson\'s',
+    'Ballantine\'s',
+    'San Pellegrino',
+  ];
+
+  /**
+   * Извлечь бренд из товара (варианты Б + В)
+   */
+  private resolveProductBrand(
+    product: LimanProductDto,
+    defaultBrand?: string,
+  ): string | undefined {
+    // 1. Приоритет Б: значение из базы Limansoft (если задано и не пустое/-1)
+    if (
+      product.brand &&
+      product.brand.trim() !== '' &&
+      product.brand.trim() !== '-1'
+    ) {
+      return product.brand.trim();
+    }
+
+    const name = product.name?.trim();
+    if (!name) return defaultBrand?.trim() || undefined;
+
+    // 2. Проверка по словарю составных брендов (без учета регистра)
+    const lowerName = name.toLowerCase();
+    for (const known of HoroshopExportProcessor.KNOWN_MULTIWORD_BRANDS) {
+      const lowerKnown = known.toLowerCase();
+      if (
+        lowerName.startsWith(lowerKnown + ' ') ||
+        lowerName.startsWith(lowerKnown + '-') ||
+        lowerName === lowerKnown
+      ) {
+        return known;
+      }
+    }
+
+    // 3. Извлечение первого слова названия товара (Davidoff, Marlboro, Heets, Burn...)
+    const firstWordMatch = name.match(/^([A-Za-zА-Яа-я0-9&'’\+\-]+)(?:\s+|$)/);
+    if (firstWordMatch && firstWordMatch[1]) {
+      const candidate = firstWordMatch[1].trim();
+      const ignoredWords = new Set([
+        'товар',
+        'набір',
+        'набор',
+        'упаковка',
+        'пачка',
+        'блок',
+        'сигареты',
+        'сигарети',
+      ]);
+      if (!ignoredWords.has(candidate.toLowerCase()) && candidate.length >= 2) {
+        return candidate;
+      }
+    }
+
+    // 4. Приоритет В: Бренд по умолчанию
+    return defaultBrand?.trim() || undefined;
   }
 
   /**
