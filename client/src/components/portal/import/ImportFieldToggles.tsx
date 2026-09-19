@@ -1,6 +1,7 @@
 import React from 'react';
 import { DollarSign, Package, Image as ImageIcon, Database } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
+import { CheckboxField } from '../common';
 
 interface ImportFieldTogglesProps {
   updatePrices: boolean;
@@ -32,45 +33,37 @@ export const ImportFieldToggles: React.FC<ImportFieldTogglesProps> = ({
       </label>
 
       <div className="checkbox-grid">
-        <label className="checkbox-item">
-          <input
-            type="checkbox"
-            checked={updatePrices}
-            onChange={(e) => setUpdatePrices(e.target.checked)}
-          />
-          <DollarSign size={14} className="text-indigo" />
-          <span>{language === 'uk' ? 'Роздрібні ціни (cena2)' : 'Розничные цены (cena2)'}</span>
-        </label>
+        <CheckboxField
+          checked={updatePrices}
+          onChange={setUpdatePrices}
+          icon={DollarSign}
+          iconColor="text-indigo"
+          label={language === 'uk' ? 'Роздрібні ціни (cena2)' : 'Розничные цены (cena2)'}
+        />
 
-        <label className="checkbox-item">
-          <input
-            type="checkbox"
-            checked={updateStock}
-            onChange={(e) => setUpdateStock(e.target.checked)}
-          />
-          <Package size={14} className="text-emerald" />
-          <span>{language === 'uk' ? 'Складські залишки (skl_k)' : 'Складские остатки (skl_k)'}</span>
-        </label>
+        <CheckboxField
+          checked={updateStock}
+          onChange={setUpdateStock}
+          icon={Package}
+          iconColor="text-emerald"
+          label={language === 'uk' ? 'Складські залишки (skl_k)' : 'Складские остатки (skl_k)'}
+        />
 
-        <label className="checkbox-item">
-          <input
-            type="checkbox"
-            checked={updateImages}
-            onChange={(e) => setUpdateImages(e.target.checked)}
-          />
-          <ImageIcon size={14} className="text-sky" />
-          <span>{language === 'uk' ? 'Фотографії (namedesc)' : 'Фотографии (namedesc)'}</span>
-        </label>
+        <CheckboxField
+          checked={updateImages}
+          onChange={setUpdateImages}
+          icon={ImageIcon}
+          iconColor="text-sky"
+          label={language === 'uk' ? 'Фотографії (namedesc)' : 'Фотографии (namedesc)'}
+        />
 
-        <label className="checkbox-item">
-          <input
-            type="checkbox"
-            checked={createBackup}
-            onChange={(e) => setCreateBackup(e.target.checked)}
-          />
-          <Database size={14} className="text-amber" />
-          <span className="truncate">{t('autoBackupBeforeSync')}</span>
-        </label>
+        <CheckboxField
+          checked={createBackup}
+          onChange={setCreateBackup}
+          icon={Database}
+          iconColor="text-amber"
+          label={<span className="truncate">{t('autoBackupBeforeSync')}</span>}
+        />
       </div>
     </div>
   );

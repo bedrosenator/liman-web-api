@@ -7,6 +7,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
+import { StatBox } from '../common';
 import type { ImportStats } from './types';
 
 interface ImportCompletedScreenProps {
@@ -36,36 +37,36 @@ export const ImportCompletedScreen: React.FC<ImportCompletedScreenProps> = ({
 
       {stats && (
         <div className="stat-grid">
-          <div className="stat-box">
-            <div className="stat-box__header">
-              <Layers size={13} className="text-indigo" />
-              <span className="stat-box__label">{t('importProgress')}</span>
-            </div>
-            <div className="stat-box__value">{stats.totalFetched ?? 0}</div>
-          </div>
-          <div className="stat-box">
-            <div className="stat-box__header">
-              <Sparkles size={13} className="text-emerald" />
-              <span className="stat-box__label">{t('importCreated')}</span>
-            </div>
-            <div className="stat-box__value text-emerald">{stats.created ?? 0}</div>
-          </div>
-          <div className="stat-box">
-            <div className="stat-box__header">
-              <RefreshCw size={13} className="text-sky" />
-              <span className="stat-box__label">{t('importUpdated')}</span>
-            </div>
-            <div className="stat-box__value text-sky">{stats.updated ?? 0}</div>
-          </div>
-          <div className="stat-box">
-            <div className="stat-box__header">
-              <AlertTriangle size={13} className="text-amber" />
-              <span className="stat-box__label">
-                {language === 'uk' ? 'Пропущено' : 'Пропущено'}
-              </span>
-            </div>
-            <div className="stat-box__value text-amber">{stats.skipped ?? 0}</div>
-          </div>
+          <StatBox
+            icon={Layers}
+            iconColor="text-indigo"
+            label={t('importProgress')}
+            value={stats.totalFetched ?? 0}
+          />
+
+          <StatBox
+            icon={Sparkles}
+            iconColor="text-emerald"
+            label={t('importCreated')}
+            value={stats.created ?? 0}
+            valueColor="text-emerald"
+          />
+
+          <StatBox
+            icon={RefreshCw}
+            iconColor="text-sky"
+            label={t('importUpdated')}
+            value={stats.updated ?? 0}
+            valueColor="text-sky"
+          />
+
+          <StatBox
+            icon={AlertTriangle}
+            iconColor="text-amber"
+            label={language === 'uk' ? 'Пропущено' : 'Пропущено'}
+            value={stats.skipped ?? 0}
+            valueColor="text-amber"
+          />
         </div>
       )}
 

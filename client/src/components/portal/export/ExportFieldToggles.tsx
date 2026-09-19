@@ -7,6 +7,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
+import { CheckboxField } from '../common';
 
 interface ExportFieldTogglesProps {
   exportPrices: boolean;
@@ -42,60 +43,50 @@ export const ExportFieldToggles: React.FC<ExportFieldTogglesProps> = ({
       </label>
 
       <div className="checkbox-grid">
-        <label className="checkbox-item" htmlFor="checkbox-export-prices">
-          <input
-            type="checkbox"
-            checked={exportPrices}
-            onChange={(e) => setExportPrices(e.target.checked)}
-            id="checkbox-export-prices"
-          />
-          <DollarSign size={15} className="text-emerald" />
-          <span>{language === 'uk' ? 'Актуальні ціни' : 'Актуальные цены'}</span>
-        </label>
+        <CheckboxField
+          id="checkbox-export-prices"
+          checked={exportPrices}
+          onChange={setExportPrices}
+          icon={DollarSign}
+          iconColor="text-emerald"
+          label={language === 'uk' ? 'Актуальні ціни' : 'Актуальные цены'}
+        />
 
-        <label className="checkbox-item" htmlFor="checkbox-export-stock">
-          <input
-            type="checkbox"
-            checked={exportStock}
-            onChange={(e) => setExportStock(e.target.checked)}
-            id="checkbox-export-stock"
-          />
-          <Package size={15} className="text-indigo" />
-          <span>{language === 'uk' ? 'Залишки на складі' : 'Остатки склада'}</span>
-        </label>
+        <CheckboxField
+          id="checkbox-export-stock"
+          checked={exportStock}
+          onChange={setExportStock}
+          icon={Package}
+          iconColor="text-indigo"
+          label={language === 'uk' ? 'Залишки на складі' : 'Остатки склада'}
+        />
 
-        <label className="checkbox-item" htmlFor="checkbox-export-categories">
-          <input
-            type="checkbox"
-            checked={exportCategories}
-            onChange={(e) => setExportCategories(e.target.checked)}
-            id="checkbox-export-categories"
-          />
-          <FolderTree size={15} className="text-amber" />
-          <span>{language === 'uk' ? 'Дерево категорій' : 'Дерево категорий'}</span>
-        </label>
+        <CheckboxField
+          id="checkbox-export-categories"
+          checked={exportCategories}
+          onChange={setExportCategories}
+          icon={FolderTree}
+          iconColor="text-amber"
+          label={language === 'uk' ? 'Дерево категорій' : 'Дерево категорий'}
+        />
 
-        <label className="checkbox-item" htmlFor="checkbox-export-images">
-          <input
-            type="checkbox"
-            checked={exportImages}
-            onChange={(e) => setExportImages(e.target.checked)}
-            id="checkbox-export-images"
-          />
-          <ImageIcon size={15} className="text-sky" />
-          <span>{language === 'uk' ? 'Посилання на фото' : 'Ссылки на фото'}</span>
-        </label>
+        <CheckboxField
+          id="checkbox-export-images"
+          checked={exportImages}
+          onChange={setExportImages}
+          icon={ImageIcon}
+          iconColor="text-sky"
+          label={language === 'uk' ? 'Посилання на фото' : 'Ссылки на фото'}
+        />
 
-        <label className="checkbox-item" htmlFor="checkbox-export-descriptions">
-          <input
-            type="checkbox"
-            checked={exportDescriptions}
-            onChange={(e) => setExportDescriptions(e.target.checked)}
-            id="checkbox-export-descriptions"
-          />
-          <FileText size={15} className="text-indigo" />
-          <span>{language === 'uk' ? 'Описи товарів' : 'Описания товаров'}</span>
-        </label>
+        <CheckboxField
+          id="checkbox-export-descriptions"
+          checked={exportDescriptions}
+          onChange={setExportDescriptions}
+          icon={FileText}
+          iconColor="text-indigo"
+          label={language === 'uk' ? 'Описи товарів' : 'Описания товаров'}
+        />
       </div>
     </div>
   );

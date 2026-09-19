@@ -1,6 +1,7 @@
 import React from 'react';
-import { ShieldCheck, AlertTriangle, Check } from 'lucide-react';
+import { ShieldCheck, AlertTriangle } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
+import { ModeCard } from '../common';
 import type { ImportMode } from './types';
 
 interface ImportModeSelectorProps {
@@ -21,77 +22,33 @@ export const ImportModeSelector: React.FC<ImportModeSelectorProps> = ({
       </label>
 
       <div className="mode-cards-grid mode-cards-grid--2">
-        {/* Режим 1: Только новинки */}
-        <label
-          htmlFor="radio-mode-only-new"
-          className={`mode-card mode-card--indigo ${
-            mode === 'only_new' ? 'mode-card--active' : ''
-          }`}
+        <ModeCard
           id="mode-only-new"
-          onClick={() => onModeChange('only_new')}
-        >
-          <input
-            type="radio"
-            id="radio-mode-only-new"
-            name="importMode"
-            value="only_new"
-            checked={mode === 'only_new'}
-            onChange={() => onModeChange('only_new')}
-            className="sr-only"
-          />
-          <div className="mode-card__header">
-            <div className="mode-card__title-wrap">
-              <ShieldCheck size={18} className="text-emerald" />
-              <span className="mode-card__title">
-                {t('onlyNewItems')}
-              </span>
-            </div>
-            <div className="mode-card__radio" aria-hidden="true">
-              {mode === 'only_new' ? (
-                <Check size={12} strokeWidth={3} className="text-white" />
-              ) : null}
-            </div>
-          </div>
-          <p className="mode-card__desc">
-            {t('onlyNewItemsDesc')}
-          </p>
-        </label>
+          inputId="radio-mode-only-new"
+          name="importMode"
+          value="only_new"
+          isActive={mode === 'only_new'}
+          onSelect={() => onModeChange('only_new')}
+          color="indigo"
+          icon={ShieldCheck}
+          iconSize={18}
+          title={t('onlyNewItems')}
+          description={t('onlyNewItemsDesc')}
+        />
 
-        {/* Режим 2: Перезапись */}
-        <label
-          htmlFor="radio-mode-overwrite"
-          className={`mode-card mode-card--rose ${
-            mode === 'overwrite' ? 'mode-card--active' : ''
-          }`}
+        <ModeCard
           id="mode-overwrite"
-          onClick={() => onModeChange('overwrite')}
-        >
-          <input
-            type="radio"
-            id="radio-mode-overwrite"
-            name="importMode"
-            value="overwrite"
-            checked={mode === 'overwrite'}
-            onChange={() => onModeChange('overwrite')}
-            className="sr-only"
-          />
-          <div className="mode-card__header">
-            <div className="mode-card__title-wrap">
-              <AlertTriangle size={18} className="text-rose" />
-              <span className="mode-card__title">
-                {t('overwriteItems')}
-              </span>
-            </div>
-            <div className="mode-card__radio" aria-hidden="true">
-              {mode === 'overwrite' ? (
-                <Check size={12} strokeWidth={3} className="text-white" />
-              ) : null}
-            </div>
-          </div>
-          <p className="mode-card__desc">
-            {t('overwriteItemsDesc')}
-          </p>
-        </label>
+          inputId="radio-mode-overwrite"
+          name="importMode"
+          value="overwrite"
+          isActive={mode === 'overwrite'}
+          onSelect={() => onModeChange('overwrite')}
+          color="rose"
+          icon={AlertTriangle}
+          iconSize={18}
+          title={t('overwriteItems')}
+          description={t('overwriteItemsDesc')}
+        />
       </div>
     </div>
   );

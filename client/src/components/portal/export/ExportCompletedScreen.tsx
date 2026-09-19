@@ -10,6 +10,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
+import { StatBox } from '../common';
 import type { ExportStats } from './types';
 
 interface ExportCompletedScreenProps {
@@ -69,45 +70,36 @@ export const ExportCompletedScreen: React.FC<ExportCompletedScreenProps> = ({
 
       {stats && (
         <div className="stat-grid">
-          <div className="stat-box">
-            <div className="stat-box__header">
-              <Layers size={13} className="text-indigo" />
-              <span className="stat-box__label">{language === 'uk' ? 'Вивантажено' : 'Выгружено'}</span>
-            </div>
-            <div className="stat-box__value">
-              {stats.totalExported ?? 0}
-            </div>
-          </div>
+          <StatBox
+            icon={Layers}
+            iconColor="text-indigo"
+            label={language === 'uk' ? 'Вивантажено' : 'Выгружено'}
+            value={stats.totalExported ?? 0}
+          />
 
-          <div className="stat-box">
-            <div className="stat-box__header">
-              <Sparkles size={13} className="text-emerald" />
-              <span className="stat-box__label">{language === 'uk' ? 'Новинок' : 'Новинок'}</span>
-            </div>
-            <div className="stat-box__value text-emerald">
-              {stats.created ?? 0}
-            </div>
-          </div>
+          <StatBox
+            icon={Sparkles}
+            iconColor="text-emerald"
+            label={language === 'uk' ? 'Новинок' : 'Новинок'}
+            value={stats.created ?? 0}
+            valueColor="text-emerald"
+          />
 
-          <div className="stat-box">
-            <div className="stat-box__header">
-              <RefreshCw size={13} className="text-sky" />
-              <span className="stat-box__label">{language === 'uk' ? 'Оновлено' : 'Обновлено'}</span>
-            </div>
-            <div className="stat-box__value text-sky">
-              {stats.updated ?? 0}
-            </div>
-          </div>
+          <StatBox
+            icon={RefreshCw}
+            iconColor="text-sky"
+            label={language === 'uk' ? 'Оновлено' : 'Обновлено'}
+            value={stats.updated ?? 0}
+            valueColor="text-sky"
+          />
 
-          <div className="stat-box">
-            <div className="stat-box__header">
-              <AlertCircle size={13} className={(stats.errors ?? 0) > 0 ? 'text-rose' : 'text-muted'} />
-              <span className="stat-box__label">{language === 'uk' ? 'Помилок' : 'Ошибок'}</span>
-            </div>
-            <div className={`stat-box__value ${(stats.errors ?? 0) > 0 ? 'text-rose' : 'text-muted'}`}>
-              {stats.errors ?? 0}
-            </div>
-          </div>
+          <StatBox
+            icon={AlertCircle}
+            iconColor={(stats.errors ?? 0) > 0 ? 'text-rose' : 'text-muted'}
+            label={language === 'uk' ? 'Помилок' : 'Ошибок'}
+            value={stats.errors ?? 0}
+            valueColor={(stats.errors ?? 0) > 0 ? 'text-rose' : 'text-muted'}
+          />
         </div>
       )}
 
