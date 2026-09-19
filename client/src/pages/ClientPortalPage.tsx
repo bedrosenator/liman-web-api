@@ -889,6 +889,7 @@ export function ClientPortalPage() {
                     value={syncInterval}
                     onChange={(e) => setSyncInterval(parseInt(e.target.value, 10))}
                   >
+                    <option value={5}>{t('interval5Min')}</option>
                     <option value={15}>{t('interval15Min')}</option>
                     <option value={30}>{t('interval30Min')}</option>
                     <option value={60}>{t('interval60Min')}</option>

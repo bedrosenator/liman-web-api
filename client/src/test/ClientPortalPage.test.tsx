@@ -256,4 +256,14 @@ describe('ClientPortalPage (TASK-20)', () => {
       expect(screen.getByText('Настройки магазина и БД')).toBeInTheDocument();
     });
   });
+
+  it('содержит опцию интервала автосинхронизации в 5 минут', async () => {
+    renderPortal();
+
+    await waitFor(() => {
+      const fiveMinOption = screen.getByRole('option', { name: '5 мин' });
+      expect(fiveMinOption).toBeInTheDocument();
+      expect((fiveMinOption as HTMLOptionElement).value).toBe('5');
+    });
+  });
 });
