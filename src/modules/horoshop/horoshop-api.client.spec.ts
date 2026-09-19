@@ -198,4 +198,29 @@ describe('HoroshopApiClient (Transient Retry & Reliability)', () => {
     expect(mockAxiosInstance.post).toHaveBeenCalledTimes(2);
     expect(res.success).toBe(true);
   });
+
+  it('should filter out system "Бренди" / brands directory page from catalog categories', async () => {
+    mockAxiosInstance.post.mockResolvedValueOnce({
+      data: {
+        status: 'OK',
+        response: {
+          pages: [
+            { id: 97, parent: 1, title: { ua: 'Каталог' } },
+            { id: 1055, parent: 97, title: { ua: 'Електроніка' } },
+            { id: 1008, parent: 1055, title: { ua: 'Аксесуари' } },
+            { id: 993, parent: 97, title: { ua: 'Бренди' } },
+            { id: 994, parent: 97, title: { ua: 'Brands' } },
+          ],
+        },
+      },
+    });
+
+    const categories = await client.getCatalogCategories(mockTenant);
+
+    expect(categories).toEqual([
+      { id: 1055, title: 'Електроніка', fullPath: 'Електроніка' },
+      { id: 1008, title: 'Аксесуари', fullPath: 'Електроніка/Аксесуари' },
+    ]);
+    expect(categories.some((c) => c.id === 993 || c.title === 'Бренди')).toBe(false);
+  });
 });

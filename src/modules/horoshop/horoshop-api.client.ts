@@ -629,6 +629,14 @@ export class HoroshopApiClient {
     for (const p of pages) {
       if (p.id === 1 || p.id === 97) continue;
 
+      // Системный раздел брендов (например, id 993 "Бренди") не является товарной категорией и не имеет шаблона товаров
+      const isBrandsDirectory =
+        p.id === 993 ||
+        ['бренди', 'бренды', 'brands'].includes(
+          (p.title?.ua || p.title?.ru || p.title?.en || '').trim().toLowerCase(),
+        );
+      if (isBrandsDirectory) continue;
+
       let curr = p;
       let isUnderCatalog = false;
       while (curr && curr.parent) {
@@ -652,6 +660,13 @@ export class HoroshopApiClient {
     if (categories.length === 0) {
       for (const p of pages) {
         if (p.id !== 1 && p.id !== 97) {
+          const isBrandsDirectory =
+            p.id === 993 ||
+            ['бренди', 'бренды', 'brands'].includes(
+              (p.title?.ua || p.title?.ru || p.title?.en || '').trim().toLowerCase(),
+            );
+          if (isBrandsDirectory) continue;
+
           const title = p.title?.ua || p.title?.ru || String(p.id);
           categories.push({
             id: p.id,
