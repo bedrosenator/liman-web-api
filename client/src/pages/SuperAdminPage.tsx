@@ -817,7 +817,7 @@ export function SuperAdminPage() {
 
                 <div className="settings-row">
                   <span className="settings-row__label">Chat ID группы</span>
-                  <span className="settings-row__value font-mono">-5181857088</span>
+                  <span className="settings-row__value font-mono">-100XXXXXXXXXX</span>
                 </div>
 
                 <div className="mt-4">
