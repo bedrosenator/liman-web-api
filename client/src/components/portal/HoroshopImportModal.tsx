@@ -1,28 +1,20 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
 import { horoshopApi, syncApi } from '@/api/client';
+import { X, Download, RefreshCw } from 'lucide-react';
+import type {
+  ImportMode,
+  ImportStats,
+  HoroshopImportModalProps,
+} from './import';
 import {
-  X,
-  ShieldCheck,
-  AlertTriangle,
-  Download,
-  Loader2,
-  CheckCircle2,
-  AlertCircle,
-  Database,
-  Image as ImageIcon,
-  DollarSign,
-  Package,
-  Check,
-  RefreshCw,
-} from 'lucide-react';
-
-interface HoroshopImportModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  tenantId: string;
-  onImportFinished?: () => void;
-}
+  ImportModeSelector,
+  ImportRiskConfirm,
+  ImportFieldToggles,
+  ImportProgressScreen,
+  ImportCompletedScreen,
+  ImportErrorScreen,
+} from './import';
 
 export function HoroshopImportModal({
   isOpen,
@@ -32,7 +24,7 @@ export function HoroshopImportModal({
 }: HoroshopImportModalProps) {
   const { t, language } = useLanguage();
 
-  const [mode, setMode] = useState<'only_new' | 'overwrite'>('only_new');
+  const [mode, setMode] = useState<ImportMode>('only_new');
   const [updatePrices, setUpdatePrices] = useState(true);
   const [updateStock, setUpdateStock] = useState(true);
   const [updateImages, setUpdateImages] = useState(true);
@@ -42,14 +34,7 @@ export function HoroshopImportModal({
   const [status, setStatus] = useState<'idle' | 'running' | 'completed' | 'error'>('idle');
   const [progress, setProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [stats, setStats] = useState<{
-    totalFetched?: number;
-    created?: number;
-    updated?: number;
-    skipped?: number;
-    errors?: number;
-    backupId?: string;
-  } | null>(null);
+  const [stats, setStats] = useState<ImportStats | null>(null);
 
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -175,261 +160,39 @@ export function HoroshopImportModal({
         <div className="modal-body">
           {status === 'idle' && (
             <div className="space-y-4">
-              {/* Режим синхронизации */}
-              <div>
-                <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-2">
-                  {t('importMode')}
-                </label>
+              <ImportModeSelector
+                mode={mode}
+                onModeChange={(newMode) => {
+                  setMode(newMode);
+                  if (newMode !== 'overwrite') setRiskAccepted(false);
+                }}
+              />
 
-                <div className="mode-cards-grid mode-cards-grid--2">
-                  {/* Режим 1: Только новинки */}
-                  <label
-                    htmlFor="radio-mode-only-new"
-                    className={`mode-card mode-card--indigo ${
-                      mode === 'only_new' ? 'mode-card--active' : ''
-                    }`}
-                    id="mode-only-new"
-                    onClick={() => {
-                      setMode('only_new');
-                      setRiskAccepted(false);
-                    }}
-                  >
-                    <input
-                      type="radio"
-                      id="radio-mode-only-new"
-                      name="importMode"
-                      value="only_new"
-                      checked={mode === 'only_new'}
-                      onChange={() => {
-                        setMode('only_new');
-                        setRiskAccepted(false);
-                      }}
-                      className="sr-only"
-                    />
-                    <div className="mode-card__header">
-                      <div className="mode-card__title-wrap">
-                        <ShieldCheck size={18} className="text-emerald" />
-                        <span className="mode-card__title">
-                          {t('onlyNewItems')}
-                        </span>
-                      </div>
-                      <div className="mode-card__radio" aria-hidden="true">
-                        {mode === 'only_new' ? (
-                          <Check size={12} strokeWidth={3} className="text-white" />
-                        ) : null}
-                      </div>
-                    </div>
-                    <p className="mode-card__desc">
-                      {t('onlyNewItemsDesc')}
-                    </p>
-                  </label>
-
-                  {/* Режим 2: Перезапись */}
-                  <label
-                    htmlFor="radio-mode-overwrite"
-                    className={`mode-card mode-card--rose ${
-                      mode === 'overwrite' ? 'mode-card--active' : ''
-                    }`}
-                    id="mode-overwrite"
-                    onClick={() => setMode('overwrite')}
-                  >
-                    <input
-                      type="radio"
-                      id="radio-mode-overwrite"
-                      name="importMode"
-                      value="overwrite"
-                      checked={mode === 'overwrite'}
-                      onChange={() => setMode('overwrite')}
-                      className="sr-only"
-                    />
-                    <div className="mode-card__header">
-                      <div className="mode-card__title-wrap">
-                        <AlertTriangle size={18} className="text-rose" />
-                        <span className="mode-card__title">
-                          {t('overwriteItems')}
-                        </span>
-                      </div>
-                      <div className="mode-card__radio" aria-hidden="true">
-                        {mode === 'overwrite' ? (
-                          <Check size={12} strokeWidth={3} className="text-white" />
-                        ) : null}
-                      </div>
-                    </div>
-                    <p className="mode-card__desc">
-                      {t('overwriteItemsDesc')}
-                    </p>
-                  </label>
-                </div>
-              </div>
-
-              {/* Защитный барьер при режиме перезаписи */}
               {mode === 'overwrite' && (
-                <div
-                  className="warning-box--rose space-y-3"
-                  id="overwrite-warning-box"
-                >
-                  <div className="flex items-start gap-2">
-                    <AlertTriangle size={18} className="text-rose flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-rose font-medium leading-relaxed">
-                      {t('overwriteConfirm')}
-                    </p>
-                  </div>
-
-                  <label className="checkbox-item" htmlFor="chk-risk-accepted">
-                    <input
-                      type="checkbox"
-                      checked={riskAccepted}
-                      onChange={(e) => setRiskAccepted(e.target.checked)}
-                      id="chk-risk-accepted"
-                    />
-                    <span className="text-xs font-semibold text-rose">
-                      {t('overwriteCheckbox')}
-                    </span>
-                  </label>
-                </div>
+                <ImportRiskConfirm
+                  riskAccepted={riskAccepted}
+                  onRiskChange={setRiskAccepted}
+                />
               )}
 
-              {/* Тонкие настройки полей */}
-              <div>
-                <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-2">
-                  {language === 'uk' ? 'Параметри імпорту' : 'Параметры импорта'}
-                </label>
-
-                <div className="checkbox-grid">
-                  <label className="checkbox-item">
-                    <input
-                      type="checkbox"
-                      checked={updatePrices}
-                      onChange={(e) => setUpdatePrices(e.target.checked)}
-                    />
-                    <DollarSign size={14} className="text-indigo" />
-                    <span>{language === 'uk' ? 'Роздрібні ціни (cena2)' : 'Розничные цены (cena2)'}</span>
-                  </label>
-
-                  <label className="checkbox-item">
-                    <input
-                      type="checkbox"
-                      checked={updateStock}
-                      onChange={(e) => setUpdateStock(e.target.checked)}
-                    />
-                    <Package size={14} className="text-emerald" />
-                    <span>{language === 'uk' ? 'Складські залишки (skl_k)' : 'Складские остатки (skl_k)'}</span>
-                  </label>
-
-                  <label className="checkbox-item">
-                    <input
-                      type="checkbox"
-                      checked={updateImages}
-                      onChange={(e) => setUpdateImages(e.target.checked)}
-                    />
-                    <ImageIcon size={14} className="text-sky" />
-                    <span>{language === 'uk' ? 'Фотографії (namedesc)' : 'Фотографии (namedesc)'}</span>
-                  </label>
-
-                  <label className="checkbox-item">
-                    <input
-                      type="checkbox"
-                      checked={createBackup}
-                      onChange={(e) => setCreateBackup(e.target.checked)}
-                    />
-                    <Database size={14} className="text-amber" />
-                    <span className="truncate">{t('autoBackupBeforeSync')}</span>
-                  </label>
-                </div>
-              </div>
+              <ImportFieldToggles
+                updatePrices={updatePrices}
+                setUpdatePrices={setUpdatePrices}
+                updateStock={updateStock}
+                setUpdateStock={setUpdateStock}
+                updateImages={updateImages}
+                setUpdateImages={setUpdateImages}
+                createBackup={createBackup}
+                setCreateBackup={setCreateBackup}
+              />
             </div>
           )}
 
-          {/* Running state with Live Progress Bar */}
-          {status === 'running' && (
-            <div className="py-8 text-center space-y-4" id="import-running-box">
-              <Loader2 size={40} className="spinner text-indigo mx-auto" />
-              <div>
-                <h3 className="text-base font-semibold text-primary">{t('importRunning')}</h3>
-                <p className="text-xs text-secondary mt-1">
-                  {language === 'uk'
-                    ? 'Фонова черга BullMQ безпечно обробляє товари каталогу без блокування сервера.'
-                    : 'Фоновая очередь BullMQ безопасно обрабатывает товары каталога без блокировки сервера.'}
-                </p>
-              </div>
+          {status === 'running' && <ImportProgressScreen progress={progress} />}
 
-              <div className="space-y-1.5 max-w-md mx-auto">
-                <div className="flex justify-between text-xs text-muted font-mono">
-                  <span>{t('importProgress')}</span>
-                  <span>{progress}%</span>
-                </div>
-                <div className="progress-track">
-                  <div
-                    className="progress-fill progress-fill--indigo"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
+          {status === 'completed' && <ImportCompletedScreen stats={stats} />}
 
-          {/* Completed state with Counters Report */}
-          {status === 'completed' && (
-            <div className="py-4 space-y-5 text-center" id="import-completed-box">
-              <div className="success-badge-glow">
-                <CheckCircle2 size={30} className="text-emerald" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-primary mb-1">
-                  {language === 'uk' ? 'Імпорт каталогу успішно завершено!' : 'Импорт каталога успешно завершен!'}
-                </h3>
-                <p className="text-xs text-secondary">
-                  {language === 'uk'
-                    ? 'Товари з магазину Хорошоп синхронізовані в MariaDB Limansoft.'
-                    : 'Товары из магазина Хорошоп синхронизированы в MariaDB Limansoft.'}
-                </p>
-              </div>
-
-              {stats && (
-                <div className="stat-grid">
-                  <div className="stat-box">
-                    <div className="stat-box__label">{t('importProgress')}</div>
-                    <div className="stat-box__value">{stats.totalFetched ?? 0}</div>
-                  </div>
-                  <div className="stat-box">
-                    <div className="stat-box__label">{t('importCreated')}</div>
-                    <div className="stat-box__value text-emerald">{stats.created ?? 0}</div>
-                  </div>
-                  <div className="stat-box">
-                    <div className="stat-box__label">{t('importUpdated')}</div>
-                    <div className="stat-box__value text-sky">{stats.updated ?? 0}</div>
-                  </div>
-                  <div className="stat-box">
-                    <div className="stat-box__label">
-                      {language === 'uk' ? 'Пропущено' : 'Пропущено'}
-                    </div>
-                    <div className="stat-box__value text-amber">{stats.skipped ?? 0}</div>
-                  </div>
-                </div>
-              )}
-
-              {stats?.backupId && (
-                <div className="duration-pill">
-                  <span>🛡️ Бэкап: {stats.backupId}</span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Error state */}
-          {status === 'error' && (
-            <div className="py-4 space-y-4 text-center" id="import-error-box">
-              <div className="w-12 h-12 bg-rose/10 border border-rose/30 rounded-full flex items-center justify-center mx-auto text-rose">
-                <AlertCircle size={28} />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-primary mb-1">
-                  {language === 'uk' ? 'Помилка імпорту каталогу' : 'Ошибка импорта каталога'}
-                </h3>
-                <p className="text-xs text-rose max-w-sm mx-auto">{errorMessage}</p>
-              </div>
-            </div>
-          )}
+          {status === 'error' && <ImportErrorScreen errorMessage={errorMessage} />}
         </div>
 
         {/* Modal Footer */}
