@@ -298,7 +298,7 @@ export const WooCommerceTab: React.FC<WooCommerceTabProps> = ({
         <div className="card__header">
           <h2 className="card__title">
             <Zap size={20} className="text-amber flex-shrink-0" />
-            <span>Действия / Дії WooCommerce</span>
+            <span>{t('wooActions')}</span>
           </h2>
         </div>
         <div className="card__body space-y-4">

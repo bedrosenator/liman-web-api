@@ -214,7 +214,7 @@ export const PromTab: React.FC<PromTabProps> = ({
         <div className="card__header">
           <h2 className="card__title">
             <Zap size={20} className="text-amber flex-shrink-0" />
-            <span>Действия / Дії Prom.ua</span>
+            <span>{t('promActions')}</span>
           </h2>
         </div>
         <div className="card__body space-y-4">
@@ -312,7 +312,7 @@ export const PromTab: React.FC<PromTabProps> = ({
         <div className="card__header">
           <h2 className="card__title">
             <Radio size={20} className="text-emerald flex-shrink-0" />
-            <span>Вебхук заказов Prom.ua</span>
+            <span>{t('promOrderWebhook')}</span>
           </h2>
         </div>
         <div className="card__body space-y-3">

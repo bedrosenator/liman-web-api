@@ -216,7 +216,7 @@ export const RozetkaTab: React.FC<RozetkaTabProps> = ({
         <div className="card__header">
           <h2 className="card__title">
             <Zap size={20} className="text-amber flex-shrink-0" />
-            <span>Действия / Дії Rozetka</span>
+            <span>{t('rozetkaActions')}</span>
           </h2>
         </div>
         <div className="card__body space-y-4">
@@ -314,7 +314,7 @@ export const RozetkaTab: React.FC<RozetkaTabProps> = ({
         <div className="card__header">
           <h2 className="card__title">
             <Radio size={20} className="text-emerald flex-shrink-0" />
-            <span>Вебхук заказов Rozetka</span>
+            <span>{t('rozetkaOrderWebhook')}</span>
           </h2>
         </div>
         <div className="card__body space-y-3">
