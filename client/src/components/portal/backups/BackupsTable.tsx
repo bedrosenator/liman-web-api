@@ -81,58 +81,55 @@ export const BackupsTable: React.FC<BackupsTableProps> = ({
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+        <div className="table-wrapper">
+          <table className="table" id="backups-list-table">
             <thead>
-              <tr className="border-b border-subtle text-muted uppercase text-[11px] tracking-wider bg-elevated/50">
-                <th className="py-3 px-4 font-semibold">{t('backupCreatedAt')}</th>
-                <th className="py-3 px-4 font-semibold">Файл</th>
-                <th className="py-3 px-4 font-semibold">{t('backupMode')}</th>
-                <th className="py-3 px-4 font-semibold">{t('backupSize')}</th>
-                <th className="py-3 px-4 font-semibold">SHA-256</th>
-                <th className="py-3 px-4 text-right font-semibold">{t('actions')}</th>
+              <tr>
+                <th style={{ width: '190px' }}>{t('backupCreatedAt')}</th>
+                <th>Файл</th>
+                <th className="text-center" style={{ width: '160px' }}>{t('backupMode')}</th>
+                <th style={{ width: '120px' }}>{t('backupSize')}</th>
+                <th className="text-center" style={{ width: '100px' }}>SHA-256</th>
+                <th className="text-right" style={{ width: '220px' }}>{t('actions')}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-subtle">
+            <tbody>
               {backups.map((b) => (
-                <tr
-                  key={b.filename}
-                  className="hover:bg-elevated/40 transition-colors"
-                >
-                  <td className="py-3.5 px-4 font-medium text-primary whitespace-nowrap">
+                <tr key={b.filename}>
+                  <td className="whitespace-nowrap font-medium text-primary">
                     <div className="flex items-center gap-2">
                       <Clock size={14} className="text-muted" />
                       <span>{formatDate(b.createdAt)}</span>
                     </div>
                   </td>
                   <td
-                    className="py-3.5 px-4 font-mono text-secondary truncate max-w-xs"
+                    className="font-mono text-secondary truncate max-w-xs"
                     title={b.filename}
                   >
                     {b.filename}
                   </td>
-                  <td className="py-3.5 px-4 whitespace-nowrap">
+                  <td className="text-center whitespace-nowrap">
                     <span
-                      className={`badge text-[10px] ${
-                        b.mode === 'full' ? 'badge--indigo' : 'badge--success'
+                      className={`badge ${
+                        b.mode === 'full' ? 'badge--indigo' : 'badge--emerald'
                       }`}
                     >
                       {b.mode === 'full' ? t('fullBackup') : t('fastBackup')}
                     </span>
                   </td>
-                  <td className="py-3.5 px-4 font-mono whitespace-nowrap">
+                  <td className="font-mono whitespace-nowrap text-secondary">
                     {formatBytes(b.sizeBytes)}
                   </td>
-                  <td className="py-3.5 px-4 whitespace-nowrap">
+                  <td className="text-center whitespace-nowrap">
                     <div
-                      className="flex items-center gap-1 text-emerald"
+                      className="inline-flex items-center gap-1.5 text-emerald"
                       title={b.sha256 || 'Verified'}
                     >
                       <ShieldCheck size={14} />
-                      <span className="text-[10px] font-mono">OK</span>
+                      <span className="text-xs font-mono font-semibold">OK</span>
                     </div>
                   </td>
-                  <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                  <td className="text-right whitespace-nowrap">
                     <div className="flex items-center justify-end gap-1.5">
                       <button
                         type="button"

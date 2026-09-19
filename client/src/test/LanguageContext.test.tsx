@@ -133,6 +133,14 @@ describe('LanguageContext', () => {
     expect(result.current.t('overwriteItems')).toBe('Повне оновлення (Перезапис)');
   });
 
+  it('должен переводить интервал 5 минут на RU и UK', () => {
+    const { result } = renderHook(() => useLanguage(), { wrapper });
+    expect(result.current.t('interval5Min')).toBe('5 мин');
+
+    act(() => result.current.setLanguage('uk'));
+    expect(result.current.t('interval5Min')).toBe('5 хв');
+  });
+
   // ─── useLanguage error ────────────────────────────────────────────────────────
 
   it('useLanguage должен выбрасывать ошибку вне LanguageProvider', () => {

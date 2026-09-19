@@ -396,84 +396,84 @@ export function ClientPortalPage() {
           <>
             {/* Витрина интеграций (Showcase & Tabs) */}
             <div className="flex flex-wrap items-center gap-2 mb-6 border-b border-subtle pb-3" id="platform-tabs">
-          <button
-            type="button"
-            className={`btn btn--sm gap-2 ${
-              selectedPlatform === 'horoshop'
-                ? 'btn--primary'
-                : 'btn--secondary'
-            }`}
-            onClick={() => setSelectedPlatform('horoshop')}
-            id="tab-horoshop"
-          >
-            <Store size={15} />
-            <span>{t('horoshop')}</span>
-            <span className="badge badge--success text-[10px]">{t('connected')}</span>
-          </button>
+              <button
+                type="button"
+                className={`btn btn--sm gap-2 whitespace-nowrap ${
+                  selectedPlatform === 'horoshop'
+                    ? 'btn--primary'
+                    : 'btn--secondary'
+                }`}
+                onClick={() => setSelectedPlatform('horoshop')}
+                id="tab-horoshop"
+              >
+                <Store size={15} />
+                <span>{t('horoshop')}</span>
+                <span className="badge badge--emerald text-[10px]">{t('connected')}</span>
+              </button>
 
-          <button
-            type="button"
-            className={`btn btn--sm gap-2 ${
-              selectedPlatform === 'prom'
-                ? 'btn--primary'
-                : 'btn--secondary'
-            }`}
-            onClick={() => setSelectedPlatform('prom')}
-            id="tab-prom"
-          >
-            <Radio size={15} />
-            <span>Prom.ua</span>
-            <span
-              className={`badge text-[10px] ${
-                tenant?.promApiKey ? 'badge--success' : 'badge--muted'
-              }`}
-            >
-              {tenant?.promApiKey ? t('connected') : t('availableForConnection')}
-            </span>
-          </button>
+              <button
+                type="button"
+                className={`btn btn--sm gap-2 whitespace-nowrap ${
+                  selectedPlatform === 'prom'
+                    ? 'btn--primary'
+                    : 'btn--secondary'
+                }`}
+                onClick={() => setSelectedPlatform('prom')}
+                id="tab-prom"
+              >
+                <Radio size={15} />
+                <span>Prom.ua</span>
+                <span
+                  className={`badge text-[10px] ${
+                    tenant?.promApiKey ? 'badge--emerald' : 'badge--subtle'
+                  }`}
+                >
+                  {tenant?.promApiKey ? t('connected') : t('availableForConnection')}
+                </span>
+              </button>
 
-          <button
-            type="button"
-            className={`btn btn--sm gap-2 ${
-              selectedPlatform === 'rozetka'
-                ? 'btn--primary'
-                : 'btn--secondary'
-            }`}
-            onClick={() => setSelectedPlatform('rozetka')}
-            id="tab-rozetka"
-          >
-            <Radio size={15} />
-            <span>Rozetka</span>
-            <span
-              className={`badge text-[10px] ${
-                tenant?.rozetkaClientId ? 'badge--success' : 'badge--muted'
-              }`}
-            >
-              {tenant?.rozetkaClientId ? t('connected') : t('availableForConnection')}
-            </span>
-          </button>
+              <button
+                type="button"
+                className={`btn btn--sm gap-2 whitespace-nowrap ${
+                  selectedPlatform === 'rozetka'
+                    ? 'btn--primary'
+                    : 'btn--secondary'
+                }`}
+                onClick={() => setSelectedPlatform('rozetka')}
+                id="tab-rozetka"
+              >
+                <Radio size={15} />
+                <span>Rozetka</span>
+                <span
+                  className={`badge text-[10px] ${
+                    tenant?.rozetkaClientId ? 'badge--emerald' : 'badge--subtle'
+                  }`}
+                >
+                  {tenant?.rozetkaClientId ? t('connected') : t('availableForConnection')}
+                </span>
+              </button>
 
-          <button
-            type="button"
-            className={`btn btn--sm gap-2 ${
-              selectedPlatform === 'woocommerce'
-                ? 'btn--primary'
-                : 'btn--secondary'
-            }`}
-            onClick={() => setSelectedPlatform('woocommerce')}
-            id="tab-woocommerce"
-          >
-            <Radio size={15} />
-            <span>WooCommerce</span>
-            <span
-              className={`badge text-[10px] ${
-                tenant?.woocommerceUrl ? 'badge--success' : 'badge--muted'
-              }`}
-            >
-              {tenant?.woocommerceUrl ? t('connected') : t('availableForConnection')}
-            </span>
-          </button>
-        </div>
+              <button
+                type="button"
+                className={`btn btn--sm gap-2 whitespace-nowrap ${
+                  selectedPlatform === 'woocommerce'
+                    ? 'btn--primary'
+                    : 'btn--secondary'
+                }`}
+                onClick={() => setSelectedPlatform('woocommerce')}
+                id="tab-woocommerce"
+              >
+                <Radio size={15} />
+                <span>WooCommerce</span>
+                <span
+                  className={`badge text-[10px] ${
+                    tenant?.woocommerceUrl ? 'badge--emerald' : 'badge--subtle'
+                  }`}
+                >
+                  {tenant?.woocommerceUrl ? t('connected') : t('availableForConnection')}
+                </span>
+              </button>
+            </div>
 
         {selectedPlatform === 'horoshop' && (
           <>
@@ -889,6 +889,7 @@ export function ClientPortalPage() {
                     value={syncInterval}
                     onChange={(e) => setSyncInterval(parseInt(e.target.value, 10))}
                   >
+                    <option value={5}>{t('interval5Min')}</option>
                     <option value={15}>{t('interval15Min')}</option>
                     <option value={30}>{t('interval30Min')}</option>
                     <option value={60}>{t('interval60Min')}</option>

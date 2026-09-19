@@ -88,6 +88,7 @@ export const translations = {
     copyFeedLink: 'Скопировать ссылку на фид',
     autoSync: 'Автосинхронизация',
     syncInterval: 'Интервал (мин)',
+    interval5Min: '5 мин',
     interval15Min: '15 мин',
     interval30Min: '30 мин',
     interval60Min: '60 мин',
@@ -229,6 +230,8 @@ export const translations = {
     openPortalSection: 'Открыть раздел',
 
     // Prom.ua (TASK-21)
+    promActions: 'Действия Prom.ua',
+    promOrderWebhook: 'Вебхук заказов Prom.ua',
     promSettings: 'Настройки Prom.ua API',
     promApiKeyLabel: 'Prom API Token (Секретный ключ)',
     promSyncStock: 'Синхронизировать остатки в Prom',
@@ -241,6 +244,8 @@ export const translations = {
     promPingSuccess: 'Связь с Prom.ua установлена',
 
     // Rozetka (TASK-21)
+    rozetkaActions: 'Действия Rozetka',
+    rozetkaOrderWebhook: 'Вебхук заказов Rozetka',
     rozetkaSettings: 'Настройки Rozetka Seller API',
     rozetkaClientIdLabel: 'Username / Client ID',
     rozetkaClientSecretLabel: 'Password / Client Secret',
@@ -254,6 +259,7 @@ export const translations = {
     rozetkaPingSuccess: 'Авторизация в Rozetka Seller API успешна',
 
     // WooCommerce (TASK-21)
+    wooActions: 'Действия WooCommerce',
     wooSettings: 'Настройки WooCommerce REST API',
     wooStoreUrlLabel: 'URL интернет-магазина (https://...)',
     wooConsumerKeyLabel: 'Consumer Key (ck_...)',
@@ -356,6 +362,7 @@ export const translations = {
     copyFeedLink: 'Скопіювати посилання на фід',
     autoSync: 'Автосинхронізація',
     syncInterval: 'Інтервал (хв)',
+    interval5Min: '5 хв',
     interval15Min: '15 хв',
     interval30Min: '30 хв',
     interval60Min: '60 хв',
@@ -497,6 +504,8 @@ export const translations = {
     openPortalSection: 'Відкрити розділ',
 
     // Prom.ua (TASK-21)
+    promActions: 'Дії Prom.ua',
+    promOrderWebhook: 'Вебхук замовлень Prom.ua',
     promSettings: 'Налаштування Prom.ua API',
     promApiKeyLabel: 'Prom API Token (Секретний ключ)',
     promSyncStock: 'Синхронізувати залишки в Prom',
@@ -509,6 +518,8 @@ export const translations = {
     promPingSuccess: 'Зв\'язок із Prom.ua встановлено',
 
     // Rozetka (TASK-21)
+    rozetkaActions: 'Дії Rozetka',
+    rozetkaOrderWebhook: 'Вебхук замовлень Rozetka',
     rozetkaSettings: 'Налаштування Rozetka Seller API',
     rozetkaClientIdLabel: 'Username / Client ID',
     rozetkaClientSecretLabel: 'Password / Client Secret',
@@ -522,6 +533,7 @@ export const translations = {
     rozetkaPingSuccess: 'Авторизація в Rozetka Seller API успішна',
 
     // WooCommerce (TASK-21)
+    wooActions: 'Дії WooCommerce',
     wooSettings: 'Налаштування WooCommerce REST API',
     wooStoreUrlLabel: 'URL інтернет-магазину (https://...)',
     wooConsumerKeyLabel: 'Consumer Key (ck_...)',

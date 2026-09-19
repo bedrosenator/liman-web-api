@@ -136,7 +136,7 @@ export const PortalSettingsTab: React.FC<PortalSettingsTabProps> = ({
   return (
     <form onSubmit={handleSave} className="space-y-6" id="portal-settings-tab">
       {/* Header & Save Bar */}
-      <div className="card p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="card p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
             <Settings size={22} className="text-indigo" />
@@ -146,7 +146,7 @@ export const PortalSettingsTab: React.FC<PortalSettingsTabProps> = ({
                 : 'Настройки магазина и БД'}
             </h2>
           </div>
-          <p className="text-xs text-secondary mt-1">
+          <p className="text-xs text-secondary mt-1 max-w-xl">
             {language === 'uk'
               ? 'Конфігурація облікової бази даних Limansoft, колонок цін і ключів API.'
               : 'Конфигурация учетной базы данных Limansoft, колонок цен и ключей API.'}
@@ -155,7 +155,7 @@ export const PortalSettingsTab: React.FC<PortalSettingsTabProps> = ({
 
         <button
           type="submit"
-          className="btn btn--primary btn--sm gap-2"
+          className="btn btn--primary btn--sm gap-2 self-start md:self-auto flex-shrink-0"
           disabled={isSaving}
           id="btn-save-portal-settings"
         >
@@ -224,62 +224,62 @@ export const PortalSettingsTab: React.FC<PortalSettingsTabProps> = ({
             </div>
           )}
 
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2">
-              <label className="text-xs font-semibold text-muted block mb-1">{t('dbHost')}</label>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="col-span-2 form-group">
+              <label className="form-label">{t('dbHost')}</label>
               <input
                 type="text"
                 value={dbHost}
                 onChange={(e) => setDbHost(e.target.value)}
-                className="input input--sm w-full"
+                className="input font-mono"
                 required
               />
             </div>
-            <div>
-              <label className="text-xs font-semibold text-muted block mb-1">{t('dbPort')}</label>
+            <div className="form-group">
+              <label className="form-label">{t('dbPort')}</label>
               <input
                 type="number"
                 value={dbPort}
                 onChange={(e) => setDbPort(Number(e.target.value))}
-                className="input input--sm w-full"
+                className="input font-mono"
                 required
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-semibold text-muted block mb-1">{t('dbName')}</label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="form-group">
+              <label className="form-label">{t('dbName')}</label>
               <input
                 type="text"
                 value={dbName}
                 onChange={(e) => setDbName(e.target.value)}
-                className="input input--sm w-full"
+                className="input font-mono"
                 required
               />
             </div>
-            <div>
-              <label className="text-xs font-semibold text-muted block mb-1">{t('dbUser')}</label>
+            <div className="form-group">
+              <label className="form-label">{t('dbUser')}</label>
               <input
                 type="text"
                 value={dbUser}
                 onChange={(e) => setDbUser(e.target.value)}
-                className="input input--sm w-full"
+                className="input font-mono"
                 required
               />
             </div>
           </div>
 
-          <div>
-            <label className="text-xs font-semibold text-muted block mb-1">{t('dbPassword')}</label>
+          <div className="form-group">
+            <label className="form-label">{t('dbPassword')}</label>
             <input
               type="password"
               placeholder={tenant?.dbPassword ? '••••••••' : ''}
               value={dbPassword}
               onChange={(e) => setDbPassword(e.target.value)}
-              className="input input--sm w-full"
+              className="input font-mono"
             />
-            <span className="text-[11px] text-muted">
+            <span className="form-hint">
               {language === 'uk'
                 ? 'Залиште порожнім, щоб не змінювати поточний пароль.'
                 : 'Оставьте пустым, чтобы не менять текущий пароль.'}
@@ -294,59 +294,59 @@ export const PortalSettingsTab: React.FC<PortalSettingsTabProps> = ({
             <span>{language === 'uk' ? 'Колонки обліку та медіа' : 'Колонки учета и медиа'}</span>
           </div>
 
-          <div>
-            <label className="text-xs font-semibold text-muted block mb-1">{t('tenantName')}</label>
+          <div className="form-group">
+            <label className="form-label">{t('tenantName')}</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="input input--sm w-full"
+              className="input"
               required
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-semibold text-muted block mb-1">{t('priceColumn')}</label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="form-group">
+              <label className="form-label">{t('priceColumn')}</label>
               <input
                 type="text"
                 value={priceColumn}
                 onChange={(e) => setPriceColumn(e.target.value)}
-                className="input input--sm w-full font-mono"
+                className="input font-mono"
                 placeholder="cena2"
                 required
               />
-              <span className="text-[11px] text-muted">
+              <span className="form-hint">
                 {language === 'uk' ? 'Роздрібна ціна (name2)' : 'Розничная цена (name2)'}
               </span>
             </div>
 
-            <div>
-              <label className="text-xs font-semibold text-muted block mb-1">{t('stockColumn')}</label>
+            <div className="form-group">
+              <label className="form-label">{t('stockColumn')}</label>
               <input
                 type="text"
                 value={stockColumn}
                 onChange={(e) => setStockColumn(e.target.value)}
-                className="input input--sm w-full font-mono"
+                className="input font-mono"
                 placeholder="skl_k"
                 required
               />
-              <span className="text-[11px] text-muted">
+              <span className="form-hint">
                 {language === 'uk' ? 'Основний склад (name2ost)' : 'Основной склад (name2ost)'}
               </span>
             </div>
           </div>
 
-          <div>
-            <label className="text-xs font-semibold text-muted block mb-1">Public Base URL</label>
+          <div className="form-group">
+            <label className="form-label">Public Base URL</label>
             <input
               type="url"
               value={publicBaseUrl}
               onChange={(e) => setPublicBaseUrl(e.target.value)}
-              className="input input--sm w-full font-mono"
+              className="input font-mono"
               placeholder="https://liman.terrace.pp.ua"
             />
-            <span className="text-[11px] text-muted">
+            <span className="form-hint">
               {language === 'uk'
                 ? 'Публічний домен сервісу для віддачі фото товарів у маркетплейси.'
                 : 'Публичный домен сервиса для раздачи фото товаров в маркетплейсы.'}
@@ -356,7 +356,7 @@ export const PortalSettingsTab: React.FC<PortalSettingsTabProps> = ({
       </div>
 
       {/* 3. API Key Card */}
-      <div className="card p-6 space-y-3">
+      <div className="card p-6 space-y-4">
         <div className="flex items-center gap-2 font-bold text-sm text-primary border-b border-subtle pb-3">
           <Key size={17} className="text-amber" />
           <span>{language === 'uk' ? 'API Ключ клієнта (Tenant API Key)' : 'API Ключ клиента (Tenant API Key)'}</span>
@@ -368,26 +368,28 @@ export const PortalSettingsTab: React.FC<PortalSettingsTabProps> = ({
             : 'Этот персональный ключ используется для авторизации внешних вебхуков, плагинов и прямого взаимодействия с REST API.'}
         </p>
 
-        <div className="flex items-center gap-2">
-          <input
-            type={showApiKey ? 'text' : 'password'}
-            value={apiKey}
-            readOnly
-            className="input input--sm font-mono flex-1 bg-elevated"
-          />
+        <div className="flex items-center gap-3">
+          <div className="input-group flex-1">
+            <input
+              type={showApiKey ? 'text' : 'password'}
+              value={apiKey}
+              readOnly
+              className="input font-mono bg-elevated"
+            />
+            <button
+              type="button"
+              className="form-input-reveal"
+              onClick={() => setShowApiKey(!showApiKey)}
+              title={showApiKey ? t('hidePassword') : t('revealPassword')}
+              aria-label={showApiKey ? 'Hide' : 'Show'}
+            >
+              {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
 
           <button
             type="button"
-            className="btn-icon"
-            onClick={() => setShowApiKey(!showApiKey)}
-            title={showApiKey ? t('hidePassword') : t('revealPassword')}
-          >
-            {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
-          </button>
-
-          <button
-            type="button"
-            className="btn btn--secondary btn--sm gap-1.5"
+            className="btn btn--secondary btn--sm gap-1.5 flex-shrink-0"
             onClick={handleCopyKey}
           >
             {isKeyCopied ? <Check size={14} className="text-emerald" /> : <Copy size={14} />}
