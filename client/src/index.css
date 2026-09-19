@@ -607,7 +607,7 @@ img, svg { display: block; }
 }
 
 .badge--indigo { background: var(--indigo-soft); color: var(--indigo); }
-.badge--emerald { background: var(--emerald-soft); color: var(--emerald); }
+.badge--emerald, .badge--success { background: var(--emerald-soft); color: var(--emerald); }
 .badge--amber { background: var(--amber-soft); color: var(--amber); }
 .badge--rose { background: var(--rose-soft); color: var(--rose); }
 .badge--grey { background: var(--bg-overlay); color: var(--text-secondary); }
@@ -929,12 +929,27 @@ img, svg { display: block; }
   letter-spacing: 0.07em;
   color: var(--text-muted);
   border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+
+.table th.text-right,
+.table td.text-right {
+  text-align: right;
+}
+
+.table th.text-center,
+.table td.text-center {
+  text-align: center;
 }
 
 .table td {
   padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--border-subtle);
   vertical-align: middle;
+}
+
+.table tbody tr:hover {
+  background: var(--bg-card-hover);
 }
 
 .table tr:last-child td { border-bottom: none; }
@@ -1253,6 +1268,9 @@ input:checked + .slider:before {
 @media (min-width: 768px) {
   .md\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .md\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .md\:flex-row { flex-direction: row; }
+  .md\:items-center { align-items: center; }
+  .md\:justify-between { justify-content: space-between; }
 }
 
 @media (min-width: 1024px) {
@@ -1302,6 +1320,8 @@ input:checked + .slider:before {
 
 .bg-elevated { background-color: var(--bg-elevated); }
 .border-subtle { border-color: var(--border-subtle); }
+.border-b { border-bottom: 1px solid var(--border-subtle); }
+.border-t { border-top: 1px solid var(--border-subtle); }
 .rounded-lg { border-radius: var(--radius-md); }
 .rounded { border-radius: var(--radius-sm); }
 .rounded-full { border-radius: var(--radius-full); }
