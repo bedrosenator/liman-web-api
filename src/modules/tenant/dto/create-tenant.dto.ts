@@ -123,6 +123,17 @@ export class CreateTenantDto {
   promSyncIntervalMinutes?: number;
 
   @ApiPropertyOptional({
+    description:
+      'Секретный токен для верификации вебхуков от Prom.ua (X-Secret-Token). ' +
+      'Если задан — все входящие вебхуки заказов обязаны передавать этот токен в заголовке. ' +
+      'Если не задан — вебхуки принимаются без проверки (обратная совместимость).',
+    example: 'my-super-secret-prom-token-2026',
+  })
+  @IsString()
+  @IsOptional()
+  promWebhookSecret?: string;
+
+  @ApiPropertyOptional({
     description: 'Колонка цены в таблице name2 (cena1...cena31)',
     example: 'cena2',
     default: 'cena2',

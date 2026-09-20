@@ -86,46 +86,6 @@ export class PromExportProcessor extends WorkerHost {
   }
 
   /**
-   * Универсальное определение бренда без хардкода предметной области
-   */
-  private resolveProductBrand(
-    product: LimanProductDto,
-    defaultBrand?: string,
-  ): string | undefined {
-    if (
-      product.brand &&
-      product.brand.trim() !== '' &&
-      product.brand.trim() !== '-1'
-    ) {
-      return product.brand.trim();
-    }
-
-    const name = product.name?.trim();
-    if (!name) return defaultBrand?.trim() || undefined;
-
-    const firstWordMatch = name.match(/^([A-Za-zА-Яа-я0-9&'’\+\-]+)(?:\s+|$)/);
-    if (firstWordMatch && firstWordMatch[1]) {
-      const candidate = firstWordMatch[1].trim();
-      const genericIgnoredWords = new Set([
-        'товар',
-        'набір',
-        'набор',
-        'упаковка',
-        'пачка',
-        'блок',
-      ]);
-      if (
-        !genericIgnoredWords.has(candidate.toLowerCase()) &&
-        candidate.length >= 2
-      ) {
-        return candidate;
-      }
-    }
-
-    return defaultBrand?.trim() || undefined;
-  }
-
-  /**
    * Формирование элемента товара для Prom API
    */
   private buildProductItem(

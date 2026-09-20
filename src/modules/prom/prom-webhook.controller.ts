@@ -3,11 +3,13 @@ import {
   Post,
   Param,
   Body,
+  Headers,
   Logger,
   HttpCode,
   HttpStatus,
+  UnauthorizedException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiParam, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiParam, ApiBody, ApiHeader } from '@nestjs/swagger';
 import { LimanService } from '../liman/liman.service';
 import { LimanOrderService } from '../liman/liman-order.service';
 import { TenantService } from '../tenant/tenant.service';
@@ -35,7 +37,13 @@ export class PromWebhookController {
       'Вебхук приема заказов из Prom.ua (автоматическое списание остатка / резерв)',
     description:
       'Получает состав заказа из Prom.ua, резолвирует артикулы/tcod через product_mappings и таблицу товаров Limansoft, ' +
-      'и выполняет списание остатка или создание резерва в зависимости от настроек клиента.',
+      'и выполняет списание остатка или создание резерва в зависимости от настроек клиента. ' +
+      'Если у тенанта задан promWebhookSecret — обязателен заголовок X-Secret-Token.',
+  })
+  @ApiHeader({
+    name: 'X-Secret-Token',
+    required: false,
+    description: 'Секретный токен для верификации вебхука (если promWebhookSecret настроен у тенанта)',
   })
   @ApiParam({ name: 'tenantId', example: 'columb' })
   @ApiBody({
@@ -67,11 +75,22 @@ export class PromWebhookController {
   async handleOrderWebhook(
     @Param('tenantId') tenantId: string,
     @Body() payload: any,
+    @Headers('x-secret-token') receivedToken?: string,
   ) {
     const tenant = await this.tenantService.findOne(tenantId);
     const orderId = payload?.order_id || payload?.id || 'N/A';
 
     this.logger.log(`🛒 [${tenantId}] Получен вебхук заказа Prom.ua №${orderId}`);
+
+    // Верификация секретного токена (если настроен у тенанта)
+    if (tenant.promWebhookSecret) {
+      if (!receivedToken || receivedToken !== tenant.promWebhookSecret) {
+        this.logger.warn(
+          `🔒 [${tenantId}] Отклонён вебхук Prom.ua №${orderId}: неверный или отсутствующий X-Secret-Token`,
+        );
+        throw new UnauthorizedException('Invalid or missing X-Secret-Token');
+      }
+    }
 
     // Проверяем активность вебхука списания остатков
     if (tenant.promOrderWebhookEnabled === false) {

@@ -143,6 +143,16 @@ export class PromImportProcessor extends WorkerHost {
 
       await job.updateProgress(5);
 
+      // Предзагрузка всех существующих SKU одним запросом (N+1 prevention).
+      // В режиме only_new без этого каждый товар давал бы отдельный SELECT к MariaDB.
+      let existingSkus: Set<string> = new Set();
+      if (mode === 'only_new') {
+        existingSkus = await this.limanService.getAllExistingSkus(tenant);
+        this.logger.log(
+          `📋 [${tenantId}] Загружено ${existingSkus.size} существующих SKU для режима only_new`,
+        );
+      }
+
       const pageSize = 50;
       let totalFetched = 0;
       let created = 0;
@@ -183,16 +193,10 @@ export class PromImportProcessor extends WorkerHost {
               continue;
             }
 
-            // В режиме «Только новинки» проверяем наличие
-            if (mode === 'only_new') {
-              const existing = await this.limanService.findProductBySkuOrBarcode(
-                tenant,
-                article,
-              );
-              if (existing) {
-                skipped++;
-                continue;
-              }
+            // В режиме «Только новинки» проверяем наличие через предзагруженный Set (без дополнительных запросов к MariaDB)
+            if (mode === 'only_new' && existingSkus.has(article)) {
+              skipped++;
+              continue;
             }
 
             // Извлечение ссылок на фото

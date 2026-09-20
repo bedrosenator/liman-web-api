@@ -51,6 +51,14 @@ export class Tenant {
   @Column({ type: 'integer', default: 15 })
   promSyncIntervalMinutes!: number;
 
+  /**
+   * Секретный токен для верификации входящих вебхуков от Prom.ua.
+   * Если задан — контроллер сверяет заголовок X-Secret-Token с этим значением.
+   * Если не задан — принимается любой запрос (обратная совместимость).
+   */
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  promWebhookSecret?: string | null;
+
   @Column({ type: 'varchar', length: 255, nullable: true })
   woocommerceUrl?: string | null;
 

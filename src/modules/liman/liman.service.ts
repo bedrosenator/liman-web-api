@@ -686,6 +686,38 @@ export class LimanService {
   }
 
   /**
+   * Получить Set всех существующих артикулов (nnom) и штрихкодов (strihcod) одним запросом.
+   *
+   * Используется в PromImportProcessor (и аналогичных воркерах) для проверки наличия товара
+   * в режиме «only_new» без N+1 запросов к MariaDB.
+   *
+   * Внимание: для больших каталогов (100k+) результат может занимать ~10 МБ памяти.
+   * При необходимости ограничивайте через опцию limit.
+   */
+  async getAllExistingSkus(tenant: Tenant): Promise<Set<string>> {
+    const pool = this.connectionManager.getPool(tenant);
+    const result = new Set<string>();
+
+    // 1. Все nnom из name2 (основные артикулы)
+    const [nnomRows] = await pool.query<mysql.RowDataPacket[]>(
+      "SELECT nnom FROM `name2` WHERE nnom IS NOT NULL AND nnom != '' AND (del IS NULL OR del != 't')",
+    );
+    for (const row of nnomRows) {
+      if (row.nnom) result.add(String(row.nnom).trim());
+    }
+
+    // 2. Все nnom из strihcod (дополнительные штрихкоды)
+    const [barcodeRows] = await pool.query<mysql.RowDataPacket[]>(
+      "SELECT nnom FROM `strihcod` WHERE nnom IS NOT NULL AND nnom != ''",
+    );
+    for (const row of barcodeRows) {
+      if (row.nnom) result.add(String(row.nnom).trim());
+    }
+
+    return result;
+  }
+
+  /**
    * Разрешить категорию товара в Limansoft (код group).
    * Если категория или иерархия не существует, автоматически создает её в таблице `name`.
    */

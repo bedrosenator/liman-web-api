@@ -85,7 +85,17 @@ export class PromSchedulerService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private async processTenant(tenant: any) {
+  /**
+   * Обработка одного тенанта в тике планировщика.
+   *
+   * ВАЖНО: НЕ обновляем lastSyncAt здесь — это делает SyncQueueProcessor
+   * (sync-queue.processor.ts) только после успешного завершения воркера.
+   * Обновление lastSyncAt до завершения воркера приводит к тому, что при сбое
+   * задачи следующий тик ошибочно считает синхронизацию выполненной и пропускает её.
+   */
+  private async processTenant(
+    tenant: Awaited<ReturnType<TenantService['findOne']>>,
+  ) {
     const now = Date.now();
     const intervalMinutes = tenant.promSyncIntervalMinutes || 15;
     const intervalMs = intervalMinutes * 60 * 1000;
@@ -101,10 +111,8 @@ export class PromSchedulerService implements OnModuleInit, OnModuleDestroy {
       );
 
       try {
+        // lastSyncAt будет обновлён в SyncQueueProcessor после успешного завершения задачи
         await this.syncService.triggerStockSync(tenant.id, 'prom');
-        await this.tenantService.update(tenant.id, {
-          lastSyncAt: new Date(),
-        });
       } catch (err: any) {
         this.logger.error(
           `❌ [${tenant.id}] Не удалось поставить задачу синхронизации Prom в очередь: ${err.message}`,
