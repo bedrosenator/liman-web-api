@@ -150,7 +150,55 @@ export const horoshopApi = {
 
 export const promApi = {
   ping: (tenantId: string) => apiClient.get(`/prom/${tenantId}/ping`),
-  syncStock: (tenantId: string) => apiClient.post(`/sync/${tenantId}/stock`),
+  syncPricesStocks: (tenantId: string, limit?: number) =>
+    apiClient.post(`/prom/${tenantId}/sync/prices-stocks${limit ? `?limit=${limit}` : ''}`),
+  syncPricesStocksAsync: (tenantId: string) =>
+    apiClient.post(`/prom/${tenantId}/sync/prices-stocks?async=true`),
+  syncStock: (tenantId: string) =>
+    apiClient.post(`/prom/${tenantId}/sync/prices-stocks?async=true`),
+  syncOrders: (tenantId: string) =>
+    apiClient.post(`/prom/${tenantId}/sync/orders`),
+  getActivity: (tenantId: string) =>
+    apiClient.get(`/prom/${tenantId}/activity`),
+  getMappingStats: (tenantId: string, integrationId?: string) =>
+    apiClient.get(`/prom/${tenantId}/mappings/stats${integrationId ? `?integrationId=${integrationId}` : ''}`),
+  importCatalog: (
+    tenantId: string,
+    payload: {
+      mode: 'only_new' | 'overwrite';
+      updatePrices?: boolean;
+      updateStock?: boolean;
+      updateImages?: boolean;
+      createBackup?: boolean;
+      limit?: number;
+    },
+  ) => apiClient.post(`/prom/${tenantId}/import/catalog`, payload),
+  exportCatalog: (
+    tenantId: string,
+    payload: {
+      mode?: 'full_overwrite' | 'only_new' | 'update_existing';
+      exportPrices?: boolean;
+      exportStock?: boolean;
+      exportDescriptions?: boolean;
+      exportImages?: boolean;
+      exportCategories?: boolean;
+      defaultGroupId?: number;
+      currency?: string;
+      baseUrl?: string;
+      limit?: number;
+    },
+  ) => apiClient.post(`/prom/${tenantId}/export/catalog`, payload),
+  getExportCategories: (tenantId: string) =>
+    apiClient.get<{
+      success: boolean;
+      categories: Array<{ id: number; name: string; parentId: number | null }>;
+    }>(`/prom/${tenantId}/export/categories`),
+  getProducts: (
+    tenantId: string,
+    params?: { limit?: number; last_id?: number; group_id?: number },
+  ) => apiClient.get(`/prom/${tenantId}/products`, { params }),
+  getOrders: (tenantId: string, status?: string) =>
+    apiClient.get(`/prom/${tenantId}/orders`, { params: { status } }),
 };
 
 export const rozetkaApi = {

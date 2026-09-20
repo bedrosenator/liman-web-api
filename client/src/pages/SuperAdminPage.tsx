@@ -426,12 +426,30 @@ export function SuperAdminPage() {
                               {/* Колонка 4: Prom */}
                               <td>
                                 {tenant.promApiKey ? (
-                                  <span
-                                    className={`badge badge--xs badge--${tenant.promExportEnabled ? 'emerald' : 'indigo'}`}
-                                    data-tooltip="Синхронизация с Prom.ua"
-                                  >
-                                    {tenant.promExportEnabled ? 'Экспорт' : 'Подключен'}
-                                  </span>
+                                  <div className="flex flex-col gap-0.5">
+                                    <div className="flex items-center gap-1.5">
+                                      <span
+                                        className={`badge badge--xs badge--${tenant.promExportEnabled ? 'emerald' : 'indigo'}`}
+                                        data-tooltip="Синхронизация с Prom.ua"
+                                      >
+                                        {tenant.promExportEnabled ? 'Экспорт' : 'Подключен'}
+                                      </span>
+                                      {tenant.promShopTitle && (
+                                        <span className="text-xs text-primary font-medium truncate max-w-[120px]" title={tenant.promShopTitle}>
+                                          {tenant.promShopTitle}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-1.5 text-xs text-muted">
+                                      <span>{tenant.promSyncIntervalMinutes || 15}м</span>
+                                      {tenant.promOrderWebhookEnabled !== false && (
+                                        <span className="text-[10px] text-emerald" title="Вебхук заказов активен">● Webhook</span>
+                                      )}
+                                      {tenant.promCreateOrderDocumentEnabled && (
+                                        <span className="text-[10px] text-amber-400 font-mono" title="Режим накладных (tip_dok: 85)">[doc]</span>
+                                      )}
+                                    </div>
+                                  </div>
                                 ) : (
                                   <span className="text-xs text-muted">—</span>
                                 )}

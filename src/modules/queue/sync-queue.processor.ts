@@ -8,6 +8,7 @@ import {
   PromApiClient,
   PromProductPriceStockUpdate,
 } from '../prom/prom-api.client';
+import { PromSyncService } from '../prom/prom-sync.service';
 import {
   HoroshopApiClient,
   HoroshopStockPriceItem,
@@ -32,6 +33,9 @@ export class StockSyncProcessor extends WorkerHost {
     private readonly limanService: LimanService,
     private readonly tenantService: TenantService,
     private readonly promApiClient: PromApiClient,
+    @Optional()
+    @Inject(forwardRef(() => PromSyncService))
+    private readonly promSyncService?: PromSyncService,
     @Optional()
     @Inject(forwardRef(() => HoroshopApiClient))
     private readonly horoshopClient?: HoroshopApiClient,
@@ -84,6 +88,20 @@ export class StockSyncProcessor extends WorkerHost {
         if (items.length === 0) break;
 
         if (targetPlatform === 'prom') {
+          if (this.promSyncService) {
+            const syncRes = await this.promSyncService.syncPricesAndStocks(
+              tenant,
+              {
+                batchSize: chunkSize,
+                limit: job.data.limit,
+                integrationId: job.data.integrationId,
+              },
+            );
+            totalProcessed = syncRes.processed;
+            await job.updateProgress(100);
+            break;
+          }
+
           const updatePayload: PromProductPriceStockUpdate[] = items.map(
             (p) => ({
               external_id: String(p.tcod),
@@ -149,6 +167,15 @@ export class StockSyncProcessor extends WorkerHost {
           titleUk: `Синхронізація цін та залишків (${totalProcessed} товарів)`,
           detailsRu: `Успешно обновлено через фоновую очередь BullMQ за ${durationMs}мс`,
           detailsUk: `Успішно оновлено через фонову чергу BullMQ за ${durationMs}мс`,
+        });
+      } else if (targetPlatform === 'prom') {
+        this.promSyncService?.addActivity(tenant.id, {
+          type: 'sync',
+          status: 'success',
+          titleRu: `Синхронизация цен и остатков (${totalProcessed} товаров)`,
+          titleUk: `Синхронізація цін та залишків (${totalProcessed} товарів)`,
+          detailsRu: `Успешно обновлено в Prom.ua через фоновую очередь BullMQ за ${durationMs}мс`,
+          detailsUk: `Успішно оновлено в Prom.ua через фонову чергу BullMQ за ${durationMs}мс`,
         });
       }
 

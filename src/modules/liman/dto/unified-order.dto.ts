@@ -91,6 +91,14 @@ export class UnifiedIncomingOrderDto {
   customerPhone?: string;
 
   @ApiPropertyOptional({
+    example: 'client@example.com',
+    description: 'Email покупателя',
+  })
+  @IsString()
+  @IsOptional()
+  customerEmail?: string;
+
+  @ApiPropertyOptional({
     example: 'Нова Пошта, відділення 12, м. Харків',
     description: 'Адрес доставки (полный текст)',
   })

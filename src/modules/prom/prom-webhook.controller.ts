@@ -1,8 +1,19 @@
-import { Controller, Post, Param, Body, Logger } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Param,
+  Body,
+  Logger,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiBody } from '@nestjs/swagger';
 import { LimanService } from '../liman/liman.service';
+import { LimanOrderService } from '../liman/liman-order.service';
 import { TenantService } from '../tenant/tenant.service';
+import { PromSyncService } from './prom-sync.service';
 import { Public } from '../../common/decorators/public.decorator';
+import { UnifiedIncomingOrderDto } from '../liman/dto/unified-order.dto';
 
 @ApiTags('Prom.ua')
 @Controller('prom/:tenantId/webhook')
@@ -11,16 +22,20 @@ export class PromWebhookController {
 
   constructor(
     private readonly limanService: LimanService,
+    private readonly limanOrderService: LimanOrderService,
     private readonly tenantService: TenantService,
+    private readonly promSyncService: PromSyncService,
   ) {}
 
   @Post('order')
   @Public()
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary:
-      'Вебхук приема заказов из Prom.ua (автоматическое списание остатка)',
+      'Вебхук приема заказов из Prom.ua (автоматическое списание остатка / резерв)',
     description:
-      'Получает состав заказа из Prom.ua, уменьшает остаток в name2ost и фиксирует источник "prom.ua".',
+      'Получает состав заказа из Prom.ua, резолвирует артикулы/tcod через product_mappings и таблицу товаров Limansoft, ' +
+      'и выполняет списание остатка или создание резерва в зависимости от настроек клиента.',
   })
   @ApiParam({ name: 'tenantId', example: 'columb' })
   @ApiBody({
@@ -29,6 +44,11 @@ export class PromWebhookController {
       properties: {
         order_id: { type: 'number', example: 987654 },
         client_notes: { type: 'string', example: 'Доставка Нова Пошта №12' },
+        client_first_name: { type: 'string', example: 'Иван' },
+        client_last_name: { type: 'string', example: 'Иванов' },
+        phone: { type: 'string', example: '+380501234567' },
+        email: { type: 'string', example: 'client@example.com' },
+        delivery_address: { type: 'string', example: 'г. Киев, Отделение №1' },
         products: {
           type: 'array',
           items: {
@@ -49,50 +69,110 @@ export class PromWebhookController {
     @Body() payload: any,
   ) {
     const tenant = await this.tenantService.findOne(tenantId);
-    this.logger.log(
-      `🛒 [${tenantId}] Получен вебхук заказа №${payload?.order_id ?? 'N/A'} из Prom.ua: ${payload?.products?.length ?? 0} позиций`,
+    const orderId = payload?.order_id || payload?.id || 'N/A';
+
+    this.logger.log(`🛒 [${tenantId}] Получен вебхук заказа Prom.ua №${orderId}`);
+
+    // Проверяем активность вебхука списания остатков
+    if (tenant.promOrderWebhookEnabled === false) {
+      this.logger.log(
+        `⏸️ [${tenantId}] Вебхук заказа №${orderId} пропущен: авто-списание Prom отключено в настройках тенанта`,
+      );
+      return {
+        success: false,
+        disabled: true,
+        orderId,
+        message: 'Автоматическое списание по вебхуку заказов Prom отключено в настройках тенанта',
+        processedItems: [],
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    // Дедупликация
+    if (
+      orderId !== 'N/A' &&
+      !this.limanOrderService.markOrderProcessed(tenantId, 'prom', String(orderId))
+    ) {
+      this.logger.log(
+        `⏭️ [${tenantId}] Вебхук Prom: заказ №${orderId} уже был списан ранее.`,
+      );
+      return {
+        success: true,
+        orderId,
+        message: 'Заказ уже был обработан ранее, повторное списание пропущено',
+        processedItems: [],
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    // Извлекаем позиции заказа
+    const lineItemsRaw: any[] =
+      payload?.products || payload?.items || payload?.line_items || [];
+
+    const customerName =
+      [payload?.client_first_name, payload?.client_second_name, payload?.client_last_name]
+        .filter(Boolean)
+        .join(' ') ||
+      payload?.client_name ||
+      payload?.customer_name ||
+      undefined;
+
+    // Формируем унифицированное DTO
+    const dto: UnifiedIncomingOrderDto = {
+      source: 'prom',
+      externalOrderId: String(orderId),
+      customerName,
+      customerPhone: payload?.phone || payload?.client_phone,
+      customerEmail: payload?.email || payload?.client_email,
+      deliveryAddress: payload?.delivery_address || payload?.delivery?.address,
+      deliveryService: payload?.delivery_option?.name || payload?.delivery_provider,
+      paymentMethod: payload?.payment_option?.name || payload?.payment_type,
+      totalAmount: payload?.full_price || payload?.price ? Number(payload.full_price || payload.price) : undefined,
+      currency: 'UAH',
+      lineItems: lineItemsRaw
+        .map((item: any) => ({
+          externalArticle: String(item.external_id || item.sku || item.id || ''),
+          name: item.name || item.title,
+          quantity: Number(item.quantity || item.count || 1),
+          price: Number(item.price || 0),
+        }))
+        .filter((li) => li.externalArticle && li.quantity > 0),
+      rawPayload: payload,
+    };
+
+    // Находим активную интеграцию Prom
+    const integration = await this.promSyncService.resolveIntegration(tenantId);
+
+    const result = await this.limanOrderService.processIncomingOrder(
+      tenant,
+      dto,
+      integration?.id || null,
     );
 
-    const results: Array<{
-      tcod: number;
-      requestedQty: number;
-      oldStock: number;
-      newStock: number;
-    }> = [];
-
-    if (Array.isArray(payload?.products)) {
-      for (const prod of payload.products) {
-        const tcod = parseInt(prod.external_id, 10);
-        const qty = Number(prod.quantity ?? 1);
-
-        if (!isNaN(tcod) && qty > 0) {
-          try {
-            const deduction = await this.limanService.deductStock(
-              tenant,
-              tcod,
-              qty,
-            );
-            results.push({
-              tcod,
-              requestedQty: qty,
-              oldStock: deduction.oldStock,
-              newStock: deduction.newStock,
-            });
-          } catch (err) {
-            this.logger.error(
-              `Не удалось списать остаток для tcod=${tcod}:`,
-              err,
-            );
-          }
-        }
-      }
+    if (result.success && result.deductedItems.length > 0) {
+      this.promSyncService.addActivity(tenantId, {
+        type: 'order',
+        status: 'success',
+        titleRu: `Вебхук заказа Prom.ua №${orderId}`,
+        titleUk: `Вебхук замовлення Prom.ua №${orderId}`,
+        detailsRu: `Обработано ${result.deductedItems.length} позиций в режиме "${result.mode}"`,
+        detailsUk: `Оброблено ${result.deductedItems.length} позицій у режимі "${result.mode}"`,
+      });
     }
 
     return {
-      success: true,
-      orderId: payload?.order_id,
-      source: 'prom.ua',
-      processedItems: results,
+      success: result.success,
+      orderId,
+      source: 'prom',
+      mode: result.mode,
+      processedItems: result.deductedItems.map((d) => ({
+        tcod: d.tcod,
+        requestedQty: d.qty,
+        oldStock: d.oldStock,
+        newStock: d.newStock,
+      })),
+      skippedArticles: result.skippedArticles,
+      warnings: result.warnings.length > 0 ? result.warnings : undefined,
       timestamp: new Date().toISOString(),
     };
   }

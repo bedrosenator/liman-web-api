@@ -34,10 +34,22 @@ export class Tenant {
   apiKey?: string | null;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
+  promShopTitle?: string | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
   promApiKey?: string | null;
 
   @Column({ type: 'boolean', default: false })
   promExportEnabled!: boolean;
+
+  @Column({ type: 'boolean', default: true })
+  promOrderWebhookEnabled!: boolean; // Webhook for auto-deducting stock on Prom.ua order
+
+  @Column({ type: 'boolean', default: false })
+  promCreateOrderDocumentEnabled!: boolean; // Experimental: create draft order document in Limansoft (tip_dok: 85)
+
+  @Column({ type: 'integer', default: 15 })
+  promSyncIntervalMinutes!: number;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   woocommerceUrl?: string | null;

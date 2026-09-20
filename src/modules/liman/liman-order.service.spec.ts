@@ -187,7 +187,7 @@ describe('LimanOrderService', () => {
       expect(limanService.deductStock).not.toHaveBeenCalled();
     });
 
-    it('should use tenant.horoshopCreateOrderDocumentEnabled flag by default', async () => {
+    it('should use tenant.horoshopCreateOrderDocumentEnabled flag by default for horoshop', async () => {
       productMappingService.getMappingByExternalArticle.mockResolvedValue({
         limanTcod: 251,
         externalArticle: '251',
@@ -198,8 +198,54 @@ describe('LimanOrderService', () => {
 
       // Tenant with flag = false (default)
       const result = await service.processIncomingOrder(mockTenant, makeDto({
+        source: 'horoshop',
         lineItems: [{ externalArticle: '251', quantity: 1, price: 100 }],
       }), 'integ-1');
+
+      expect(result.mode).toBe('deduct_only');
+    });
+
+    it('should use tenant.promCreateOrderDocumentEnabled flag for prom source', async () => {
+      productMappingService.getMappingByExternalArticle.mockResolvedValue({
+        limanTcod: 251,
+        externalArticle: '251',
+      } as any);
+      limanService.deductStock.mockResolvedValue({
+        success: true, tcod: 251, oldStock: 5, newStock: 4, deducted: 1,
+      });
+
+      const promTenant = {
+        ...mockTenant,
+        promCreateOrderDocumentEnabled: false,
+      } as any;
+
+      const result = await service.processIncomingOrder(promTenant, makeDto({
+        source: 'prom',
+        lineItems: [{ externalArticle: '251', quantity: 1, price: 100 }],
+      }), 'integ-prom-1');
+
+      expect(result.mode).toBe('deduct_only');
+      expect(result.source).toBe('prom');
+    });
+
+    it('should prioritize opts.createDocument override when specified', async () => {
+      productMappingService.getMappingByExternalArticle.mockResolvedValue({
+        limanTcod: 251,
+        externalArticle: '251',
+      } as any);
+      limanService.deductStock.mockResolvedValue({
+        success: true, tcod: 251, oldStock: 5, newStock: 4, deducted: 1,
+      });
+
+      const result = await service.processIncomingOrder(
+        mockTenant,
+        makeDto({
+          source: 'prom',
+          lineItems: [{ externalArticle: '251', quantity: 1, price: 100 }],
+        }),
+        'integ-prom-1',
+        { createDocument: false },
+      );
 
       expect(result.mode).toBe('deduct_only');
     });

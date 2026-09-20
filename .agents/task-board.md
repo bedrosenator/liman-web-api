@@ -4,10 +4,48 @@
 
 ---
 
+## 🎯 Колонка: To Do (Спринт 3: Полная продакшн-интеграция Prom.ua — Паритет с Хорошоп)
+- [x] **[TASK-32]** Базовые модели тенанта, расширение PromApiClient и рефакторинг LimanOrderService (switch-case):
+  - **Статус готовности**: ✅ Выполнено (169/169 тестов passing);
+  - **Подзадачи**:
+    - Добавление полей в `Tenant` (`promShopTitle`, `promOrderWebhookEnabled`, `promCreateOrderDocumentEnabled`, `promSyncIntervalMinutes`);
+    - Рефакторинг `LimanOrderService`: замена тернарных условий на чистый метод `resolveCreateDocumentFlag` с использованием `switch (source)`;
+    - Методы `PromApiClient`: `getGroups`, `importUrl`, `getImportStatus`, `getOrder`, `setOrderStatus` и извлечение названия магазина в `ping()`.
+- [x] **[TASK-33]** Очереди BullMQ для двустороннего обмена каталогом Prom.ua (Импорт и Экспорт):
+  - **Статус готовности**: ✅ Выполнено (очереди import-prom-catalog и export-prom-catalog, процессоры PromImportProcessor и PromExportProcessor с тестами);
+  - **Подзадачи**:
+    - Очереди `import-prom-catalog` и `export-prom-catalog` в `queue.constants.ts` и `queue.module.ts`;
+    - `PromImportProcessor`: обратный импорт Prom ➔ MariaDB с бэкапом, Redis lock, режимами `only_new`/`overwrite`, записью связей в `product_mappings`;
+    - `PromExportProcessor`: прямой экспорт MariaDB ➔ Prom с режимами `full_overwrite`/`only_new`/`update_existing`, сопоставлением с группами Prom (`/groups/list`), брендами и валютой.
+- [x] **[TASK-34]** PromSyncService, фоновый шедулер и единая обработка заказов / вебхуков:
+  - **Статус готовности**: ✅ Выполнено (PromSyncService, PromSchedulerService, PromSyncController, PromWebhookController, 30/30 тестов passing);
+  - **Подзадачи**:
+    - `PromSyncService`: синхронизация цен/остатков, `ActivityFeed`, статистика маппингов;
+    - `PromSchedulerService`: авто-синхронизация (5, 15, 30, 60 мин) + авто-опрос заказов (Polling раз в 15 минут);
+    - `PromSyncController`: эндпоинты запуска импорта/экспорта каталога, групп и статусов, автосохранение `promShopTitle`;
+    - `PromWebhookController`: перевод на `LimanOrderService` (`UnifiedIncomingOrderDto`) с поддержкой `promCreateOrderDocumentEnabled` и дедупликацией.
+- [ ] **[TASK-35]** Клиентский портал и SuperAdmin (UI модальных окон, 3-Point Health Bar и локализация):
+  - **Статус готовности**: ⚙️ В работе;
+  - **Приоритет**: 🔴 **Высший (Очередь #4)**;
+  - **Подзадачи**:
+    - Редизайн `PromTab.tsx` (Светофор: MariaDB, Prom API со статусом и `promShopTitle`, Автосинхронизация; 3 карточки Action Hub);
+    - Модальные окна `PromExportModal.tsx` и `PromImportModal.tsx` с прогрессом BullMQ и отчетами;
+    - Формы тенанта в SuperAdmin и Client API;
+    - Полная RU/UK локализация в `translations.ts`.
+- [ ] **[TASK-36]** Комплексное тестирование, сборка и Pull Request:
+  - **Статус готовности**: ⚪ Финал спринта;
+  - **Приоритет**: 🔴 **Высший (Очередь #5)**;
+  - **Подзадачи**:
+    - 100% покрытие unit-тестами Jest и Vitest;
+    - Сборка NestJS и Vite SPA;
+    - Push ветки `feat/prom-complete-production-sync` и оформление PR.
+
+---
+
 ## 🎯 Колонка: To Do (Спринт 2: Следующие интеграции / На очереди)
 - [ ] **[TASK-31]** Подключение WooCommerce к единому движку заказов Limansoft:
   - **Статус готовности**: 🟢 Готов к разработке (использует общий движок из TASK-29);
-  - **Приоритет**: 🔴 **Высший (Очередь #1 — Следующая задача)**;
+  - **Приоритет**: 🟡 **Средний**;
   - **Подзадачи**:
     - Переключение `handleOrderWebhook` и `syncOrders` WooCommerce на единый метод `processIncomingOrder`;
     - Радиокнопка/тумблер `woocommerceCreateOrderDocumentEnabled` в настройках тенанта и UI (по умолчанию: **выключено**, пометка: «Экспериментальная функция»);

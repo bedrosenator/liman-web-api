@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger, Optional } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import {
@@ -22,6 +22,12 @@ export class SyncService {
     @InjectQueue(QUEUE_NAMES.EXPORT_HOROSHOP_CATALOG)
     private readonly horoshopExportQueue: Queue<any>,
     private readonly tenantService: TenantService,
+    @Optional()
+    @InjectQueue(QUEUE_NAMES.IMPORT_PROM_CATALOG)
+    private readonly promImportQueue?: Queue<any>,
+    @Optional()
+    @InjectQueue(QUEUE_NAMES.EXPORT_PROM_CATALOG)
+    private readonly promExportQueue?: Queue<any>,
   ) {}
 
   async triggerStockSync(
@@ -71,6 +77,10 @@ export class SyncService {
       queue = this.horoshopImportQueue;
     if (queueName === QUEUE_NAMES.EXPORT_HOROSHOP_CATALOG)
       queue = this.horoshopExportQueue;
+    if (queueName === QUEUE_NAMES.IMPORT_PROM_CATALOG)
+      queue = this.promImportQueue || null;
+    if (queueName === QUEUE_NAMES.EXPORT_PROM_CATALOG)
+      queue = this.promExportQueue || null;
 
     if (!queue) {
       throw new NotFoundException(`Очередь "${queueName}" не поддерживается`);

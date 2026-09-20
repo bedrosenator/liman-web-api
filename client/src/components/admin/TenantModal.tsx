@@ -35,8 +35,12 @@ export interface TenantData {
   horoshopProductCreationWebhookEnabled?: boolean;
   horoshopCreateOrderDocumentEnabled?: boolean;
   horoshopSyncIntervalMinutes?: number;
+  promShopTitle?: string;
   promApiKey?: string;
   promExportEnabled?: boolean;
+  promOrderWebhookEnabled?: boolean;
+  promCreateOrderDocumentEnabled?: boolean;
+  promSyncIntervalMinutes?: number;
   rozetkaClientId?: string;
   rozetkaClientSecret?: string;
   rozetkaExportEnabled?: boolean;
@@ -78,8 +82,12 @@ export function TenantModal({ isOpen, onClose, onSaved, tenant }: TenantModalPro
     horoshopPassword: '',
     horoshopExportEnabled: false,
     horoshopCreateOrderDocumentEnabled: false,
+    promShopTitle: '',
     promApiKey: '',
     promExportEnabled: false,
+    promOrderWebhookEnabled: true,
+    promCreateOrderDocumentEnabled: false,
+    promSyncIntervalMinutes: 15,
     rozetkaClientId: '',
     rozetkaClientSecret: '',
     rozetkaExportEnabled: false,
@@ -129,8 +137,12 @@ export function TenantModal({ isOpen, onClose, onSaved, tenant }: TenantModalPro
         horoshopPassword: '',
         horoshopExportEnabled: false,
         horoshopCreateOrderDocumentEnabled: false,
+        promShopTitle: '',
         promApiKey: '',
         promExportEnabled: false,
+        promOrderWebhookEnabled: true,
+        promCreateOrderDocumentEnabled: false,
+        promSyncIntervalMinutes: 15,
         rozetkaClientId: '',
         rozetkaClientSecret: '',
         rozetkaExportEnabled: false,
@@ -637,32 +649,93 @@ export function TenantModal({ isOpen, onClose, onSaved, tenant }: TenantModalPro
                 <div className="flex items-center justify-between mb-3">
                   <span className="badge badge--indigo">{t('prom')}</span>
                 </div>
-                <div className="form-group">
-                  <label className="form-label">{t('promApiKey')}</label>
-                  <div className="input-group">
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label className="form-label">{t('promShopTitle')}</label>
                     <input
-                      type={showPromApiKey ? 'text' : 'password'}
-                      className="input font-mono"
-                      value={formData.promApiKey || ''}
-                      onChange={(e) => handleChange('promApiKey', e.target.value)}
-                      placeholder="••••••••"
+                      type="text"
+                      className="input"
+                      value={formData.promShopTitle || ''}
+                      onChange={(e) => handleChange('promShopTitle', e.target.value)}
+                      placeholder={t('promShopTitlePlaceholder')}
                     />
-                    <button
-                      type="button"
-                      onClick={handleTogglePromApiKey}
-                      disabled={isRevealingCredentials}
-                      aria-label={showPromApiKey ? 'Скрыть ключ' : 'Показать ключ'}
-                      title={showPromApiKey ? 'Скрыть ключ' : 'Показать ключ'}
-                    >
-                      {isRevealingCredentials ? (
-                        <Loader2 size={16} className="spinner" />
-                      ) : showPromApiKey ? (
-                        <EyeOff size={16} />
-                      ) : (
-                        <Eye size={16} />
-                      )}
-                    </button>
                   </div>
+                  <div className="form-group">
+                    <label className="form-label">{t('promApiKey')}</label>
+                    <div className="input-group">
+                      <input
+                        type={showPromApiKey ? 'text' : 'password'}
+                        className="input font-mono"
+                        value={formData.promApiKey || ''}
+                        onChange={(e) => handleChange('promApiKey', e.target.value)}
+                        placeholder="••••••••"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleTogglePromApiKey}
+                        disabled={isRevealingCredentials}
+                        aria-label={showPromApiKey ? 'Скрыть ключ' : 'Показать ключ'}
+                        title={showPromApiKey ? 'Скрыть ключ' : 'Показать ключ'}
+                      >
+                        {isRevealingCredentials ? (
+                          <Loader2 size={16} className="spinner" />
+                        ) : showPromApiKey ? (
+                          <EyeOff size={16} />
+                        ) : (
+                          <Eye size={16} />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="form-group form-group--full mt-2 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={formData.promExportEnabled || false}
+                        onChange={(e) => handleChange('promExportEnabled', e.target.checked)}
+                      />
+                      <span>{t('autoSync')} Prom.ua</span>
+                    </label>
+                    {formData.promExportEnabled && (
+                      <select
+                        className="input text-xs"
+                        value={formData.promSyncIntervalMinutes || 15}
+                        onChange={(e) => handleChange('promSyncIntervalMinutes', Number(e.target.value))}
+                      >
+                        <option value={5}>5 мин</option>
+                        <option value={15}>15 мин</option>
+                        <option value={30}>30 мин</option>
+                        <option value={60}>60 мин</option>
+                      </select>
+                    )}
+                  </div>
+
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={formData.promOrderWebhookEnabled ?? true}
+                      onChange={(e) => handleChange('promOrderWebhookEnabled', e.target.checked)}
+                    />
+                    <span>{t('orderWebhook')} Prom.ua</span>
+                  </label>
+
+                  <label className="checkbox-label" id="label-prom-order-doc">
+                    <input
+                      type="checkbox"
+                      checked={formData.promCreateOrderDocumentEnabled || false}
+                      onChange={(e) => handleChange('promCreateOrderDocumentEnabled', e.target.checked)}
+                    />
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-2">
+                        <span>{t('promCreateOrderDocument')}</span>
+                        <span className="badge badge--warning text-[10px]">{t('experimental')}</span>
+                      </div>
+                      <span className="text-[11px] text-muted">{t('promCreateOrderDocumentDesc')}</span>
+                    </div>
+                  </label>
                 </div>
               </div>
 

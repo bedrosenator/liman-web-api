@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { useLanguage } from '@/context/LanguageContext';
-import { tenantsApi, horoshopApi, syncApi } from '@/api/client';
+import { tenantsApi, horoshopApi, promApi, syncApi } from '@/api/client';
 import { HoroshopWizard } from '@/components/portal/HoroshopWizard';
 import { ActivityFeed, type ActivityItem } from '@/components/portal/ActivityFeed';
 import { HoroshopImportModal } from '@/components/portal/HoroshopImportModal';
@@ -199,14 +199,17 @@ export function ClientPortalPage() {
   const loadActivity = useCallback(async () => {
     setIsLoadingActivities(true);
     try {
-      const res = await horoshopApi.getActivity(tenantId);
+      const res =
+        selectedPlatform === 'prom'
+          ? await promApi.getActivity(tenantId)
+          : await horoshopApi.getActivity(tenantId);
       setActivities(res.data);
     } catch (err) {
       console.error('Failed to load activity feed:', err);
     } finally {
       setIsLoadingActivities(false);
     }
-  }, [tenantId]);
+  }, [tenantId, selectedPlatform]);
 
   useEffect(() => {
     Promise.all([loadTenant(), checkMariaDb(), checkHoroshop(), loadActivity()]);

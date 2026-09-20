@@ -73,6 +73,14 @@ export class CreateTenantDto {
   dbPassword?: string;
 
   @ApiPropertyOptional({
+    description: 'Официальное название магазина Prom.ua',
+    example: 'Мой магазин Prom',
+  })
+  @IsString()
+  @IsOptional()
+  promShopTitle?: string;
+
+  @ApiPropertyOptional({
     description: 'API токен Prom.ua',
     example: 'prom_api_token_here',
   })
@@ -87,6 +95,32 @@ export class CreateTenantDto {
   @IsBoolean()
   @IsOptional()
   promExportEnabled?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Включить авто-списание остатков по вебхуку заказов Prom.ua',
+    default: true,
+  })
+  @IsBoolean()
+  @IsOptional()
+  promOrderWebhookEnabled?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'Экспериментально: создавать черновик документа заказа в Limansoft (tip_dok: 85) вместо прямого списания остатка',
+    default: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  promCreateOrderDocumentEnabled?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Интервал автосинхронизации с Prom.ua в минутах',
+    example: 15,
+    default: 15,
+  })
+  @IsNumber()
+  @IsOptional()
+  promSyncIntervalMinutes?: number;
 
   @ApiPropertyOptional({
     description: 'Колонка цены в таблице name2 (cena1...cena31)',

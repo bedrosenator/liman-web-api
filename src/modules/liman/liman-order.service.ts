@@ -156,11 +156,37 @@ export class LimanOrderService {
   }
 
   /**
+   * Определить флаг создания черновика документа (tip_dok: 85) в зависимости от источника заказа.
+   * Использует прозрачный switch-case для легкой расширяемости по всем платформам.
+   */
+  private resolveCreateDocumentFlag(
+    tenant: Tenant,
+    source: 'horoshop' | 'woocommerce' | 'prom' | 'rozetka',
+    overrideValue?: boolean,
+  ): boolean {
+    if (overrideValue !== undefined) {
+      return overrideValue;
+    }
+
+    switch (source) {
+      case 'prom':
+        return tenant.promCreateOrderDocumentEnabled ?? false;
+      case 'woocommerce':
+        return tenant.woocommerceCreateOrderDocumentEnabled ?? false;
+      case 'horoshop':
+        return tenant.horoshopCreateOrderDocumentEnabled ?? false;
+      case 'rozetka':
+      default:
+        return false;
+    }
+  }
+
+  /**
    * Единая точка обработки входящего заказа (ACL → Domain Logic).
    *
    * @param tenant         Модель тенанта
    * @param dto            Унифицированный заказ
-   * @param integrationId  ID интеграции Хорошоп (для product_mappings)
+   * @param integrationId  ID интеграции (для product_mappings)
    * @param opts.createDocument  true — Режим 2 (экспериментальный)
    */
   async processIncomingOrder(
@@ -169,7 +195,11 @@ export class LimanOrderService {
     integrationId: string | null = null,
     opts: { createDocument?: boolean } = {},
   ): Promise<ProcessOrderResult> {
-    const createDocument = opts.createDocument ?? tenant.horoshopCreateOrderDocumentEnabled ?? false;
+    const createDocument = this.resolveCreateDocumentFlag(
+      tenant,
+      dto.source,
+      opts.createDocument,
+    );
 
     this.logger.log(
       `🛒 [${tenant.id}] Обработка заказа #${dto.externalOrderId} из ${dto.source} | ` +
