@@ -219,3 +219,11 @@ export const woocommerceApi = {
     `/api/v1/woocommerce/${tenantId}/plugin/download`,
 };
 
+/**
+ * Алиас для обратной совместимости — используется в PromTab и тестах.
+ * ping проверяет соединение с БД тенанта через /liman/:id/ping.
+ */
+export const limanApi = {
+  ping: tenantsApi.ping,
+};
+
