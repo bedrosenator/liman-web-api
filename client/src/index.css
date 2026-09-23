@@ -1351,6 +1351,11 @@ input:checked + .slider:before {
 .text-sky { color: var(--sky); }
 
 .bg-elevated { background-color: var(--bg-elevated); }
+.bg-sky-soft     { background-color: var(--sky-soft); }
+.bg-emerald-soft { background-color: var(--emerald-soft); }
+.bg-amber-soft   { background-color: var(--amber-soft); }
+.bg-indigo-soft  { background-color: var(--indigo-soft); }
+.bg-rose-soft    { background-color: var(--rose-soft); }
 .border-subtle { border-color: var(--border-subtle); }
 .border-b { border-bottom: 1px solid var(--border-subtle); }
 .border-t { border-top: 1px solid var(--border-subtle); }

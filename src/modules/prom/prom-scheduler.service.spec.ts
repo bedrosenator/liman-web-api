@@ -80,9 +80,8 @@ describe('PromSchedulerService', () => {
       'tenant-active',
       'prom',
     );
-    expect(tenantService.update).toHaveBeenCalledWith('tenant-active', {
-      lastSyncAt: expect.any(Date),
-    });
+    // lastSyncAt is updated by SyncQueueProcessor upon worker completion, not during scheduler tick
+    expect(tenantService.update).not.toHaveBeenCalled();
   });
 
   it('should trigger order polling on first check or after 15 min', async () => {

@@ -20,6 +20,7 @@ describe('PromImportProcessor', () => {
     limanService = {
       findProductBySkuOrBarcode: jest.fn(),
       upsertProductFromExternal: jest.fn(),
+      getAllExistingSkus: jest.fn().mockResolvedValue(new Set()),
     } as any;
 
     tenantService = {
@@ -79,6 +80,7 @@ describe('PromImportProcessor', () => {
       ] as any)
       .mockResolvedValueOnce([]);
 
+    limanService.getAllExistingSkus.mockResolvedValue(new Set(['101']));
     limanService.findProductBySkuOrBarcode.mockImplementation(async (_, article) => {
       if (article === '101') return { tcod: 101, name: 'Existing Item' } as any;
       return null;

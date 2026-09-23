@@ -50,7 +50,7 @@ describe('PromImportModal (TASK-35)', () => {
     renderModal(defaultProps);
 
     expect(
-      screen.getByText('Обратный импорт товаров из Prom.ua в Limansoft'),
+      screen.getByText('Импорт каталога из Prom.ua'),
     ).toBeInTheDocument();
     expect(screen.getByText('Только новые товары')).toBeInTheDocument();
     expect(
@@ -61,7 +61,7 @@ describe('PromImportModal (TASK-35)', () => {
     fireEvent.click(overwriteOption);
 
     const startBtn = screen.getByRole('button', {
-      name: /Запустить импорт из Prom/i,
+      name: /Начать импорт/i,
     });
     expect(startBtn).toBeDisabled();
 
@@ -99,7 +99,7 @@ describe('PromImportModal (TASK-35)', () => {
     renderModal(defaultProps);
 
     const startBtn = screen.getByRole('button', {
-      name: /Запустить импорт из Prom/i,
+      name: /Начать импорт/i,
     });
     fireEvent.click(startBtn);
 

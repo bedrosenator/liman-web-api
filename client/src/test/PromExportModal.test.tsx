@@ -59,7 +59,7 @@ describe('PromExportModal (TASK-35)', () => {
     renderModal(defaultProps);
 
     expect(
-      screen.getByText('Прямой экспорт товаров из Limansoft в Prom.ua'),
+      screen.getByText('Прямой экспорт каталога в Prom.ua'),
     ).toBeInTheDocument();
     expect(screen.getByText('Все товары')).toBeInTheDocument();
     expect(screen.getByText('Только новинки')).toBeInTheDocument();
@@ -72,7 +72,7 @@ describe('PromExportModal (TASK-35)', () => {
     });
 
     const startBtn = screen.getByRole('button', {
-      name: /Запустить экспорт в Prom/i,
+      name: /Начать экспорт/i,
     });
     expect(startBtn).toBeInTheDocument();
   });
@@ -105,7 +105,7 @@ describe('PromExportModal (TASK-35)', () => {
     renderModal(defaultProps);
 
     const startBtn = screen.getByRole('button', {
-      name: /Запустить экспорт в Prom/i,
+      name: /Начать экспорт/i,
     });
     fireEvent.click(startBtn);
 

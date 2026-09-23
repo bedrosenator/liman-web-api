@@ -94,7 +94,7 @@ describe('PromTab (TASK-35)', () => {
     fireEvent.click(exportBtn);
 
     expect(
-      screen.getByText('Прямой экспорт товаров из Limansoft в Prom.ua'),
+      screen.getByText('Прямой экспорт каталога в Prom.ua'),
     ).toBeInTheDocument();
   });
 
@@ -105,7 +105,7 @@ describe('PromTab (TASK-35)', () => {
     fireEvent.click(importBtn);
 
     expect(
-      screen.getByText('Обратный импорт товаров из Prom.ua в Limansoft'),
+      screen.getByText('Импорт каталога из Prom.ua'),
     ).toBeInTheDocument();
   });
 

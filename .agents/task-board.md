@@ -39,6 +39,17 @@
     - 100% покрытие unit-тестами Jest и Vitest;
     - Сборка NestJS и Vite SPA;
     - Push ветки `feat/prom-complete-production-sync` и оформление PR.
+- [x] **[TASK-37]** Code Review Fixes: `feat/prom-ui-align-with-horoshop` — декомпозиция, тесты, CSS, i18n, a11y:
+  - **Статус готовности**: ✅ **Выполнено** (69/69 тестов Vitest passing, 184/184 тестов Jest passing);
+  - **Приоритет**: 🔴 **Блокер (Очередь #1, блокирует мердж PR)**;
+  - **Подзадачи**:
+    - [x] Исправить 6 упавших тестов в `PromExportModal.test.tsx`, `PromImportModal.test.tsx`, `PromTab.test.tsx` (заголовки и кнопки переименованы в PR);
+    - [x] Добавить CSS-классы `bg-sky-soft`, `bg-emerald-soft`, `bg-amber-soft` в `index.css`;
+    - [x] Декомпозировать `PromTab.tsx` (704 строки) → `prom/` подпапка: `PromHealthGrid`, `PromActionHub`, `PromFeedCard`, `PromSettingsForm` (все файлы ≤300 строк);
+    - [x] Перенести inline-строки (`language === 'uk' ? ... : ...`) из `PromExportModal` и `PromImportModal` в `translations.ts`;
+    - [x] Заменить `div[onClick]` на `<button>` в `PromWizard.tsx` (a11y, keyboard navigation);
+    - [x] Проверить `onCancel` в `ImportProgressScreen` — проверено (экран прогресса чисто информационный во время работы BullMQ);
+    - [x] Заменить `tenant: any` в `PromTabProps` на типизированный интерфейс `PromTenantSettings`.
 
 ---
 
