@@ -23,6 +23,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { promApi, tenantsApi, limanApi } from '@/api/client';
 import { PromExportModal } from './PromExportModal';
 import { PromImportModal } from './PromImportModal';
+import { PromWizard } from './PromWizard';
 
 interface PromTabProps {
   tenantId: string;
@@ -210,6 +211,9 @@ export const PromTab: React.FC<PromTabProps> = ({
 
   return (
     <div className="space-y-6" id="prom-tab-content">
+      {/* Quick-Start Wizard */}
+      <PromWizard />
+
       {/* 1. Диагностический блок «Светофор» (3-Point Health Bar) */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" id="health-grid-prom">
         {/* Индикатор 1: MariaDB */}

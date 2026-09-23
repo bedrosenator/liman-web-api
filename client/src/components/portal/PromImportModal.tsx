@@ -61,6 +61,7 @@ export function PromImportModal({
     onClose();
   };
 
+  // Reset modal state every time it is opened
   useEffect(() => {
     if (isOpen) {
       handleReset();
@@ -94,6 +95,7 @@ export function PromImportModal({
 
       const jobId = res.data.jobId;
 
+      // Опрос прогресса задачи BullMQ
       pollTimerRef.current = setInterval(async () => {
         try {
           const statusRes = await syncApi.getJobStatus('import-prom-catalog', jobId);
@@ -131,49 +133,49 @@ export function PromImportModal({
     }
   };
 
+  const isStartDisabled =
+    status === 'running' || (mode === 'overwrite' && !riskAccepted);
+
   return (
-    <div className="modal-backdrop" onClick={handleClose}>
+    <div className="modal-overlay" id="prom-import-modal-overlay" role="dialog" aria-modal="true">
       <div
-        className="modal-content max-w-2xl w-full"
-        onClick={(e) => e.stopPropagation()}
+        className="modal-content modal-content--export"
         id="prom-import-modal"
       >
         {/* Header */}
-        <div className="modal-header flex items-center justify-between border-b border-subtle pb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
-              <Download size={20} />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-primary">
-                {language === 'uk'
-                  ? 'Імпорт товарів з Prom.ua у Limansoft'
-                  : 'Обратный импорт товаров из Prom.ua в Limansoft'}
-              </h3>
-              <p className="text-xs text-muted">
-                {language === 'uk'
-                  ? 'Фонове завантаження новинок або каталогу Prom у базу MariaDB'
-                  : 'Фоновая загрузка новинок или каталога Prom в базу MariaDB'}
-              </p>
-            </div>
+        <div className="modal-header">
+          <div className="modal-title-row">
+            <Download size={20} className="text-indigo" />
+            <h2 className="modal-title">
+              {language === 'uk'
+                ? 'Імпорт каталогу з Prom.ua'
+                : 'Импорт каталога из Prom.ua'}
+            </h2>
           </div>
-          <button
-            type="button"
-            className="btn btn--ghost btn--sm p-1 text-muted hover:text-primary"
-            onClick={handleClose}
-          >
-            <X size={18} />
-          </button>
+          {status !== 'running' && (
+            <button
+              type="button"
+              className="btn-icon"
+              onClick={handleClose}
+              aria-label={t('close')}
+            >
+              <X size={20} />
+            </button>
+          )}
         </div>
 
-        {/* Body */}
-        <div className="modal-body py-4 space-y-6">
+        {/* Modal Body */}
+        <div className="modal-body">
           {status === 'idle' && (
-            <>
-              {/* 1. Режим импорта */}
-              <ImportModeSelector mode={mode} onModeChange={setMode} />
+            <div className="space-y-4">
+              <ImportModeSelector
+                mode={mode}
+                onModeChange={(newMode) => {
+                  setMode(newMode);
+                  if (newMode !== 'overwrite') setRiskAccepted(false);
+                }}
+              />
 
-              {/* 2. Подтверждение риска при перезаписи */}
               {mode === 'overwrite' && (
                 <ImportRiskConfirm
                   riskAccepted={riskAccepted}
@@ -181,7 +183,6 @@ export function PromImportModal({
                 />
               )}
 
-              {/* 3. Состав полей */}
               <ImportFieldToggles
                 updatePrices={updatePrices}
                 setUpdatePrices={setUpdatePrices}
@@ -192,61 +193,80 @@ export function PromImportModal({
                 createBackup={createBackup}
                 setCreateBackup={setCreateBackup}
               />
-            </>
+            </div>
           )}
 
-          {status === 'running' && (
-            <ImportProgressScreen
-              progress={progress}
-              onCancel={handleClose}
-            />
-          )}
+          {status === 'running' && <ImportProgressScreen progress={progress} />}
 
-          {status === 'completed' && stats && (
-            <ImportCompletedScreen stats={stats} />
-          )}
+          {status === 'completed' && <ImportCompletedScreen stats={stats} />}
 
-          {status === 'error' && errorMessage && (
-            <ImportErrorScreen errorMessage={errorMessage} />
-          )}
+          {status === 'error' && <ImportErrorScreen errorMessage={errorMessage} />}
         </div>
 
-        {/* Footer */}
-        <div className="modal-footer flex items-center justify-end gap-3 border-t border-subtle pt-4">
-          {status === 'idle' && (
-            <>
-              <button
-                type="button"
-                className="btn btn--secondary"
-                onClick={handleClose}
-              >
-                {t('cancel')}
-              </button>
-              <button
-                type="button"
-                className="btn btn--primary gap-1.5"
-                disabled={mode === 'overwrite' && !riskAccepted}
-                onClick={handleStartImport}
-                id="btn-confirm-prom-import"
-              >
-                <Download size={16} />
-                <span>
-                  {language === 'uk' ? 'Почати імпорт з Prom' : 'Запустить импорт из Prom'}
-                </span>
-              </button>
-            </>
-          )}
-
-          {(status === 'completed' || status === 'error') && (
+        {/* Modal Footer */}
+        {status === 'idle' && (
+          <div className="modal-footer">
             <button
               type="button"
-              className="btn btn--primary"
+              className="btn btn--secondary btn--sm"
               onClick={handleClose}
             >
-              {t('close')}
+              {t('cancel')}
             </button>
-          )}
-        </div>
+            <button
+              type="button"
+              className="btn btn--primary btn--sm gap-1.5"
+              id="btn-start-prom-import-modal"
+              onClick={handleStartImport}
+              disabled={isStartDisabled}
+            >
+              <Download size={16} />
+              <span>{t('startImport')}</span>
+            </button>
+          </div>
+        )}
+
+        {status === 'completed' && (
+          <div className="modal-footer">
+            <button
+              type="button"
+              className="btn btn--secondary btn--sm"
+              id="btn-close-prom-import-modal"
+              onClick={handleClose}
+            >
+              {language === 'uk' ? 'Закрити' : 'Закрыть'}
+            </button>
+            <button
+              type="button"
+              className="btn btn--primary btn--sm gap-1.5"
+              id="btn-new-prom-import-modal"
+              onClick={handleReset}
+            >
+              <RefreshCw size={14} />
+              <span>{language === 'uk' ? 'Новий імпорт' : 'Новый импорт'}</span>
+            </button>
+          </div>
+        )}
+
+        {status === 'error' && (
+          <div className="modal-footer justify-end">
+            <button
+              type="button"
+              className="btn btn--secondary btn--sm"
+              onClick={handleClose}
+            >
+              {language === 'uk' ? 'Закрити' : 'Закрыть'}
+            </button>
+            <button
+              type="button"
+              className="btn btn--primary btn--sm gap-1.5"
+              onClick={handleReset}
+            >
+              <RefreshCw size={14} />
+              <span>{language === 'uk' ? 'Спробувати знову' : 'Попробовать снова'}</span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

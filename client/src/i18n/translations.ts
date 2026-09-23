@@ -254,6 +254,13 @@ export const translations = {
     promTestConnection: 'Проверить связь Prom API',
     promExportToggle: 'Автоматическая выгрузка остатков в Prom',
     promPingSuccess: 'Связь с Prom.ua установлена',
+    promWizardTitle: 'Мастер быстрого подключения Prom.ua',
+    promWizardStep1: 'Шаг 1: Получите API-токен',
+    promWizardStep1Desc: 'В кабинете Prom.ua перейдите в Настройки → Управление сайтом → API. Создайте токен с правами Заказы (чтение/запись), Продукты (чтение/запись), Настройки (чтение).',
+    promWizardStep2: 'Шаг 2: Введите токен и сохраните',
+    promWizardStep2Desc: 'Вставьте токен в поле «Prom API Token» ниже, нажмите «Сохранить» и проверьте связь кнопкой «Проверить связь».',
+    promWizardStep3: 'Шаг 3: Включите автосинхронизацию',
+    promWizardStep3Desc: 'Активируйте «Автовыгрузку остатков» и выберите интервал. Настройте вебхук заказов — вставьте URL в кабинете Prom: Настройки → Уведомления → Webhook.',
 
     // Rozetka (TASK-21)
     rozetkaActions: 'Действия Rozetka',
@@ -540,6 +547,13 @@ export const translations = {
     promTestConnection: 'Перевірити зв\'язок Prom API',
     promExportToggle: 'Автоматичне вивантаження залишків у Prom',
     promPingSuccess: 'Зв\'язок із Prom.ua встановлено',
+    promWizardTitle: 'Майстер швидкого підключення Prom.ua',
+    promWizardStep1: 'Крок 1: Отримайте API-токен',
+    promWizardStep1Desc: 'У кабінеті Prom.ua перейдіть у Налаштування → Керування сайтом → API. Створіть токен із правами Замовлення (читання/запис), Продукти (читання/запис), Налаштування (читання).',
+    promWizardStep2: 'Крок 2: Введіть токен та збережіть',
+    promWizardStep2Desc: 'Вставте токен у поле «Prom API Token» нижче, натисніть «Зберегти» та перевірте зв\'язок кнопкою «Перевірити зв\'язок».',
+    promWizardStep3: 'Крок 3: Увімкніть автосинхронізацію',
+    promWizardStep3Desc: 'Активуйте «Автовивантаження залишків» та оберіть інтервал. Налаштуйте вебхук замовлень — вставте URL у кабінеті Prom: Налаштування → Сповіщення → Webhook.',
 
     // Rozetka (TASK-21)
     rozetkaActions: 'Дії Rozetka',

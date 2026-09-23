@@ -10,6 +10,7 @@ import type {
 import {
   ExportModeSelector,
   ExportFieldToggles,
+  ExportAdvancedSettings,
   ExportProgressScreen,
   ExportCompletedScreen,
   ExportErrorScreen,
@@ -36,9 +37,10 @@ export function PromExportModal({
   const [exportDescriptions, setExportDescriptions] = useState(true);
   const [exportImages, setExportImages] = useState(true);
   const [exportCategories, setExportCategories] = useState(true);
-  const [defaultGroupId, setDefaultGroupId] = useState<number | ''>('');
+  const [defaultCategoryPath, setDefaultCategoryPath] = useState('');
   const [categoriesList, setCategoriesList] = useState<ExportCategory[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
+  const [defaultBrand, setDefaultBrand] = useState('');
   const [currency, setCurrency] = useState('UAH');
   const [limit, setLimit] = useState<number | ''>('');
 
@@ -65,6 +67,7 @@ export function PromExportModal({
     onClose();
   };
 
+  // Reset modal state and fetch Prom groups every time modal is opened
   useEffect(() => {
     if (isOpen) {
       handleReset();
@@ -73,7 +76,7 @@ export function PromExportModal({
         .getExportCategories(tenantId)
         .then((res) => {
           if (res.data?.categories) {
-            const formatted: ExportCategory[] = res.data.categories.map((c) => ({
+            const formatted: ExportCategory[] = res.data.categories.map((c: any) => ({
               id: c.id,
               title: c.name,
               fullPath: c.name,
@@ -114,7 +117,8 @@ export function PromExportModal({
         exportDescriptions,
         exportImages,
         exportCategories,
-        defaultGroupId: defaultGroupId ? Number(defaultGroupId) : undefined,
+        defaultCategoryPath: defaultCategoryPath || undefined,
+        defaultBrand: defaultBrand?.trim() || undefined,
         currency: currency?.trim() || 'UAH',
         baseUrl: window.location.origin,
         limit: limit ? Number(limit) : undefined,
@@ -160,181 +164,139 @@ export function PromExportModal({
   };
 
   return (
-    <div className="modal-backdrop" onClick={handleClose}>
+    <div className="modal-overlay" id="prom-export-modal-overlay" role="dialog" aria-modal="true">
       <div
-        className="modal-content max-w-2xl w-full"
-        onClick={(e) => e.stopPropagation()}
+        className="modal-content modal-content--export"
         id="prom-export-modal"
       >
         {/* Header */}
-        <div className="modal-header flex items-center justify-between border-b border-subtle pb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-              <Upload size={20} />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-primary">
-                {language === 'uk'
-                  ? 'Експорт товарів з Limansoft у Prom.ua'
-                  : 'Прямой экспорт товаров из Limansoft в Prom.ua'}
-              </h3>
-              <p className="text-xs text-muted">
-                {language === 'uk'
-                  ? 'Фонове вивантаження каталогу, залишків та цін через чергу BullMQ'
-                  : 'Фоновая выгрузка каталога, остатков и цен через очередь BullMQ'}
-              </p>
-            </div>
+        <div className="modal-header">
+          <div className="modal-title-row">
+            <Upload size={20} className="text-emerald" />
+            <h2 className="modal-title">
+              {language === 'uk'
+                ? 'Прямий експорт каталогу в Prom.ua'
+                : 'Прямой экспорт каталога в Prom.ua'}
+            </h2>
           </div>
-          <button
-            type="button"
-            className="btn btn--ghost btn--sm p-1 text-muted hover:text-primary"
-            onClick={handleClose}
-          >
-            <X size={18} />
-          </button>
+          {status !== 'running' && (
+            <button
+              type="button"
+              className="btn-icon"
+              onClick={handleClose}
+              aria-label={t('close')}
+            >
+              <X size={20} />
+            </button>
+          )}
         </div>
 
-        {/* Body */}
-        <div className="modal-body py-4 space-y-6">
+        {/* Modal Body */}
+        <div className="modal-body">
           {status === 'idle' && (
-            <>
-              {/* 1. Режим экспорта */}
-              <ExportModeSelector mode={mode} onChange={setMode} />
+            <div className="space-y-4">
+              <ExportModeSelector mode={mode} onModeChange={setMode} />
 
-              {/* 2. Состав полей для выгрузки */}
               <ExportFieldToggles
                 exportPrices={exportPrices}
                 setExportPrices={setExportPrices}
                 exportStock={exportStock}
                 setExportStock={setExportStock}
-                exportDescriptions={exportDescriptions}
-                setExportDescriptions={setExportDescriptions}
-                exportImages={exportImages}
-                setExportImages={setExportImages}
                 exportCategories={exportCategories}
                 setExportCategories={setExportCategories}
+                exportImages={exportImages}
+                setExportImages={setExportImages}
+                exportDescriptions={exportDescriptions}
+                setExportDescriptions={setExportDescriptions}
               />
 
-              {/* 3. Выбор группы Prom.ua и валюты */}
-              <div className="p-3 bg-surface rounded-lg border border-subtle space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-primary">
-                    {language === 'uk'
-                      ? 'Цільова група товарів Prom.ua'
-                      : 'Целевая группа товаров Prom.ua'}
-                  </span>
-                  {loadingCategories && (
-                    <span className="text-[11px] text-muted flex items-center gap-1">
-                      <RefreshCw size={11} className="spinner" />
-                      {language === 'uk' ? 'Завантаження груп...' : 'Загрузка групп...'}
-                    </span>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-[11px] text-muted">
-                      {language === 'uk' ? 'Група за замовчуванням' : 'Группа по умолчанию'}
-                    </label>
-                    <select
-                      className="input text-xs w-full"
-                      value={defaultGroupId}
-                      onChange={(e) => setDefaultGroupId(e.target.value ? Number(e.target.value) : '')}
-                    >
-                      <option value="">
-                        {language === 'uk'
-                          ? '— Автоматично за категорією Liman —'
-                          : '— Автоматически по категории Liman —'}
-                      </option>
-                      {categoriesList.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.title} (ID: {c.id})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[11px] text-muted">
-                      {language === 'uk' ? 'Валюта цін' : 'Валюта цен'}
-                    </label>
-                    <input
-                      type="text"
-                      className="input text-xs w-full uppercase"
-                      value={currency}
-                      onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-                      placeholder="UAH"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[11px] text-muted">
-                    {language === 'uk' ? 'Ліміт товарів (опціонально)' : 'Лимит товаров (для теста)'}
-                  </label>
-                  <input
-                    type="number"
-                    className="input text-xs w-full"
-                    placeholder="Наприклад: 50"
-                    value={limit}
-                    onChange={(e) => setLimit(e.target.value ? Number(e.target.value) : '')}
-                  />
-                </div>
-              </div>
-            </>
+              <ExportAdvancedSettings
+                defaultCategoryPath={defaultCategoryPath}
+                setDefaultCategoryPath={setDefaultCategoryPath}
+                categoriesList={categoriesList}
+                loadingCategories={loadingCategories}
+                defaultBrand={defaultBrand}
+                setDefaultBrand={setDefaultBrand}
+                currency={currency}
+                setCurrency={setCurrency}
+                limit={limit}
+                setLimit={setLimit}
+              />
+            </div>
           )}
 
-          {status === 'running' && (
-            <ExportProgressScreen
-              progress={progress}
-              onCancel={handleClose}
-            />
-          )}
+          {status === 'running' && <ExportProgressScreen progress={progress} />}
 
-          {status === 'completed' && stats && (
-            <ExportCompletedScreen stats={stats} />
-          )}
+          {status === 'completed' && <ExportCompletedScreen stats={stats} />}
 
-          {status === 'error' && errorMessage && (
-            <ExportErrorScreen errorMessage={errorMessage} />
-          )}
+          {status === 'error' && <ExportErrorScreen errorMessage={errorMessage} />}
         </div>
 
-        {/* Footer */}
-        <div className="modal-footer flex items-center justify-end gap-3 border-t border-subtle pt-4">
-          {status === 'idle' && (
-            <>
-              <button
-                type="button"
-                className="btn btn--secondary"
-                onClick={handleClose}
-              >
-                {t('cancel')}
-              </button>
-              <button
-                type="button"
-                className="btn btn--primary gap-1.5"
-                onClick={handleStartExport}
-                id="btn-confirm-prom-export"
-              >
-                <Upload size={16} />
-                <span>
-                  {language === 'uk' ? 'Почати експорт у Prom' : 'Запустить экспорт в Prom'}
-                </span>
-              </button>
-            </>
-          )}
-
-          {(status === 'completed' || status === 'error') && (
+        {/* Modal Footer */}
+        {status === 'idle' && (
+          <div className="modal-footer">
             <button
               type="button"
-              className="btn btn--primary"
+              className="btn btn--secondary btn--sm"
+              onClick={handleClose}
+            >
+              {t('cancel')}
+            </button>
+            <button
+              type="button"
+              className="btn btn--primary btn--sm gap-1.5"
+              id="btn-start-prom-export-modal"
+              onClick={handleStartExport}
+            >
+              <Upload size={16} />
+              <span>
+                {language === 'uk' ? 'Почати експорт' : 'Начать экспорт'}
+              </span>
+            </button>
+          </div>
+        )}
+
+        {status === 'completed' && (
+          <div className="modal-footer">
+            <button
+              type="button"
+              className="btn btn--secondary btn--sm"
+              id="btn-close-prom-export-modal"
               onClick={handleClose}
             >
               {t('close')}
             </button>
-          )}
-        </div>
+            <button
+              type="button"
+              className="btn btn--primary btn--sm gap-1.5"
+              id="btn-new-prom-export-modal"
+              onClick={handleReset}
+            >
+              <RefreshCw size={14} />
+              <span>{language === 'uk' ? 'Нова вигрузка' : 'Новая выгрузка'}</span>
+            </button>
+          </div>
+        )}
+
+        {status === 'error' && (
+          <div className="modal-footer justify-end">
+            <button
+              type="button"
+              className="btn btn--secondary btn--sm"
+              onClick={handleClose}
+            >
+              {t('close')}
+            </button>
+            <button
+              type="button"
+              className="btn btn--primary btn--sm gap-1.5"
+              onClick={handleReset}
+            >
+              <RefreshCw size={14} />
+              <span>{language === 'uk' ? 'Спробувати знову' : 'Попробовать снова'}</span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
