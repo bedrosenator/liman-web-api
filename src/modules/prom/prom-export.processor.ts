@@ -33,6 +33,7 @@ export interface PromExportResult {
   errors: number;
   durationMs: number;
   errorDetails?: Array<{ article: string; message: string }>;
+  message?: string;
 }
 
 /**
@@ -294,45 +295,116 @@ export class PromExportProcessor extends WorkerHost {
       chunks.push(targetProducts.slice(i, i + EXPORT_BATCH_SIZE));
     }
 
+    const feedUrl = `${baseUrl}/api/v1/prom/${tenant.id}/feed.xml`;
+
+    // Попытка зарегистрировать / обновить YML-фид в Prom.ua для создания новых товаров
+    try {
+      await this.promClient.importUrl(tenant.promApiKey, {
+        url: feedUrl,
+        force_update: true,
+        updated_fields: [
+          'name',
+          'sku',
+          'price',
+          'images_urls',
+          'presence',
+          'quantity_in_stock',
+          'description',
+          'group',
+        ],
+      });
+      this.logger.log(`📥 [${tenantId}] Запрос на импорт фида ${feedUrl} отправлен в Prom.ua`);
+    } catch (feedErr: any) {
+      this.logger.warn(
+        `⚠️ [${tenantId}] Запуск import_url фида в Prom.ua: ${feedErr.message}`,
+      );
+    }
+
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
-      const payload: PromProductEditItem[] = chunk.map((product) => {
-        const catName = product.categoryGroup
-          ? categoryMap.get(product.categoryGroup)
-          : undefined;
-        return this.buildProductItem(
-          product,
-          catName,
-          job.data,
-          promGroupMap,
-        );
+      const itemsToEdit = chunk.map((product) => {
+        const item: {
+          id: string;
+          name?: string;
+          price?: number;
+          presence?: 'available' | 'not_available' | 'order';
+          quantity_in_stock?: number;
+          description?: string;
+          sku?: string;
+        } = {
+          id: String(product.tcod),
+          name: product.name,
+        };
+
+        if (job.data.exportPrices !== false) {
+          item.price = product.price;
+        }
+
+        if (job.data.exportStock !== false) {
+          item.quantity_in_stock = Math.max(0, product.stock);
+          item.presence = product.stock > 0 ? 'available' : 'not_available';
+        }
+
+        if (product.barcode) {
+          item.sku = product.barcode;
+        }
+
+        if (job.data.exportDescriptions !== false && product.description) {
+          item.description = product.description;
+        }
+
+        return item;
       });
 
       try {
-        const res = await this.promClient.editProducts(
+        const res = await this.promClient.editProductsByExternalId(
           tenant.promApiKey,
-          payload,
+          itemsToEdit,
         );
         totalExported += res.processed;
 
-        // Сохранение связей в product_mappings
-        if (this.productMappingService && currentIntegrationId) {
-          const mappingItems = chunk.map((p) => ({
-            tenantId: tenant.id,
-            integrationId: currentIntegrationId,
-            limanTcod: p.tcod,
-            externalArticle: String(p.tcod),
-            limanBarcode: p.barcode || null,
-            limanArticul: p.barcode || null,
-            syncStatus: 'synced' as const,
-            metadata: {
-              name: p.name,
-              price: p.price,
-              stock: p.stock,
-              exportedAt: new Date().toISOString(),
-            },
-          }));
-          await this.productMappingService.saveBatchMappings(mappingItems);
+        if (res.errors && typeof res.errors === 'object') {
+          const chunkErrors = Object.keys(res.errors).length;
+          errors += chunkErrors;
+          for (const [art, err] of Object.entries(res.errors)) {
+            if (errorDetails.length < 50) {
+              errorDetails.push({
+                article: art,
+                message: typeof err === 'object' ? JSON.stringify(err) : String(err),
+              });
+            }
+          }
+        }
+
+        // Сохранение связей в product_mappings ТОЛЬКО для успешно обновленных товаров
+        if (
+          this.productMappingService &&
+          currentIntegrationId &&
+          res.processedIds &&
+          res.processedIds.length > 0
+        ) {
+          const processedSet = new Set(res.processedIds.map(String));
+          const mappedChunk = chunk.filter((p) =>
+            processedSet.has(String(p.tcod)),
+          );
+          if (mappedChunk.length > 0) {
+            const mappingItems = mappedChunk.map((p) => ({
+              tenantId: tenant.id,
+              integrationId: currentIntegrationId,
+              limanTcod: p.tcod,
+              externalArticle: String(p.tcod),
+              limanBarcode: p.barcode || null,
+              limanArticul: p.barcode || null,
+              syncStatus: 'synced' as const,
+              metadata: {
+                name: p.name,
+                price: p.price,
+                stock: p.stock,
+                exportedAt: new Date().toISOString(),
+              },
+            }));
+            await this.productMappingService.saveBatchMappings(mappingItems);
+          }
         }
       } catch (chunkErr: any) {
         errors += chunk.length;
@@ -358,26 +430,42 @@ export class PromExportProcessor extends WorkerHost {
 
     await job.updateProgress(100);
 
-    const isSuccess = errors === 0;
-    this.promSyncService.addActivity(tenantId, {
-      type: 'sync',
-      status: isSuccess ? 'success' : 'warning',
-      titleRu: `Экспорт каталога в Prom.ua: ${totalExported} товаров`,
-      titleUk: `Експорт каталогу в Prom.ua: ${totalExported} товарів`,
-      detailsRu: `Успешно выгружено: ${totalExported}, пропущено: ${skippedCount}, ошибок: ${errors}`,
-      detailsUk: `Успішно вивантажено: ${totalExported}, пропущено: ${skippedCount}, помилок: ${errors}`,
-    });
+    const isSuccess = totalExported > 0 && errors === 0;
+
+    let userMessage: string | undefined = undefined;
+    if (totalExported === 0 && totalToExport > 0) {
+      userMessage = `Товары еще не созданы в Prom.ua. Зарегистрируйте YML-фид (${feedUrl}) в кабинете продавца Prom.ua (Товары и услуги → Импорт).`;
+      this.promSyncService.addActivity(tenantId, {
+        type: 'sync',
+        status: 'warning',
+        titleRu: `Экспорт в Prom.ua: товары не найдены в каталоге`,
+        titleUk: `Експорт у Prom.ua: товари не знайдені в каталозі`,
+        detailsRu: `0 из ${totalToExport} товаров обновлено. В Prom.ua новые товары создаются через импорт YML-фида: ${feedUrl} в кабинете продавца.`,
+        detailsUk: `0 з ${totalToExport} товарів оновлено. У Prom.ua нові товари створюються через імпорт YML-фіда: ${feedUrl} у кабінеті продавця.`,
+      });
+    } else {
+      userMessage = `Успешно выгружено: ${totalExported}, пропущено: ${skippedCount}, ошибок: ${errors}`;
+      this.promSyncService.addActivity(tenantId, {
+        type: 'sync',
+        status: isSuccess ? 'success' : 'warning',
+        titleRu: `Экспорт каталога в Prom.ua: ${totalExported} товаров`,
+        titleUk: `Експорт каталогу в Prom.ua: ${totalExported} товарів`,
+        detailsRu: `Успешно выгружено: ${totalExported}, пропущено: ${skippedCount}, ошибок: ${errors}`,
+        detailsUk: `Успішно вивантажено: ${totalExported}, пропущено: ${skippedCount}, помилок: ${errors}`,
+      });
+    }
 
     return {
       success: isSuccess,
       totalFetched,
       totalExported,
-      created: mode === 'only_new' ? totalExported : 0,
-      updated: mode !== 'only_new' ? totalExported : 0,
+      created: 0,
+      updated: totalExported,
       skipped: skippedCount,
-      errors,
+      errors: totalExported === 0 && totalToExport > 0 ? totalToExport : errors,
       durationMs: Date.now() - startTime,
       errorDetails: errorDetails.length > 0 ? errorDetails : undefined,
+      message: userMessage,
     };
   }
 }

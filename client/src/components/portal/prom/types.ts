@@ -1,3 +1,5 @@
+import type { ActivityItem } from '../ActivityFeed';
+
 export interface PromTenantSettings {
   promShopTitle?: string;
   promApiKey?: string;
@@ -12,6 +14,9 @@ export interface PromTabProps {
   tenantId: string;
   tenant: PromTenantSettings | null | undefined;
   onTenantUpdated: () => void;
+  activities?: ActivityItem[];
+  isLoadingActivities?: boolean;
+  onRefreshActivities?: () => void;
 }
 
 export interface MariaDbStatus {
@@ -30,4 +35,7 @@ export interface PromStatus {
 export interface SyncReport {
   success: boolean;
   message: string;
+  updated?: number;
+  processed?: number;
 }
+

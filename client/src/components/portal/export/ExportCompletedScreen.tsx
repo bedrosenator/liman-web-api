@@ -15,34 +15,48 @@ import type { ExportStats } from './types';
 
 interface ExportCompletedScreenProps {
   stats: ExportStats | null;
+  platform?: 'horoshop' | 'prom';
 }
 
 export const ExportCompletedScreen: React.FC<ExportCompletedScreenProps> = ({
   stats,
+  platform = 'horoshop',
 }) => {
   const { language } = useLanguage();
 
-  const isRejectedByHoroshop =
+  const isRejected =
     stats &&
-    (stats.errors ?? 0) > 0 &&
+    ((stats.errors ?? 0) > 0 || (stats.totalExported ?? 0) === 0) &&
     (stats.created ?? 0) === 0 &&
-    (stats.updated ?? 0) === 0;
+    (stats.updated ?? 0) === 0 &&
+    ((stats.totalFetched ?? 0) > 0 || (stats.errors ?? 0) > 0);
+
+  const rejectedTitle =
+    platform === 'prom'
+      ? (language === 'uk' ? 'Товари не знайдено в Prom.ua' : 'Товары не найдены в Prom.ua')
+      : (language === 'uk' ? 'Товари відхилено Хорошопом' : 'Товары отклонены Хорошопом');
+
+  const rejectedDesc =
+    stats?.message ||
+    (platform === 'prom'
+      ? (language === 'uk'
+          ? 'Товари відсутні в каталозі Prom.ua. Зареєструйте YML-фід у кабінеті продавця для початкового створення товарів.'
+          : 'Товары отсутствуют в каталоге Prom.ua. Зарегистрируйте YML-фид в кабинете продавца для первоначального создания товаров.')
+      : (language === 'uk'
+          ? 'Хорошоп відхилив позиції (категорія не знайдена або відсутній шаблон). Оберіть цільову категорію в налаштуваннях вивантаження.'
+          : 'Хорошоп отклонил позиции (категория не найдена или отсутствует шаблон). Выберите целевую категорию в настройках выгрузки.'));
 
   return (
     <div className="py-2 space-y-5 text-center" id="export-completed-screen">
-      {isRejectedByHoroshop ? (
+      {isRejected ? (
         <>
           <div className="warning-badge-glow">
             <AlertTriangle size={32} className="text-amber" />
           </div>
           <div className="space-y-1">
-            <h3 className="text-lg font-bold text-primary">
-              {language === 'uk' ? 'Товари відхилено Хорошопом' : 'Товары отклонены Хорошопом'}
-            </h3>
+            <h3 className="text-lg font-bold text-primary">{rejectedTitle}</h3>
             <p className="text-xs text-secondary max-w-md mx-auto leading-relaxed">
-              {language === 'uk'
-                ? 'Хорошоп відхилив позиції (категорія не знайдена або відсутній шаблон). Оберіть цільову категорію в налаштуваннях вивантаження.'
-                : 'Хорошоп отклонил позиции (категория не найдена или отсутствует шаблон). Выберите целевую категорию в настройках выгрузки.'}
+              {rejectedDesc}
             </p>
           </div>
         </>
@@ -56,7 +70,9 @@ export const ExportCompletedScreen: React.FC<ExportCompletedScreenProps> = ({
               {language === 'uk' ? 'Каталог успішно експортовано!' : 'Каталог успешно экспортирован!'}
             </h3>
             <p className="text-xs text-secondary max-w-md mx-auto leading-relaxed">
-              {stats && (stats.errors ?? 0) > 0
+              {stats?.message
+                ? stats.message
+                : stats && (stats.errors ?? 0) > 0
                 ? (language === 'uk'
                     ? 'Частину позицій збережено, але виникли зауваження до окремих товарів.'
                     : 'Часть позиций сохранена, но возникли замечания по отдельным товарам.')
@@ -122,7 +138,9 @@ export const ExportCompletedScreen: React.FC<ExportCompletedScreenProps> = ({
       {stats?.errorDetails && stats.errorDetails.length > 0 && (
         <div className="mt-3 text-left border border-rose/20 bg-rose/5 rounded-lg p-2.5 max-h-36 overflow-y-auto space-y-1.5" id="export-error-details-list">
           <div className="text-[11px] font-semibold text-rose uppercase tracking-wider">
-            {language === 'uk' ? 'Деталі зауважень Хорошоп:' : 'Детали замечаний Хорошоп:'}
+            {platform === 'prom'
+              ? (language === 'uk' ? 'Деталі зауважень Prom.ua:' : 'Детали замечаний Prom.ua:')
+              : (language === 'uk' ? 'Деталі зауважень Хорошоп:' : 'Детали замечаний Хорошоп:')}
           </div>
           {stats.errorDetails.map((err, i) => (
             <div key={i} className="text-[11px] text-muted leading-tight">

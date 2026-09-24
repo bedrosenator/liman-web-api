@@ -34,7 +34,12 @@ describe('PromExportProcessor', () => {
       getGroups: jest.fn().mockResolvedValue([
         { id: 456, name: 'Smartphones', parent_group_id: null },
       ]),
-      editProducts: jest.fn().mockResolvedValue({ success: true, processed: 2 }),
+      editProductsByExternalId: jest.fn().mockResolvedValue({
+        success: true,
+        processed: 2,
+        processedIds: ['101', '102'],
+      }),
+      importUrl: jest.fn().mockResolvedValue({ success: true }),
     } as any;
 
     promSyncService = {
@@ -105,22 +110,20 @@ describe('PromExportProcessor', () => {
 
     expect(result.success).toBe(true);
     expect(result.totalExported).toBe(2);
-    expect(promClient.editProducts).toHaveBeenCalledWith(
+    expect(promClient.editProductsByExternalId).toHaveBeenCalledWith(
       'test-prom-key',
       expect.arrayContaining([
         expect.objectContaining({
-          external_id: '101',
+          id: '101',
           name: 'Apple iPhone 13',
           price: 25000,
           presence: 'available',
-          category_id: 456,
         }),
         expect.objectContaining({
-          external_id: '102',
+          id: '102',
           name: 'Samsung Galaxy S22',
           price: 23000,
           presence: 'not_available',
-          category_id: 456,
         }),
       ]),
     );
@@ -140,7 +143,11 @@ describe('PromExportProcessor', () => {
       })
       .mockResolvedValueOnce({ total: 2, page: 2, limit: 500, items: [] });
 
-    promClient.editProducts.mockResolvedValue({ success: true, processed: 1 });
+    promClient.editProductsByExternalId.mockResolvedValue({
+      success: true,
+      processed: 1,
+      processedIds: ['102'],
+    });
 
     const mockJob = {
       data: {
@@ -155,11 +162,47 @@ describe('PromExportProcessor', () => {
     expect(result.success).toBe(true);
     expect(result.skipped).toBe(1);
     expect(result.totalExported).toBe(1);
-    expect(promClient.editProducts).toHaveBeenCalledWith(
+    expect(promClient.editProductsByExternalId).toHaveBeenCalledWith(
       'test-prom-key',
       expect.arrayContaining([
-        expect.objectContaining({ external_id: '102' }),
+        expect.objectContaining({ id: '102' }),
       ]),
+    );
+  });
+
+  it('should handle zero exported items with actionable warning when products do not exist', async () => {
+    limanService.getProducts
+      .mockResolvedValueOnce({
+        total: 1,
+        page: 1,
+        limit: 500,
+        items: [{ tcod: 999, name: 'Unknown Product', price: 100, stock: 5 }] as any,
+      })
+      .mockResolvedValueOnce({ total: 1, page: 2, limit: 500, items: [] });
+
+    promClient.editProductsByExternalId.mockResolvedValue({
+      success: true,
+      processed: 0,
+      processedIds: [],
+      errors: { '999': { id: 'Продукт не найден' } },
+    });
+
+    const mockJob = {
+      data: { tenantId: 'columb', mode: 'full_overwrite' as const },
+      updateProgress: jest.fn(),
+    } as any;
+
+    const result = await processor.process(mockJob);
+
+    expect(result.success).toBe(false);
+    expect(result.totalExported).toBe(0);
+    expect(result.errors).toBe(1);
+    expect(result.message).toContain('feed.xml');
+    expect(promSyncService.addActivity).toHaveBeenCalledWith(
+      'columb',
+      expect.objectContaining({
+        status: 'warning',
+      }),
     );
   });
 });

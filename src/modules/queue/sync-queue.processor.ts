@@ -95,6 +95,7 @@ export class StockSyncProcessor extends WorkerHost {
                 batchSize: chunkSize,
                 limit: job.data.limit,
                 integrationId: job.data.integrationId,
+                skipActivity: true,
               },
             );
             totalProcessed = syncRes.processed;
@@ -156,32 +157,46 @@ export class StockSyncProcessor extends WorkerHost {
 
       const durationMs = Date.now() - startTime;
       this.logger.log(
-        `✅ Синхронизация [${tenantId}] успешно завершена за ${durationMs}ms! Обработано: ${totalProcessed} SKU.`,
+        `✅ Синхронизация [${tenantId}] завершена за ${durationMs}ms! Обработано: ${totalProcessed} SKU.`,
       );
 
       if (targetPlatform === 'horoshop') {
+        const isSuccess = totalProcessed > 0;
         this.horoshopSyncService?.addActivity(tenant.id, {
           type: 'sync',
-          status: 'success',
+          status: isSuccess ? 'success' : 'warning',
           titleRu: `Синхронизация цен и остатков (${totalProcessed} товаров)`,
           titleUk: `Синхронізація цін та залишків (${totalProcessed} товарів)`,
-          detailsRu: `Успешно обновлено через фоновую очередь BullMQ за ${durationMs}мс`,
-          detailsUk: `Успішно оновлено через фонову чергу BullMQ за ${durationMs}мс`,
+          detailsRu: isSuccess
+            ? `Успешно обновлено через фоновую очередь BullMQ за ${durationMs}мс`
+            : `Товары не обновлены (0 товаров). Проверьте настройки каталога.`,
+          detailsUk: isSuccess
+            ? `Успішно оновлено через фонову чергу BullMQ за ${durationMs}мс`
+            : `Товари не оновлено (0 товарів). Перевірте налаштування каталогу.`,
         });
       } else if (targetPlatform === 'prom') {
+        const isSuccess = totalProcessed > 0;
         this.promSyncService?.addActivity(tenant.id, {
           type: 'sync',
-          status: 'success',
-          titleRu: `Синхронизация цен и остатков (${totalProcessed} товаров)`,
-          titleUk: `Синхронізація цін та залишків (${totalProcessed} товарів)`,
-          detailsRu: `Успешно обновлено в Prom.ua через фоновую очередь BullMQ за ${durationMs}мс`,
-          detailsUk: `Успішно оновлено в Prom.ua через фонову чергу BullMQ за ${durationMs}мс`,
+          status: isSuccess ? 'success' : 'warning',
+          titleRu: isSuccess
+            ? `Синхронизация цен и остатков (${totalProcessed} товаров)`
+            : `Синхронизация Prom.ua: товары не найдены (0 товаров)`,
+          titleUk: isSuccess
+            ? `Синхронізація цін та залишків (${totalProcessed} товарів)`
+            : `Синхронізація Prom.ua: товари не знайдені (0 товарів)`,
+          detailsRu: isSuccess
+            ? `Успешно обновлено в Prom.ua через фоновую очередь BullMQ за ${durationMs}мс`
+            : `Товары из базы Limansoft не найдены в Prom.ua. Зарегистрируйте YML-фид в кабинете продавца Prom.ua для первоначального создания каталога.`,
+          detailsUk: isSuccess
+            ? `Успішно оновлено в Prom.ua через фонову чергу BullMQ за ${durationMs}мс`
+            : `Товари з бази Limansoft не знайдені в Prom.ua. Зареєструйте YML-фід у кабінеті продавця Prom.ua для початкового створення каталогу.`,
         });
       }
 
       return {
         processed: totalProcessed,
-        success: true,
+        success: totalProcessed > 0,
         durationMs,
       };
     } catch (error) {

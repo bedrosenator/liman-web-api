@@ -108,7 +108,7 @@ export const PromSettingsForm: React.FC<PromSettingsFormProps> = ({
         </div>
 
         {/* Тумблер фонового экспорта и интервал */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-3 bg-elevated rounded-lg border border-subtle">
+        <div className="flex items-center justify-between p-3 bg-elevated rounded-lg border border-subtle">
           <div>
             <div className="text-xs font-semibold text-primary">
               {t('promExportToggle')}
@@ -117,28 +117,31 @@ export const PromSettingsForm: React.FC<PromSettingsFormProps> = ({
               {t('promExportHelp')}
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={exportEnabled}
+              onChange={(e) => setExportEnabled(e.target.checked)}
+            />
+            <span className="slider round" />
+          </label>
+        </div>
+
+        {exportEnabled && (
+          <div className="form-group">
+            <label className="form-label">{t('syncInterval')}</label>
             <select
-              className="input text-xs"
+              className="select"
               value={syncInterval}
               onChange={(e) => setSyncInterval(Number(e.target.value))}
-              disabled={!exportEnabled}
             >
-              <option value={5}>5 мин</option>
-              <option value={15}>15 мин</option>
-              <option value={30}>30 мин</option>
-              <option value={60}>60 мин</option>
+              <option value={5}>{t('interval5Min')}</option>
+              <option value={15}>{t('interval15Min')}</option>
+              <option value={30}>{t('interval30Min')}</option>
+              <option value={60}>{t('interval60Min')}</option>
             </select>
-            <label className="switch">
-              <input
-                type="checkbox"
-                checked={exportEnabled}
-                onChange={(e) => setExportEnabled(e.target.checked)}
-              />
-              <span className="slider round" />
-            </label>
           </div>
-        </div>
+        )}
 
         {/* Вебхук приема заказов */}
         <div className="flex items-center justify-between p-3 bg-elevated rounded-lg border border-subtle">

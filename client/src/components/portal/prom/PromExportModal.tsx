@@ -223,7 +223,7 @@ export function PromExportModal({
 
           {status === 'running' && <ExportProgressScreen progress={progress} />}
 
-          {status === 'completed' && <ExportCompletedScreen stats={stats} />}
+          {status === 'completed' && <ExportCompletedScreen stats={stats} platform="prom" />}
 
           {status === 'error' && <ExportErrorScreen errorMessage={errorMessage} />}
         </div>
