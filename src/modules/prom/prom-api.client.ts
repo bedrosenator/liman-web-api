@@ -234,7 +234,6 @@ export class PromApiClient {
       quantity_in_stock?: number;
       description?: string;
       keywords?: string;
-      sku?: string;
     }>,
   ): Promise<{
     success: boolean;
