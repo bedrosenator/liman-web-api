@@ -1,125 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios, { AxiosInstance } from 'axios';
 
-export interface PromGroup {
-  id: number;
-  name: string;
-  description?: string;
-  image?: string;
-  parent_group_id?: number | null;
-}
-
-export interface PromProductPriceStockUpdate {
-  id?: number | string;
-  external_id?: string; // our tcod
-  price?: number;
-  presence?: 'available' | 'not_available' | 'order' | 'service';
-  quantity_in_stock?: number;
-}
-
-export interface PromProductEditItem {
-  id?: number;
-  external_id?: string; // our tcod
-  name?: string;
-  price?: number;
-  presence?: 'available' | 'not_available' | 'order';
-  quantity_in_stock?: number;
-  category_id?: number;
-  description?: string;
-  images?: string[];
-  sku?: string;
-}
-
-export interface PromProductItem {
-  id: number;
-  external_id?: string;
-  name: string;
-  sku?: string;
-  price?: number;
-  minimum_order_quantity?: number;
-  currency?: string;
-  group?: {
-    id: number;
-    name: string;
-  };
-  category?: {
-    id: number;
-    caption: string;
-  };
-  main_image?: string;
-  images?: Array<{
-    id?: number;
-    url: string;
-    thumbnail_url?: string;
-  }>;
-  presence?: 'available' | 'not_available' | 'order' | 'service';
-  quantity_in_stock?: number;
-  description?: string;
-  keywords?: string;
-  status?: 'on_display' | 'draft' | 'deleted' | 'not_on_display';
-}
-
-export interface PromImportUrlOptions {
-  url: string;
-  force_update?: boolean;
-  only_available?: boolean;
-  only_update?: boolean;
-  mark_missing_product_as?:
-    | 'none'
-    | 'not_available'
-    | 'not_on_display'
-    | 'deleted';
-  updated_fields?: string[];
-}
-
-export interface PromImportStatusResponse {
-  id: string | number;
-  status: 'pending' | 'processing' | 'completed' | 'failed' | string;
-  total_items?: number;
-  processed_items?: number;
-  errors?: unknown;
-}
-
-export interface PromOrderProduct {
-  id: number;
-  external_id?: string;
-  name?: string;
-  sku?: string;
-  quantity: number;
-  price: string | number;
-  total_price?: string | number;
-  image?: string;
-  url?: string;
-}
-
-export interface PromOrder {
-  id: number;
-  date_created: string;
-  client_first_name?: string;
-  client_second_name?: string;
-  client_last_name?: string;
-  client_id?: number;
-  client_notes?: string;
-  phone?: string;
-  email?: string;
-  price?: string | number;
-  full_price?: string | number;
-  delivery_address?: string;
-  delivery_option?: {
-    id?: number;
-    name?: string;
-  };
-  delivery_provider_data?: any;
-  delivery_cost?: number;
-  payment_option?: {
-    id?: number;
-    name?: string;
-  };
-  status: string;
-  status_name?: string;
-  source?: string;
-  products: PromOrderProduct[];
-}
+export * from './prom.types';
+import {
+  PromGroup, PromProductPriceStockUpdate, PromProductEditItem,
+  PromProductItem, PromImportUrlOptions, PromImportStatusResponse,
+  PromOrderProduct, PromOrder,
+} from './prom.types';
 
 @Injectable()
 export class PromApiClient {
@@ -316,14 +203,65 @@ export class PromApiClient {
         processed_ids?: (string | number)[];
         errors?: unknown;
       }>('/products/edit_by_external_id', payload);
+      const processedCount = response.data?.processed_ids?.length ?? 0;
       return {
         success: true,
-        processed: response.data?.processed_ids?.length ?? items.length,
+        processed: processedCount,
         errors: response.data?.errors,
       };
     } catch (error) {
       this.logger.error(
         '❌ Ошибка при вызове Prom.ua edit_by_external_id:',
+        axios.isAxiosError(error)
+          ? (error.response?.data ?? error.message)
+          : error,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Пакетное редактирование товаров в Prom.ua по внешнему идентификатору (external_id)
+   * https://my.prom.ua/api/v1/products/edit_by_external_id
+   */
+  async editProductsByExternalId(
+    token: string,
+    items: Array<{
+      id: string;
+      name?: string;
+      price?: number;
+      presence?: 'available' | 'not_available' | 'order';
+      quantity_in_stock?: number;
+      description?: string;
+      keywords?: string;
+      sku?: string;
+    }>,
+  ): Promise<{
+    success: boolean;
+    processed: number;
+    processedIds: (string | number)[];
+    errors?: Record<string, any>;
+  }> {
+    if (!token) throw new Error('Prom API Token не задан для тенанта');
+    const client = this.createClient(token);
+    try {
+      this.logger.log(
+        `📤 Пакетное редактирование в Prom.ua по external_id ${items.length} товаров...`,
+      );
+      const response = await client.post<{
+        processed_ids?: (string | number)[];
+        errors?: Record<string, any>;
+      }>('/products/edit_by_external_id', items);
+      const processedIds = response.data?.processed_ids || [];
+      return {
+        success: true,
+        processed: processedIds.length,
+        processedIds,
+        errors: response.data?.errors,
+      };
+    } catch (error) {
+      this.logger.error(
+        '❌ Ошибка при вызове Prom.ua editProductsByExternalId:',
         axios.isAxiosError(error)
           ? (error.response?.data ?? error.message)
           : error,

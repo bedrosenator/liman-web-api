@@ -156,6 +156,7 @@ export class PromSyncService {
       batchSize?: number;
       limit?: number;
       integrationId?: string;
+      skipActivity?: boolean;
     } = {},
   ): Promise<{
     success: boolean;
@@ -217,8 +218,12 @@ export class PromSyncService {
           );
           processed += res.processed;
 
-          if (this.productMappingService && integrationId) {
-            const mappings = items.map((p) => ({
+          if (res.errors && typeof res.errors === 'object') {
+            errors += Object.keys(res.errors).length;
+          }
+
+          if (this.productMappingService && integrationId && res.processed > 0) {
+            const mappings = items.slice(0, res.processed).map((p) => ({
               tenantId: tenant.id,
               integrationId,
               limanTcod: p.tcod,
@@ -245,20 +250,35 @@ export class PromSyncService {
 
       await this.tenantService.update(tenant.id, { lastSyncAt: new Date() });
 
-      this.addActivity(tenant.id, {
-        type: 'sync',
-        status: errors === 0 ? 'success' : 'warning',
-        titleRu: `Синхронизация цен и остатков: ${processed} товаров`,
-        titleUk: `Синхронізація цін та залишків: ${processed} товарів`,
-        detailsRu: `Успешно отправлено ${processed} из ${total} товаров в Prom.ua. Ошибок: ${errors}`,
-        detailsUk: `Успішно надіслано ${processed} з ${total} товарів у Prom.ua. Помилок: ${errors}`,
-      });
+      const isSuccess = processed > 0 && errors === 0;
+
+      if (!options.skipActivity) {
+        if (processed === 0 && total > 0) {
+          this.addActivity(tenant.id, {
+            type: 'sync',
+            status: 'warning',
+            titleRu: `Синхронизация Prom.ua: товары не найдены (0 из ${total})`,
+            titleUk: `Синхронізація Prom.ua: товари не знайдені (0 з ${total})`,
+            detailsRu: `Товары из базы Limansoft не найдены в Prom.ua. Зарегистрируйте YML-фид в кабинете продавца Prom.ua для загрузки каталога.`,
+            detailsUk: `Товари з бази Limansoft не знайдені в Prom.ua. Зареєструйте YML-фід у кабінеті продавця Prom.ua для завантаження каталогу.`,
+          });
+        } else {
+          this.addActivity(tenant.id, {
+            type: 'sync',
+            status: isSuccess ? 'success' : 'warning',
+            titleRu: `Синхронизация цен и остатков: ${processed} товаров`,
+            titleUk: `Синхронізація цін та залишків: ${processed} товарів`,
+            detailsRu: `Успешно отправлено ${processed} из ${total} товаров в Prom.ua. Ошибок: ${errors}`,
+            detailsUk: `Успішно надіслано ${processed} з ${total} товарів у Prom.ua. Помилок: ${errors}`,
+          });
+        }
+      }
 
       return {
-        success: errors === 0,
+        success: isSuccess,
         total,
         processed,
-        errors,
+        errors: processed === 0 && total > 0 ? total : errors,
         durationMs: Date.now() - startTime,
       };
     } catch (err: any) {

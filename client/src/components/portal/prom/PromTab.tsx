@@ -1,185 +1,70 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { useLanguage } from '@/context/LanguageContext';
-import { promApi, tenantsApi, limanApi } from '@/api/client';
-import type { PromTabProps, MariaDbStatus, PromStatus, SyncReport } from './types';
+import React from 'react';
+import type { PromTabProps } from './types';
 import { PromWizard } from './PromWizard';
 import { PromHealthGrid } from './PromHealthGrid';
 import { PromActionHub } from './PromActionHub';
-import { PromFeedCard } from './PromFeedCard';
 import { PromSettingsForm } from './PromSettingsForm';
 import { PromExportModal } from './PromExportModal';
 import { PromImportModal } from './PromImportModal';
+import { ActivityFeed } from '../ActivityFeed';
+import { usePromTabState } from './usePromTabState';
 
 export const PromTab: React.FC<PromTabProps> = ({
   tenantId,
   tenant,
   onTenantUpdated,
+  activities,
+  isLoadingActivities,
+  onRefreshActivities,
 }) => {
-  const { t } = useLanguage();
-
-  // Status States
-  const [mariadbStatus, setMariadbStatus] = useState<MariaDbStatus>({ loading: false });
-  const [promStatus, setPromStatus] = useState<PromStatus>({ loading: false });
-
-  // Modals
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-
-  // Form State
-  const [shopTitle, setShopTitle] = useState(tenant?.promShopTitle || '');
-  const [apiKey, setApiKey] = useState(tenant?.promApiKey || '');
-  const [showApiKey, setShowApiKey] = useState(false);
-  const [exportEnabled, setExportEnabled] = useState(Boolean(tenant?.promExportEnabled));
-  const [syncInterval, setSyncInterval] = useState<number>(tenant?.promSyncIntervalMinutes || 15);
-  const [orderWebhookEnabled, setOrderWebhookEnabled] = useState(tenant?.promOrderWebhookEnabled !== false);
-  const [createOrderDocumentEnabled, setCreateOrderDocumentEnabled] = useState(Boolean(tenant?.promCreateOrderDocumentEnabled));
-
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-
-  // Action State
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncReport, setSyncReport] = useState<SyncReport | null>(null);
-
-  // Copy States
-  const [isFeedCopied, setIsFeedCopied] = useState(false);
-  const [isWebhookCopied, setIsWebhookCopied] = useState(false);
-
-  // Sync state with tenant props
-  useEffect(() => {
-    if (tenant) {
-      setShopTitle(tenant.promShopTitle || '');
-      setApiKey(tenant.promApiKey || '');
-      setExportEnabled(Boolean(tenant.promExportEnabled));
-      setSyncInterval(tenant.promSyncIntervalMinutes || 15);
-      setOrderWebhookEnabled(tenant.promOrderWebhookEnabled !== false);
-      setCreateOrderDocumentEnabled(Boolean(tenant.promCreateOrderDocumentEnabled));
-    }
-  }, [tenant]);
-
-  // Check MariaDB ping
-  const checkMariaDb = useCallback(async () => {
-    setMariadbStatus({ loading: true });
-    const start = Date.now();
-    try {
-      await limanApi.ping(tenantId);
-      const pingMs = Date.now() - start;
-      setMariadbStatus({ loading: false, success: true, pingMs });
-    } catch {
-      setMariadbStatus({ loading: false, success: false });
-    }
-  }, [tenantId]);
-
-  // Ping Prom API
-  const handlePing = useCallback(async () => {
-    setPromStatus({ loading: true });
-    try {
-      const res = await promApi.ping(tenantId);
-      setPromStatus({
-        loading: false,
-        success: true,
-        shopTitle: res.data?.shopTitle || tenant?.promShopTitle,
-        message: res.data?.message || t('promPingSuccess'),
-      });
-      if (res.data?.shopTitle && res.data.shopTitle !== shopTitle) {
-        setShopTitle(res.data.shopTitle);
-        onTenantUpdated();
-      }
-    } catch (err: unknown) {
-      const errorObj = err as { response?: { data?: { message?: string } }; message?: string };
-      setPromStatus({
-        loading: false,
-        success: false,
-        message:
-          errorObj.response?.data?.message ||
-          errorObj.message ||
-          t('statusDisconnected'),
-      });
-    }
-  }, [tenantId, t, shopTitle, tenant?.promShopTitle, onTenantUpdated]);
-
-  // Initial checks
-  useEffect(() => {
-    checkMariaDb();
-    if (tenant?.promApiKey) {
-      handlePing();
-    }
-  }, [tenant?.promApiKey, checkMariaDb, handlePing]);
-
-  // Save Settings
-  const handleSaveSettings = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSaving(true);
-    setSaveSuccess(false);
-    setSaveError(null);
-
-    try {
-      const payload: Record<string, string | number | boolean | undefined> = {
-        promShopTitle: shopTitle.trim() || undefined,
-        promExportEnabled: exportEnabled,
-        promSyncIntervalMinutes: Number(syncInterval),
-        promOrderWebhookEnabled: orderWebhookEnabled,
-        promCreateOrderDocumentEnabled: createOrderDocumentEnabled,
-      };
-
-      if (apiKey && apiKey !== '••••••••' && apiKey !== '********') {
-        payload.promApiKey = apiKey.trim();
-      }
-
-      await tenantsApi.update(tenantId, payload);
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
-      onTenantUpdated();
-      handlePing();
-    } catch (err: unknown) {
-      const errorObj = err as { response?: { data?: { message?: string } }; message?: string };
-      setSaveError(errorObj.response?.data?.message || errorObj.message || t('error'));
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  // Trigger Sync Prices and Stocks
-  const handleSyncStock = async () => {
-    setIsSyncing(true);
-    setSyncReport(null);
-    try {
-      await promApi.syncStock(tenantId);
-      setSyncReport({
-        success: true,
-        message: t('promSyncQueued'),
-      });
-    } catch (err: unknown) {
-      const errorObj = err as { response?: { data?: { message?: string } }; message?: string };
-      setSyncReport({
-        success: false,
-        message: errorObj.response?.data?.message || errorObj.message || t('error'),
-      });
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
-  const feedUrl = `${window.location.origin}/api/v1/prom/${tenantId}/feed.xml`;
-  const webhookUrl = `${window.location.origin}/api/v1/prom/${tenantId}/webhook/order`;
-
-  const handleCopyFeed = () => {
-    navigator.clipboard.writeText(feedUrl);
-    setIsFeedCopied(true);
-    setTimeout(() => setIsFeedCopied(false), 2000);
-  };
-
-  const handleCopyWebhook = () => {
-    navigator.clipboard.writeText(webhookUrl);
-    setIsWebhookCopied(true);
-    setTimeout(() => setIsWebhookCopied(false), 2000);
-  };
+  const {
+    mariadbStatus,
+    promStatus,
+    isImportModalOpen,
+    setIsImportModalOpen,
+    isExportModalOpen,
+    setIsExportModalOpen,
+    shopTitle,
+    setShopTitle,
+    apiKey,
+    setApiKey,
+    showApiKey,
+    setShowApiKey,
+    exportEnabled,
+    setExportEnabled,
+    syncInterval,
+    setSyncInterval,
+    orderWebhookEnabled,
+    setOrderWebhookEnabled,
+    createOrderDocumentEnabled,
+    setCreateOrderDocumentEnabled,
+    isSaving,
+    saveSuccess,
+    saveError,
+    isSyncing,
+    syncProgress,
+    syncStatusStep,
+    syncReport,
+    feedUrl,
+    webhookUrl,
+    isFeedCopied,
+    isWebhookCopied,
+    handleCopyFeed,
+    handleCopyWebhook,
+    handlePing,
+    checkMariaDb,
+    handleSaveSettings,
+    handleSyncStock,
+  } = usePromTabState({
+    tenantId,
+    tenant,
+    onTenantUpdated,
+    onRefreshActivities,
+  });
 
   return (
     <div className="space-y-6" id="prom-tab-content">
-      <PromWizard />
-
+      {/* 1. Диагностический блок «Светофор» (3-Point Health Bar) */}
       <PromHealthGrid
         mariadbStatus={mariadbStatus}
         promStatus={promStatus}
@@ -189,44 +74,57 @@ export const PromTab: React.FC<PromTabProps> = ({
         onPingProm={handlePing}
       />
 
+      {/* 2. Onboarding Wizard (Шаги подключения) */}
+      <PromWizard />
+
+      {/* 3. Action Hub & YML фид (3 карточки) */}
       <PromActionHub
         isSyncing={isSyncing}
+        syncProgress={syncProgress}
+        syncStatusStep={syncStatusStep}
         syncReport={syncReport}
+        feedUrl={feedUrl}
+        isFeedCopied={isFeedCopied}
+        onCopyFeed={handleCopyFeed}
         onSyncStock={handleSyncStock}
         onOpenImportModal={() => setIsImportModalOpen(true)}
         onOpenExportModal={() => setIsExportModalOpen(true)}
       />
 
-      <PromFeedCard
-        feedUrl={feedUrl}
-        isFeedCopied={isFeedCopied}
-        onCopyFeed={handleCopyFeed}
-      />
+      {/* 4. Настройки API и Activity Feed */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <PromSettingsForm
+          shopTitle={shopTitle}
+          setShopTitle={setShopTitle}
+          apiKey={apiKey}
+          setApiKey={setApiKey}
+          showApiKey={showApiKey}
+          setShowApiKey={setShowApiKey}
+          exportEnabled={exportEnabled}
+          setExportEnabled={setExportEnabled}
+          syncInterval={syncInterval}
+          setSyncInterval={setSyncInterval}
+          orderWebhookEnabled={orderWebhookEnabled}
+          setOrderWebhookEnabled={setOrderWebhookEnabled}
+          createOrderDocumentEnabled={createOrderDocumentEnabled}
+          setCreateOrderDocumentEnabled={setCreateOrderDocumentEnabled}
+          webhookUrl={webhookUrl}
+          isWebhookCopied={isWebhookCopied}
+          onCopyWebhook={handleCopyWebhook}
+          isSaving={isSaving}
+          saveSuccess={saveSuccess}
+          saveError={saveError}
+          onSubmit={handleSaveSettings}
+        />
 
-      <PromSettingsForm
-        shopTitle={shopTitle}
-        setShopTitle={setShopTitle}
-        apiKey={apiKey}
-        setApiKey={setApiKey}
-        showApiKey={showApiKey}
-        setShowApiKey={setShowApiKey}
-        exportEnabled={exportEnabled}
-        setExportEnabled={setExportEnabled}
-        syncInterval={syncInterval}
-        setSyncInterval={setSyncInterval}
-        orderWebhookEnabled={orderWebhookEnabled}
-        setOrderWebhookEnabled={setOrderWebhookEnabled}
-        createOrderDocumentEnabled={createOrderDocumentEnabled}
-        setCreateOrderDocumentEnabled={setCreateOrderDocumentEnabled}
-        webhookUrl={webhookUrl}
-        isWebhookCopied={isWebhookCopied}
-        onCopyWebhook={handleCopyWebhook}
-        isSaving={isSaving}
-        saveSuccess={saveSuccess}
-        saveError={saveError}
-        onSubmit={handleSaveSettings}
-      />
+        <ActivityFeed
+          activities={activities || []}
+          isLoading={isLoadingActivities || false}
+          onRefresh={onRefreshActivities || (() => {})}
+        />
+      </div>
 
+      {/* Модалки импорта / экспорта */}
       <PromExportModal
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
@@ -234,6 +132,7 @@ export const PromTab: React.FC<PromTabProps> = ({
         onExportFinished={() => {
           onTenantUpdated();
           handlePing();
+          onRefreshActivities?.();
         }}
       />
 
@@ -244,6 +143,7 @@ export const PromTab: React.FC<PromTabProps> = ({
         onImportFinished={() => {
           onTenantUpdated();
           checkMariaDb();
+          onRefreshActivities?.();
         }}
       />
     </div>

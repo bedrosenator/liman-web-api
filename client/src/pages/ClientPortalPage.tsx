@@ -346,11 +346,13 @@ export function ClientPortalPage() {
               ) : (
                 <Store size={24} className="text-indigo" />
               )}
-              {shopTitle ||
-                tenant?.horoshopShopTitle ||
-                (tenant?.name && tenant.name.replace(/\s*\(Локальная MariaDB\)/i, '')) ||
-                (tenant?.horoshopDomain && tenant.horoshopDomain.replace(/^https?:\/\//, '')) ||
-                `Магазин ${tenantId}`}
+              {selectedPlatform === 'prom'
+                ? tenant?.promShopTitle || (tenant?.name && tenant.name.replace(/\s*\(Локальная MariaDB\)/i, '')) || `Магазин ${tenantId}`
+                : shopTitle ||
+                  tenant?.horoshopShopTitle ||
+                  (tenant?.name && tenant.name.replace(/\s*\(Локальная MariaDB\)/i, '')) ||
+                  (tenant?.horoshopDomain && tenant.horoshopDomain.replace(/^https?:\/\//, '')) ||
+                  `Магазин ${tenantId}`}
             </h1>
             <p className="page-subtitle">
               {t('clientPortal')} —{' '}
@@ -1041,22 +1043,14 @@ export function ClientPortalPage() {
         )}
 
         {selectedPlatform === 'prom' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-            <div className="lg:col-span-2">
-              <PromTab
-                tenantId={tenantId}
-                tenant={tenant}
-                onTenantUpdated={loadTenant}
-              />
-            </div>
-            <div>
-              <ActivityFeed
-                activities={activities}
-                isLoading={isLoadingActivities}
-                onRefresh={loadActivity}
-              />
-            </div>
-          </div>
+          <PromTab
+            tenantId={tenantId}
+            tenant={tenant}
+            onTenantUpdated={loadTenant}
+            activities={activities}
+            isLoadingActivities={isLoadingActivities}
+            onRefreshActivities={loadActivity}
+          />
         )}
 
         {selectedPlatform === 'rozetka' && (

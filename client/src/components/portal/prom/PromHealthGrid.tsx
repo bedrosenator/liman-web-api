@@ -23,35 +23,33 @@ export const PromHealthGrid: React.FC<PromHealthGridProps> = ({
   const { t } = useLanguage();
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" id="health-grid-prom">
+    <div className="health-grid mb-6" id="health-grid-prom">
       {/* Индикатор 1: MariaDB */}
       <div className="health-card" id="health-mariadb-prom">
-        <div className="health-card__icon text-indigo">
-          <Database size={20} />
+        <div className="health-card__icon">
+          <Database size={22} className="text-indigo" />
         </div>
-        <div className="health-card__content">
+        <div className="health-card__info">
           <div className="health-card__label">{t('healthMariaDb')}</div>
           <div className="health-card__status">
             {mariadbStatus.loading ? (
-              <div className="flex items-center gap-1.5 text-muted">
-                <Loader2 size={12} className="spinner" />
+              <>
+                <Loader2 size={12} className="spinner text-muted" />
                 <span>{t('loading')}</span>
-              </div>
+              </>
             ) : mariadbStatus.success ? (
-              <div className="flex items-center gap-1.5 text-emerald">
-                <span className="dot dot--emerald" />
-                <span className="font-semibold">{t('statusConnected')}</span>
+              <>
+                <span className="status-dot status-dot--green" />
+                <span className="text-emerald font-semibold">{t('statusConnected')}</span>
                 {mariadbStatus.pingMs !== undefined && (
-                  <span className="text-[11px] text-muted font-mono">
-                    ({mariadbStatus.pingMs}ms)
-                  </span>
+                  <span className="text-xs text-muted font-mono">({mariadbStatus.pingMs}ms)</span>
                 )}
-              </div>
+              </>
             ) : (
-              <div className="flex items-center gap-1.5 text-rose">
-                <span className="dot dot--rose" />
-                <span className="font-semibold">{t('statusDisconnected')}</span>
-              </div>
+              <>
+                <span className="status-dot status-dot--red" />
+                <span className="text-rose font-semibold">{t('statusDisconnected')}</span>
+              </>
             )}
           </div>
         </div>
@@ -59,40 +57,40 @@ export const PromHealthGrid: React.FC<PromHealthGridProps> = ({
 
       {/* Индикатор 2: Prom.ua API */}
       <div className="health-card" id="health-prom">
-        <div className="health-card__icon text-sky">
-          <Link2 size={20} />
+        <div className="health-card__icon">
+          <Link2 size={22} className="text-sky" />
         </div>
-        <div className="health-card__content">
+        <div className="health-card__info">
           <div className="health-card__label">{t('healthProm')}</div>
           <div className="health-card__status">
             {promStatus.loading ? (
-              <div className="flex items-center gap-1.5 text-muted">
-                <Loader2 size={12} className="spinner" />
+              <>
+                <Loader2 size={12} className="spinner text-muted" />
                 <span>{t('loading')}</span>
-              </div>
+              </>
             ) : promStatus.success ? (
-              <div className="flex items-center gap-1.5 text-emerald">
-                <span className="dot dot--emerald animate-pulse" />
-                <span className="font-semibold">{t('statusAuthorized')}</span>
+              <>
+                <span className="status-dot status-dot--green" />
+                <span className="text-emerald font-semibold">{t('statusAuthorized')}</span>
                 {promStatus.shopTitle && (
-                  <span className="text-[11px] text-muted truncate max-w-[120px]">
+                  <span className="text-xs text-muted truncate max-w-[120px] font-mono">
                     ({promStatus.shopTitle})
                   </span>
                 )}
-              </div>
+              </>
             ) : (
-              <div className="flex items-center gap-1.5 text-rose">
-                <span className="dot dot--rose" />
-                <span className="font-semibold">
-                  {hasApiKey ? t('statusDisconnected') : t('availableForConnection')}
+              <>
+                <span className="status-dot status-dot--red" />
+                <span className="text-rose font-semibold">
+                  {hasApiKey ? t('statusUnauthorized') : t('availableForConnection')}
                 </span>
-              </div>
+              </>
             )}
           </div>
         </div>
         <button
           type="button"
-          className="btn btn--secondary btn--xs self-center"
+          className="btn btn--secondary btn--xs ml-auto self-center"
           onClick={onPingProm}
           disabled={promStatus.loading || !hasApiKey}
           title={t('promTestConnection')}
@@ -104,23 +102,23 @@ export const PromHealthGrid: React.FC<PromHealthGridProps> = ({
 
       {/* Индикатор 3: Автосинхронизация */}
       <div className="health-card" id="health-prom-autosync">
-        <div className="health-card__icon text-amber">
-          <Clock size={20} />
+        <div className="health-card__icon">
+          <Clock size={22} className="text-amber" />
         </div>
-        <div className="health-card__content">
+        <div className="health-card__info">
           <div className="health-card__label">{t('healthAutoSync')}</div>
           <div className="health-card__status">
             {exportEnabled ? (
-              <div className="flex items-center gap-1.5 text-emerald">
-                <span className="dot dot--emerald animate-pulse" />
-                <span className="font-semibold">{t('statusEnabled')}</span>
-                <span className="text-[11px] text-muted">({syncInterval} мин)</span>
-              </div>
+              <>
+                <span className="status-dot status-dot--green" />
+                <span className="text-emerald font-semibold">{t('statusEnabled')}</span>
+                <span className="text-xs text-muted">({syncInterval} мин)</span>
+              </>
             ) : (
-              <div className="flex items-center gap-1.5 text-muted">
-                <span className="dot dot--grey" />
-                <span>{t('statusDisabled')}</span>
-              </div>
+              <>
+                <span className="status-dot status-dot--grey" />
+                <span className="text-muted">{t('statusDisabled')}</span>
+              </>
             )}
           </div>
         </div>
@@ -128,3 +126,4 @@ export const PromHealthGrid: React.FC<PromHealthGridProps> = ({
     </div>
   );
 };
+

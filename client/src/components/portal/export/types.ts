@@ -15,6 +15,7 @@ export interface ExportStats {
   errors?: number;
   durationMs?: number;
   errorDetails?: Array<{ article: string; message: string }>;
+  message?: string;
 }
 
 export interface HoroshopExportModalProps {
