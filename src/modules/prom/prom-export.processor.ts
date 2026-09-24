@@ -330,7 +330,6 @@ export class PromExportProcessor extends WorkerHost {
           presence?: 'available' | 'not_available' | 'order';
           quantity_in_stock?: number;
           description?: string;
-          sku?: string;
         } = {
           id: String(product.tcod),
           name: product.name,
@@ -343,10 +342,6 @@ export class PromExportProcessor extends WorkerHost {
         if (job.data.exportStock !== false) {
           item.quantity_in_stock = Math.max(0, product.stock);
           item.presence = product.stock > 0 ? 'available' : 'not_available';
-        }
-
-        if (product.barcode) {
-          item.sku = product.barcode;
         }
 
         if (job.data.exportDescriptions !== false && product.description) {
@@ -368,9 +363,17 @@ export class PromExportProcessor extends WorkerHost {
           errors += chunkErrors;
           for (const [art, err] of Object.entries(res.errors)) {
             if (errorDetails.length < 50) {
+              let msg = '';
+              if (typeof err === 'object' && err !== null) {
+                msg = Object.entries(err)
+                  .map(([field, val]) => `${field}: ${Array.isArray(val) ? val.join(', ') : val}`)
+                  .join('; ');
+              } else {
+                msg = String(err);
+              }
               errorDetails.push({
                 article: art,
-                message: typeof err === 'object' ? JSON.stringify(err) : String(err),
+                message: msg,
               });
             }
           }
@@ -432,17 +435,35 @@ export class PromExportProcessor extends WorkerHost {
 
     const isSuccess = totalExported > 0 && errors === 0;
 
+    const hasNotFoundErrors = errorDetails.some(
+      (e) =>
+        e.message.toLowerCase().includes('не найден') ||
+        e.message.toLowerCase().includes('not found'),
+    );
+
     let userMessage: string | undefined = undefined;
     if (totalExported === 0 && totalToExport > 0) {
-      userMessage = `Товары еще не созданы в Prom.ua. Зарегистрируйте YML-фид (${feedUrl}) в кабинете продавца Prom.ua (Товары и услуги → Импорт).`;
-      this.promSyncService.addActivity(tenantId, {
-        type: 'sync',
-        status: 'warning',
-        titleRu: `Экспорт в Prom.ua: товары не найдены в каталоге`,
-        titleUk: `Експорт у Prom.ua: товари не знайдені в каталозі`,
-        detailsRu: `0 из ${totalToExport} товаров обновлено. В Prom.ua новые товары создаются через импорт YML-фида: ${feedUrl} в кабинете продавца.`,
-        detailsUk: `0 з ${totalToExport} товарів оновлено. У Prom.ua нові товари створюються через імпорт YML-фіда: ${feedUrl} у кабінеті продавця.`,
-      });
+      if (hasNotFoundErrors || errors === 0) {
+        userMessage = `Товары еще не созданы в Prom.ua. Зарегистрируйте YML-фид (${feedUrl}) в кабинете продавца Prom.ua (Товары и услуги → Импорт).`;
+        this.promSyncService.addActivity(tenantId, {
+          type: 'sync',
+          status: 'warning',
+          titleRu: `Экспорт в Prom.ua: товары не найдены в каталоге`,
+          titleUk: `Експорт у Prom.ua: товари не знайдені в каталозі`,
+          detailsRu: `0 из ${totalToExport} товаров обновлено. В Prom.ua новые товары создаются через импорт YML-фида: ${feedUrl} в кабинете продавца.`,
+          detailsUk: `0 з ${totalToExport} товарів оновлено. У Prom.ua нові товари створюються через імпорт YML-фіда: ${feedUrl} у кабінеті продавця.`,
+        });
+      } else {
+        userMessage = `Замечания Prom.ua к товарам (ошибок: ${errors}). См. детали ниже.`;
+        this.promSyncService.addActivity(tenantId, {
+          type: 'sync',
+          status: 'warning',
+          titleRu: `Экспорт в Prom.ua: ошибки валидации (${errors})`,
+          titleUk: `Експорт у Prom.ua: помилки валідації (${errors})`,
+          detailsRu: `0 из ${totalToExport} товаров обновлено. Обнаружены замечания к данным по ${errors} позициям.`,
+          detailsUk: `0 з ${totalToExport} товарів оновлено. Виявлено зауваження до даних за ${errors} позиціями.`,
+        });
+      }
     } else {
       userMessage = `Успешно выгружено: ${totalExported}, пропущено: ${skippedCount}, ошибок: ${errors}`;
       this.promSyncService.addActivity(tenantId, {
