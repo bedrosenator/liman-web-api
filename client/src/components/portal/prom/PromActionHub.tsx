@@ -10,6 +10,7 @@ import {
   Copy,
   Check,
   ExternalLink,
+  Send,
 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import type { SyncReport } from './types';
@@ -21,7 +22,10 @@ export interface PromActionHubProps {
   syncReport: SyncReport | null;
   feedUrl: string;
   isFeedCopied: boolean;
+  isSendingFeed?: boolean;
+  sendFeedResult?: { success: boolean; message: string } | null;
   onCopyFeed: () => void;
+  onSendFeed?: () => void;
   onSyncStock: () => void;
   onOpenImportModal: () => void;
   onOpenExportModal: () => void;
@@ -34,7 +38,10 @@ export const PromActionHub: React.FC<PromActionHubProps> = ({
   syncReport,
   feedUrl,
   isFeedCopied,
+  isSendingFeed = false,
+  sendFeedResult,
   onCopyFeed,
+  onSendFeed,
   onSyncStock,
   onOpenImportModal,
   onOpenExportModal,
@@ -179,7 +186,38 @@ export const PromActionHub: React.FC<PromActionHubProps> = ({
               </span>
             </div>
 
-            <div className="flex items-center gap-2">
+            {sendFeedResult && (
+              <div
+                className={`p-2 rounded text-xs mb-3 flex items-start gap-1.5 ${
+                  sendFeedResult.success
+                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                    : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                }`}
+                id="prom-feed-send-result"
+              >
+                <span>{sendFeedResult.message}</span>
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center gap-2">
+              {onSendFeed && (
+                <button
+                  type="button"
+                  className="btn btn--primary btn--sm"
+                  id="btn-send-prom-feed"
+                  onClick={onSendFeed}
+                  disabled={isSendingFeed}
+                  title={t('sendFeedToProm')}
+                >
+                  {isSendingFeed ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <Send size={14} />
+                  )}
+                  <span>{isSendingFeed ? t('sendingFeed') : t('sendFeedToProm')}</span>
+                </button>
+              )}
+
               <button
                 type="button"
                 className="btn btn--secondary btn--sm"

@@ -38,9 +38,11 @@ export function usePromTabState({
   const [syncStatusStep, setSyncStatusStep] = useState<string | null>(null);
   const [syncReport, setSyncReport] = useState<SyncReport | null>(null);
 
-  // Copy States
+  // Copy & Action States
   const [isFeedCopied, setIsFeedCopied] = useState(false);
   const [isWebhookCopied, setIsWebhookCopied] = useState(false);
+  const [isSendingFeed, setIsSendingFeed] = useState(false);
+  const [sendFeedResult, setSendFeedResult] = useState<{ success: boolean; message: string } | null>(null);
 
   // Sync state with tenant props
   useEffect(() => {
@@ -224,6 +226,33 @@ export function usePromTabState({
     setTimeout(() => setIsWebhookCopied(false), 2000);
   };
 
+  const handleSendFeed = async () => {
+    setIsSendingFeed(true);
+    setSendFeedResult(null);
+    try {
+      const res = await promApi.sendFeedUrl(tenantId);
+      setSendFeedResult({
+        success: Boolean(res.data?.success),
+        message: res.data?.success
+          ? res.data.message || t('feedSentSuccess')
+          : res.data?.error || t('feedSentError'),
+      });
+      onRefreshActivities?.();
+    } catch (err: any) {
+      setSendFeedResult({
+        success: false,
+        message:
+          err.response?.data?.error?.message ||
+          err.response?.data?.message ||
+          err.message ||
+          t('feedSentError'),
+      });
+      onRefreshActivities?.();
+    } finally {
+      setIsSendingFeed(false);
+    }
+  };
+
   return {
     mariadbStatus,
     promStatus,
@@ -256,8 +285,11 @@ export function usePromTabState({
     webhookUrl,
     isFeedCopied,
     isWebhookCopied,
+    isSendingFeed,
+    sendFeedResult,
     handleCopyFeed,
     handleCopyWebhook,
+    handleSendFeed,
     handlePing,
     checkMariaDb,
     handleSaveSettings,

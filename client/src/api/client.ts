@@ -199,6 +199,13 @@ export const promApi = {
   ) => apiClient.get(`/prom/${tenantId}/products`, { params }),
   getOrders: (tenantId: string, status?: string) =>
     apiClient.get(`/prom/${tenantId}/orders`, { params: { status } }),
+  sendFeedUrl: (tenantId: string) =>
+    apiClient.post<{
+      success: boolean;
+      importId?: string | number;
+      message?: string;
+      error?: string;
+    }>(`/prom/${tenantId}/feed/send`),
 };
 
 export const rozetkaApi = {

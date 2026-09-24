@@ -49,8 +49,11 @@ export const PromTab: React.FC<PromTabProps> = ({
     webhookUrl,
     isFeedCopied,
     isWebhookCopied,
+    isSendingFeed,
+    sendFeedResult,
     handleCopyFeed,
     handleCopyWebhook,
+    handleSendFeed,
     handlePing,
     checkMariaDb,
     handleSaveSettings,
@@ -85,7 +88,10 @@ export const PromTab: React.FC<PromTabProps> = ({
         syncReport={syncReport}
         feedUrl={feedUrl}
         isFeedCopied={isFeedCopied}
+        isSendingFeed={isSendingFeed}
+        sendFeedResult={sendFeedResult}
         onCopyFeed={handleCopyFeed}
+        onSendFeed={handleSendFeed}
         onSyncStock={handleSyncStock}
         onOpenImportModal={() => setIsImportModalOpen(true)}
         onOpenExportModal={() => setIsExportModalOpen(true)}

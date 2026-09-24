@@ -298,6 +298,7 @@ export class PromExportProcessor extends WorkerHost {
     const feedUrl = `${baseUrl}/api/v1/prom/${tenant.id}/feed.xml`;
 
     // Попытка зарегистрировать / обновить YML-фид в Prom.ua для создания новых товаров
+    let feedImportError: string | null = null;
     try {
       await this.promClient.importUrl(tenant.promApiKey, {
         url: feedUrl,
@@ -315,9 +316,11 @@ export class PromExportProcessor extends WorkerHost {
       });
       this.logger.log(`📥 [${tenantId}] Запрос на импорт фида ${feedUrl} отправлен в Prom.ua`);
     } catch (feedErr: any) {
-      this.logger.warn(
-        `⚠️ [${tenantId}] Запуск import_url фида в Prom.ua: ${feedErr.message}`,
-      );
+      feedImportError =
+        feedErr.response?.data?.error?.message ||
+        feedErr.response?.data?.message ||
+        feedErr.message;
+      this.logger.warn(`⚠️ [${tenantId}] Запуск import_url фида в Prom.ua: ${feedImportError}`);
     }
 
     for (let i = 0; i < chunks.length; i++) {
@@ -443,15 +446,18 @@ export class PromExportProcessor extends WorkerHost {
 
     let userMessage: string | undefined = undefined;
     if (totalExported === 0 && totalToExport > 0) {
+      const feedNotice = feedImportError
+        ? ` Prom.ua отклонил импорт фида: "${feedImportError}".`
+        : '';
       if (hasNotFoundErrors || errors === 0) {
-        userMessage = `Товары еще не созданы в Prom.ua. Зарегистрируйте YML-фид (${feedUrl}) в кабинете продавца Prom.ua (Товары и услуги → Импорт).`;
+        userMessage = `Товары еще не созданы в Prom.ua.${feedNotice} Зарегистрируйте YML-фид (${feedUrl}) в кабинете продавца Prom.ua (Товары и услуги → Импорт).`;
         this.promSyncService.addActivity(tenantId, {
           type: 'sync',
           status: 'warning',
           titleRu: `Экспорт в Prom.ua: товары не найдены в каталоге`,
           titleUk: `Експорт у Prom.ua: товари не знайдені в каталозі`,
-          detailsRu: `0 из ${totalToExport} товаров обновлено. В Prom.ua новые товары создаются через импорт YML-фида: ${feedUrl} в кабинете продавца.`,
-          detailsUk: `0 з ${totalToExport} товарів оновлено. У Prom.ua нові товари створюються через імпорт YML-фіда: ${feedUrl} у кабінеті продавця.`,
+          detailsRu: `0 из ${totalToExport} товаров обновлено.${feedNotice} В Prom.ua новые товары создаются через импорт YML-фида: ${feedUrl}`,
+          detailsUk: `0 з ${totalToExport} товарів оновлено.${feedNotice} У Prom.ua нові товари створюються через імпорт YML-фіда: ${feedUrl}`,
         });
       } else {
         userMessage = `Замечания Prom.ua к товарам (ошибок: ${errors}). См. детали ниже.`;
