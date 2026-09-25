@@ -211,7 +211,7 @@ export function usePromTabState({
     }
   };
 
-  const baseUrl = (tenant?.publicBaseUrl || window.location.origin).replace(/\/$/, '');
+  const baseUrl = (typeof tenant?.publicBaseUrl === 'string' && tenant.publicBaseUrl ? tenant.publicBaseUrl : window.location.origin).replace(/\/$/, '');
   const feedUrl = `${baseUrl}/api/v1/prom/${tenantId}/feed.xml`;
   const webhookUrl = `${baseUrl}/api/v1/prom/${tenantId}/webhook/order`;
 

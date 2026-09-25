@@ -1,6 +1,7 @@
 import type { ActivityItem } from '../ActivityFeed';
 
 export interface PromTenantSettings {
+  publicBaseUrl?: string;
   promShopTitle?: string;
   promApiKey?: string;
   promExportEnabled?: boolean;
