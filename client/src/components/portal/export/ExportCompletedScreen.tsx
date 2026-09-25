@@ -47,29 +47,29 @@ export const ExportCompletedScreen: React.FC<ExportCompletedScreenProps> = ({
           : 'Хорошоп отклонил позиции (категория не найдена или отсутствует шаблон). Выберите целевую категорию в настройках выгрузки.'));
 
   return (
-    <div className="py-2 space-y-5 text-center" id="export-completed-screen">
+    <div className="py-2 space-y-6 text-center" id="export-completed-screen">
       {isRejected ? (
-        <>
+        <div className="space-y-3">
           <div className="warning-badge-glow">
             <AlertTriangle size={32} className="text-amber" />
           </div>
-          <div className="space-y-1">
+          <div className="space-y-2">
             <h3 className="text-lg font-bold text-primary">{rejectedTitle}</h3>
-            <p className="text-xs text-secondary max-w-md mx-auto leading-relaxed">
+            <p className="text-sm text-secondary max-w-md mx-auto leading-relaxed">
               {rejectedDesc}
             </p>
           </div>
-        </>
+        </div>
       ) : (
-        <>
+        <div className="space-y-3">
           <div className="success-badge-glow">
             <CheckCircle2 size={36} className="text-emerald" />
           </div>
-          <div className="space-y-1">
+          <div className="space-y-2">
             <h3 className="text-lg font-bold text-primary">
               {language === 'uk' ? 'Каталог успішно експортовано!' : 'Каталог успешно экспортирован!'}
             </h3>
-            <p className="text-xs text-secondary max-w-md mx-auto leading-relaxed">
+            <p className="text-sm text-secondary max-w-md mx-auto leading-relaxed">
               {stats?.message
                 ? stats.message
                 : stats && (stats.errors ?? 0) > 0
@@ -81,7 +81,7 @@ export const ExportCompletedScreen: React.FC<ExportCompletedScreenProps> = ({
                     : 'Данные товаров и связи product_mappings успешно обновлены.')}
             </p>
           </div>
-        </>
+        </div>
       )}
 
       {stats && (

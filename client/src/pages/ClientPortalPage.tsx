@@ -400,7 +400,7 @@ export function ClientPortalPage() {
         {isIntegrationsTab && (
           <>
             {/* Витрина интеграций (Showcase & Tabs) */}
-            <div className="flex flex-wrap items-center gap-2 mb-6 border-b border-subtle pb-3" id="platform-tabs">
+            <div className="flex flex-wrap items-center gap-2 mb-6" id="platform-tabs">
               <button
                 type="button"
                 className={`btn btn--sm gap-2 whitespace-nowrap ${
