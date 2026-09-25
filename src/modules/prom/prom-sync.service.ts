@@ -202,14 +202,17 @@ export class PromSyncService {
 
         if (!items || items.length === 0) break;
 
-        const updatePayload: PromProductPriceStockUpdate[] = items.map(
-          (p) => ({
+        const updatePayload: PromProductPriceStockUpdate[] = items.map((p) => {
+          const hasValidPrice =
+            p.price !== undefined && p.price !== null && p.price > 0;
+          return {
             external_id: String(p.tcod),
-            price: p.price,
-            presence: p.stock > 0 ? 'available' : 'not_available',
+            ...(hasValidPrice ? { price: Number(p.price.toFixed(2)) } : {}),
+            presence:
+              p.stock > 0 && hasValidPrice ? 'available' : 'not_available',
             quantity_in_stock: Math.max(0, p.stock),
-          }),
-        );
+          };
+        });
 
         try {
           const res = await this.promApiClient.editPricesAndStock(

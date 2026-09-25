@@ -90,6 +90,11 @@ export class PromFeedService {
       }
 
       for (const item of items) {
+        // Prom.ua отклоняет оферы с ценой <= 0. Пропускаем товары без валидной цены
+        if (!item.price || item.price <= 0) {
+          continue;
+        }
+
         const availableAttr = item.isAvailable ? 'true' : 'false';
         res.write(
           `      <offer id="${item.tcod}" available="${availableAttr}">\n`,
@@ -124,9 +129,9 @@ export class PromFeedService {
         }
 
         res.write('      </offer>\n');
+        totalExported++;
       }
 
-      totalExported += items.length;
       page++;
       if (items.length < chunkSize) {
         hasMore = false;
