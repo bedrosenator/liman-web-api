@@ -225,30 +225,39 @@ export class PromExportProcessor extends WorkerHost {
 
     const feedUrl = `${baseUrl}/api/v1/prom/${tenant.id}/feed.xml`;
 
+    const isLocalBaseUrl =
+      baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1');
+
     // Попытка зарегистрировать / обновить YML-фид в Prom.ua для создания новых товаров
     let feedImportError: string | null = null;
-    try {
-      await this.promClient.importUrl(tenant.promApiKey, {
-        url: feedUrl,
-        force_update: true,
-        updated_fields: [
-          'name',
-          'sku',
-          'price',
-          'images_urls',
-          'presence',
-          'quantity_in_stock',
-          'description',
-          'group',
-        ],
-      });
-      this.logger.log(`📥 [${tenantId}] Запрос на импорт фида ${feedUrl} отправлен в Prom.ua`);
-    } catch (feedErr: any) {
+    if (isLocalBaseUrl) {
       feedImportError =
-        feedErr.response?.data?.error?.message ||
-        feedErr.response?.data?.message ||
-        feedErr.message;
-      this.logger.warn(`⚠️ [${tenantId}] Запуск import_url фида в Prom.ua: ${feedImportError}`);
+        'Локальный адрес (localhost): для автоматического импорта в Prom.ua запустите туннель (npm run tunnel) или укажите PUBLIC_BASE_URL в настройках.';
+      this.logger.warn(`⚠️ [${tenantId}] ${feedImportError}`);
+    } else {
+      try {
+        await this.promClient.importUrl(tenant.promApiKey, {
+          url: feedUrl,
+          force_update: true,
+          updated_fields: [
+            'name',
+            'sku',
+            'price',
+            'images_urls',
+            'presence',
+            'quantity_in_stock',
+            'description',
+            'group',
+          ],
+        });
+        this.logger.log(`📥 [${tenantId}] Запрос на импорт фида ${feedUrl} отправлен в Prom.ua`);
+      } catch (feedErr: any) {
+        feedImportError =
+          feedErr.response?.data?.error?.message ||
+          feedErr.response?.data?.message ||
+          feedErr.message;
+        this.logger.warn(`⚠️ [${tenantId}] Запуск import_url фида в Prom.ua: ${feedImportError}`);
+      }
     }
 
     for (let i = 0; i < chunks.length; i++) {

@@ -20,6 +20,7 @@ export const PromFeedCard: React.FC<PromFeedCardProps> = ({
   onSendFeed,
 }) => {
   const { t } = useLanguage();
+  const isLocalUrl = feedUrl.includes('localhost') || feedUrl.includes('127.0.0.1');
 
   return (
     <div className="card" id="prom-feed-card">
@@ -33,6 +34,16 @@ export const PromFeedCard: React.FC<PromFeedCardProps> = ({
         <p className="text-xs text-muted leading-relaxed">
           {t('promFeedDesc')}
         </p>
+
+        {isLocalUrl && (
+          <div
+            className="p-2.5 rounded-lg text-xs flex items-start gap-2 bg-amber-500/10 text-amber-400 border border-amber-500/20"
+            id="prom-local-feed-warning"
+          >
+            <span className="font-semibold flex-shrink-0">⚠️</span>
+            <span className="leading-relaxed">{t('promLocalFeedWarning')}</span>
+          </div>
+        )}
 
         {sendFeedResult && (
           <div

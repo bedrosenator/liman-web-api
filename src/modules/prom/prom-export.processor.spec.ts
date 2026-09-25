@@ -278,4 +278,21 @@ describe('PromExportProcessor', () => {
       }),
     );
   });
+
+  it('should skip promClient.importUrl and warn when baseUrl is localhost', async () => {
+    limanService.getProducts
+      .mockResolvedValueOnce({
+        total: 1, page: 1, limit: 500, items: [{ tcod: 401, name: 'Item', price: 100, stock: 1 }] as any,
+      })
+      .mockResolvedValueOnce({ total: 1, page: 2, limit: 500, items: [] });
+    promClient.editProductsByExternalId.mockResolvedValue({ success: true, processed: 1, processedIds: ['401'] });
+
+    const mockJob = {
+      data: { tenantId: 'columb', baseUrl: 'http://localhost:3000', mode: 'full_overwrite' as const },
+      updateProgress: jest.fn(),
+    } as any;
+
+    await processor.process(mockJob);
+    expect(promClient.importUrl).not.toHaveBeenCalled();
+  });
 });

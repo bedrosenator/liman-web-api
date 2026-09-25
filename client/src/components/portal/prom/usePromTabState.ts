@@ -211,15 +211,15 @@ export function usePromTabState({
     }
   };
 
-  const feedUrl = `${window.location.origin}/api/v1/prom/${tenantId}/feed.xml`;
-  const webhookUrl = `${window.location.origin}/api/v1/prom/${tenantId}/webhook/order`;
+  const baseUrl = (tenant?.publicBaseUrl || window.location.origin).replace(/\/$/, '');
+  const feedUrl = `${baseUrl}/api/v1/prom/${tenantId}/feed.xml`;
+  const webhookUrl = `${baseUrl}/api/v1/prom/${tenantId}/webhook/order`;
 
   const handleCopyFeed = () => {
     navigator.clipboard.writeText(feedUrl);
     setIsFeedCopied(true);
     setTimeout(() => setIsFeedCopied(false), 2000);
   };
-
   const handleCopyWebhook = () => {
     navigator.clipboard.writeText(webhookUrl);
     setIsWebhookCopied(true);

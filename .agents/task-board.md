@@ -58,6 +58,14 @@
     - [x] В `PromFeedService` фильтровать оферы с `price <= 0` во избежание сбоя импорта YML;
     - [x] Классифицировать `id: Продукт не найден` как ожидающие импорта фида (`pending_feed_import`) в отчётах экспорта;
     - [x] Покрыть Jest unit-тестами.
+- [x] **[TASK-39]** Dual-Mode Base URL & Dev Tunneling (Cloudflare Quick Tunnels):
+  - **Статус готовности**: ✅ **Выполнено** (193/193 Jest, 69/69 Vitest);
+  - **Приоритет**: 🔴 **Высший (Production & Dev Parity)**;
+  - **Подзадачи**:
+    - [x] Создать скрипт `scripts/start-tunnel.mjs` и команду `npm run tunnel` на базе `cloudflared`;
+    - [x] Защитить `PromExportProcessor` от отправки `localhost` в Prom API с информативным предупреждением;
+    - [x] Использовать `tenant.publicBaseUrl` в `usePromTabState.ts` и добавить индикатор локального адреса в `PromFeedCard.tsx`;
+    - [x] Проверить unit-тестами Jest и Vitest.
 
 ---
 
