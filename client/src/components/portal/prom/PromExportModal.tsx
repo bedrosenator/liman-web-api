@@ -20,6 +20,7 @@ export interface PromExportModalProps {
   isOpen: boolean;
   onClose: () => void;
   tenantId: string;
+  feedUrl?: string;
   onExportFinished?: () => void;
 }
 
@@ -27,6 +28,7 @@ export function PromExportModal({
   isOpen,
   onClose,
   tenantId,
+  feedUrl,
   onExportFinished,
 }: PromExportModalProps) {
   const { t } = useLanguage();
@@ -194,16 +196,11 @@ export function PromExportModal({
               <ExportModeSelector mode={mode} onModeChange={setMode} />
 
               <ExportFieldToggles
-                exportPrices={exportPrices}
-                setExportPrices={setExportPrices}
-                exportStock={exportStock}
-                setExportStock={setExportStock}
-                exportCategories={exportCategories}
-                setExportCategories={setExportCategories}
-                exportImages={exportImages}
-                setExportImages={setExportImages}
-                exportDescriptions={exportDescriptions}
-                setExportDescriptions={setExportDescriptions}
+                exportPrices={exportPrices} setExportPrices={setExportPrices}
+                exportStock={exportStock} setExportStock={setExportStock}
+                exportCategories={exportCategories} setExportCategories={setExportCategories}
+                exportImages={exportImages} setExportImages={setExportImages}
+                exportDescriptions={exportDescriptions} setExportDescriptions={setExportDescriptions}
               />
 
               <ExportAdvancedSettings
@@ -222,9 +219,9 @@ export function PromExportModal({
           )}
 
           {status === 'running' && <ExportProgressScreen progress={progress} />}
-
-          {status === 'completed' && <ExportCompletedScreen stats={stats} platform="prom" />}
-
+          {status === 'completed' && (
+            <ExportCompletedScreen stats={stats} platform="prom" feedUrl={feedUrl} />
+          )}
           {status === 'error' && <ExportErrorScreen errorMessage={errorMessage} />}
         </div>
 

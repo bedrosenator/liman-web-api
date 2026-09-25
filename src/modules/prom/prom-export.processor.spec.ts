@@ -172,7 +172,8 @@ describe('PromExportProcessor', () => {
 
     expect(result.success).toBe(false);
     expect(result.totalExported).toBe(0);
-    expect(result.errors).toBe(1);
+    expect(result.errors).toBe(0);
+    expect(result.pendingFeedCount).toBe(1);
     expect(result.message).toContain('feed.xml');
     expect(promSyncService.addActivity).toHaveBeenCalledWith(
       'columb',
@@ -267,7 +268,7 @@ describe('PromExportProcessor', () => {
     const result = await processor.process(mockJob);
 
     expect(result.totalExported).toBe(1);
-    expect(result.errors).toBe(1);
+    expect(result.errors).toBe(0);
     expect(result.pendingFeedCount).toBe(1);
     expect(result.message).toContain('Ожидают импорта через YML-фид: 1');
     expect(promSyncService.addActivity).toHaveBeenCalledWith(
@@ -294,5 +295,45 @@ describe('PromExportProcessor', () => {
 
     await processor.process(mockJob);
     expect(promClient.importUrl).not.toHaveBeenCalled();
+  });
+
+  it('should isolate real validation data errors from not found errors', async () => {
+    limanService.getProducts
+      .mockResolvedValueOnce({
+        total: 3,
+        page: 1,
+        limit: 500,
+        items: [
+          { tcod: 501, name: 'Valid Item', price: 100, stock: 1 },
+          { tcod: 502, name: 'Invalid Price Item', price: 200, stock: 1 },
+          { tcod: 503, name: 'Not Found Item', price: 300, stock: 1 },
+        ] as any,
+      })
+      .mockResolvedValueOnce({ total: 3, page: 2, limit: 500, items: [] });
+
+    promClient.editProductsByExternalId.mockResolvedValue({
+      success: true,
+      processed: 1,
+      processedIds: ['501'],
+      errors: {
+        '502': { price: 'Укажите значение от 0.01' },
+        '503': { id: 'Продукт не найден' },
+      },
+    });
+
+    const mockJob = {
+      data: { tenantId: 'columb', mode: 'full_overwrite' as const },
+      updateProgress: jest.fn(),
+    } as any;
+
+    const result = await processor.process(mockJob);
+
+    expect(result.totalExported).toBe(1);
+    expect(result.errors).toBe(1);
+    expect(result.pendingFeedCount).toBe(1);
+    expect(result.errorDetails).toHaveLength(1);
+    expect(result.errorDetails?.[0].article).toBe('502');
+    expect(result.errorDetails?.[0].message).toContain('Укажите значение от 0.01');
+    expect(result.message).toContain('ошибок данных: 1');
   });
 });

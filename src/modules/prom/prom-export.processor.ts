@@ -305,8 +305,6 @@ export class PromExportProcessor extends WorkerHost {
         totalExported += res.processed;
 
         if (res.errors && typeof res.errors === 'object') {
-          const chunkErrors = Object.keys(res.errors).length;
-          errors += chunkErrors;
           for (const [art, err] of Object.entries(res.errors)) {
             let msg = '';
             if (typeof err === 'object' && err !== null) {
@@ -317,18 +315,20 @@ export class PromExportProcessor extends WorkerHost {
               msg = String(err);
             }
 
-            if (
+            const isNotFound =
               msg.toLowerCase().includes('не найден') ||
-              msg.toLowerCase().includes('not found')
-            ) {
-              notFoundErrors++;
-            }
+              msg.toLowerCase().includes('not found');
 
-            if (errorDetails.length < 50) {
-              errorDetails.push({
-                article: art,
-                message: msg,
-              });
+            if (isNotFound) {
+              notFoundErrors++;
+            } else {
+              errors++;
+              if (errorDetails.length < 50) {
+                errorDetails.push({
+                  article: art,
+                  message: msg,
+                });
+              }
             }
           }
         }
@@ -387,7 +387,8 @@ export class PromExportProcessor extends WorkerHost {
 
     await job.updateProgress(100);
 
-    const isSuccess = totalExported > 0 && errors === 0;
+    const isSuccess =
+      totalExported > 0 && errors === 0 && notFoundErrors === 0;
 
     let userMessage: string | undefined = undefined;
     if (totalExported === 0 && totalToExport > 0) {
@@ -416,9 +417,8 @@ export class PromExportProcessor extends WorkerHost {
         });
       }
     } else {
-      const dataErrors = Math.max(0, errors - notFoundErrors);
       if (notFoundErrors > 0) {
-        userMessage = `Обновлено: ${totalExported}. Ожидают импорта через YML-фид: ${notFoundErrors}${dataErrors > 0 ? `, ошибок данных: ${dataErrors}` : ''}.`;
+        userMessage = `Обновлено: ${totalExported}. Ожидают импорта через YML-фид: ${notFoundErrors}${errors > 0 ? `, ошибок данных: ${errors}` : ''}.`;
         this.promSyncService.addActivity(tenantId, {
           type: 'sync',
           status: 'warning',
@@ -447,7 +447,10 @@ export class PromExportProcessor extends WorkerHost {
       created: 0,
       updated: totalExported,
       skipped: skippedCount,
-      errors: totalExported === 0 && totalToExport > 0 ? totalToExport : errors,
+      errors:
+        totalExported === 0 && totalToExport > 0 && notFoundErrors === 0
+          ? totalToExport
+          : errors,
       pendingFeedCount: notFoundErrors > 0 ? notFoundErrors : undefined,
       durationMs: Date.now() - startTime,
       errorDetails: errorDetails.length > 0 ? errorDetails : undefined,

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -8,6 +8,8 @@ import {
   AlertCircle,
   Clock,
   Zap,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { StatBox } from '../common';
@@ -16,35 +18,59 @@ import type { ExportStats } from './types';
 interface ExportCompletedScreenProps {
   stats: ExportStats | null;
   platform?: 'horoshop' | 'prom';
+  feedUrl?: string;
 }
 
 export const ExportCompletedScreen: React.FC<ExportCompletedScreenProps> = ({
   stats,
   platform = 'horoshop',
+  feedUrl,
 }) => {
-  const { language } = useLanguage();
+  const { t } = useLanguage();
+  const [copiedFeed, setCopiedFeed] = useState(false);
 
+  const hasPendingFeed = (stats?.pendingFeedCount ?? 0) > 0;
   const isRejected =
-    stats &&
-    ((stats.errors ?? 0) > 0 || (stats.totalExported ?? 0) === 0) &&
-    (stats.created ?? 0) === 0 &&
-    (stats.updated ?? 0) === 0 &&
-    ((stats.totalFetched ?? 0) > 0 || (stats.errors ?? 0) > 0);
+    Boolean(stats) &&
+    ((stats?.errors ?? 0) > 0 || (stats?.totalExported ?? 0) === 0) &&
+    (stats?.created ?? 0) === 0 &&
+    (stats?.updated ?? 0) === 0 &&
+    ((stats?.totalFetched ?? 0) > 0 || (stats?.errors ?? 0) > 0 || hasPendingFeed);
+
+  const isPartial = Boolean(stats) && !isRejected && hasPendingFeed;
 
   const rejectedTitle =
     platform === 'prom'
-      ? (language === 'uk' ? 'Товари не знайдено в Prom.ua' : 'Товары не найдены в Prom.ua')
-      : (language === 'uk' ? 'Товари відхилено Хорошопом' : 'Товары отклонены Хорошопом');
+      ? t('exportNotFoundPromTitle')
+      : t('exportNotFoundHoroshopTitle');
 
   const rejectedDesc =
     stats?.message ||
     (platform === 'prom'
-      ? (language === 'uk'
-          ? 'Товари відсутні в каталозі Prom.ua. Зареєструйте YML-фід у кабінеті продавця для початкового створення товарів.'
-          : 'Товары отсутствуют в каталоге Prom.ua. Зарегистрируйте YML-фид в кабинете продавца для первоначального создания товаров.')
-      : (language === 'uk'
-          ? 'Хорошоп відхилив позиції (категорія не знайдена або відсутній шаблон). Оберіть цільову категорію в налаштуваннях вивантаження.'
-          : 'Хорошоп отклонил позиции (категория не найдена или отсутствует шаблон). Выберите целевую категорию в настройках выгрузки.'));
+      ? t('exportNotFoundPromDesc')
+      : t('exportNotFoundHoroshopDesc'));
+
+  const successTitle = isPartial
+    ? t('exportCompletedPartial')
+    : t('exportCompletedSuccess');
+
+  const successDesc =
+    stats?.message
+      ? stats.message
+      : (stats?.errors ?? 0) > 0
+      ? t('exportCompletedIssuesDesc')
+      : t('exportCompletedDefaultDesc');
+
+  const handleCopyFeed = async () => {
+    if (!feedUrl) return;
+    try {
+      await navigator.clipboard.writeText(feedUrl);
+      setCopiedFeed(true);
+      setTimeout(() => setCopiedFeed(false), 2000);
+    } catch (e) {
+      console.error('Failed to copy feed url', e);
+    }
+  };
 
   return (
     <div className="py-2 space-y-6 text-center" id="export-completed-screen">
@@ -62,23 +88,13 @@ export const ExportCompletedScreen: React.FC<ExportCompletedScreenProps> = ({
         </div>
       ) : (
         <div className="space-y-3">
-          <div className="success-badge-glow">
-            <CheckCircle2 size={36} className="text-emerald" />
+          <div className={isPartial ? 'warning-badge-glow' : 'success-badge-glow'}>
+            <CheckCircle2 size={36} className={isPartial ? 'text-amber' : 'text-emerald'} />
           </div>
           <div className="space-y-2">
-            <h3 className="text-lg font-bold text-primary">
-              {language === 'uk' ? 'Каталог успішно експортовано!' : 'Каталог успешно экспортирован!'}
-            </h3>
+            <h3 className="text-lg font-bold text-primary">{successTitle}</h3>
             <p className="text-sm text-secondary max-w-md mx-auto leading-relaxed">
-              {stats?.message
-                ? stats.message
-                : stats && (stats.errors ?? 0) > 0
-                ? (language === 'uk'
-                    ? 'Частину позицій збережено, але виникли зауваження до окремих товарів.'
-                    : 'Часть позиций сохранена, но возникли замечания по отдельным товарам.')
-                : (language === 'uk'
-                    ? 'Дані товарів та зв’язки product_mappings успішно оновлено.'
-                    : 'Данные товаров и связи product_mappings успешно обновлены.')}
+              {successDesc}
             </p>
           </div>
         </div>
@@ -89,22 +105,32 @@ export const ExportCompletedScreen: React.FC<ExportCompletedScreenProps> = ({
           <StatBox
             icon={Layers}
             iconColor="text-indigo"
-            label={language === 'uk' ? 'Вивантажено' : 'Выгружено'}
+            label={t('exportStatExported')}
             value={stats.totalExported ?? 0}
           />
 
-          <StatBox
-            icon={Sparkles}
-            iconColor="text-emerald"
-            label={language === 'uk' ? 'Новинок' : 'Новинок'}
-            value={stats.created ?? 0}
-            valueColor="text-emerald"
-          />
+          {hasPendingFeed ? (
+            <StatBox
+              icon={Clock}
+              iconColor="text-amber"
+              label={t('exportStatPendingFeed')}
+              value={stats.pendingFeedCount ?? 0}
+              valueColor="text-amber"
+            />
+          ) : (
+            <StatBox
+              icon={Sparkles}
+              iconColor="text-emerald"
+              label={t('exportStatNew')}
+              value={stats.created ?? 0}
+              valueColor="text-emerald"
+            />
+          )}
 
           <StatBox
             icon={RefreshCw}
             iconColor="text-sky"
-            label={language === 'uk' ? 'Оновлено' : 'Обновлено'}
+            label={t('exportStatUpdated')}
             value={stats.updated ?? 0}
             valueColor="text-sky"
           />
@@ -112,10 +138,42 @@ export const ExportCompletedScreen: React.FC<ExportCompletedScreenProps> = ({
           <StatBox
             icon={AlertCircle}
             iconColor={(stats.errors ?? 0) > 0 ? 'text-rose' : 'text-muted'}
-            label={language === 'uk' ? 'Помилок' : 'Ошибок'}
+            label={t('exportStatErrors')}
             value={stats.errors ?? 0}
             valueColor={(stats.errors ?? 0) > 0 ? 'text-rose' : 'text-muted'}
           />
+        </div>
+      )}
+
+      {hasPendingFeed && feedUrl && (
+        <div
+          className="p-3 rounded-lg bg-elevated border border-indigo/20 text-left space-y-2"
+          id="prom-feed-notice-box"
+        >
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
+            <Layers size={14} className="text-indigo flex-shrink-0" />
+            <span>{t('promFeedActionNotice')}</span>
+          </div>
+          <p className="text-[11px] text-muted leading-relaxed">
+            {t('promFeedActionHelp')}
+          </p>
+          <div className="flex items-center justify-between gap-2 bg-surface p-2 rounded border border-subtle min-w-0">
+            <span className="text-[11px] font-mono text-secondary truncate" title={feedUrl}>
+              {feedUrl}
+            </span>
+            <button
+              type="button"
+              className="btn btn--secondary btn--sm text-xs gap-1.5 flex-shrink-0"
+              onClick={handleCopyFeed}
+            >
+              {copiedFeed ? (
+                <Check size={13} className="text-emerald" />
+              ) : (
+                <Copy size={13} />
+              )}
+              <span>{copiedFeed ? t('copied') : t('copyFeedLink')}</span>
+            </button>
+          </div>
         </div>
       )}
 
@@ -124,8 +182,10 @@ export const ExportCompletedScreen: React.FC<ExportCompletedScreenProps> = ({
           <div className="duration-pill">
             <Clock size={13} className="text-muted" />
             <span>
-              {language === 'uk' ? 'Час виконання:' : 'Время выполнения:'}{' '}
-              <strong className="text-primary font-mono font-semibold">{(stats.durationMs / 1000).toFixed(1)}s</strong>
+              {t('exportExecutionTime')}{' '}
+              <strong className="text-primary font-mono font-semibold">
+                {(stats.durationMs / 1000).toFixed(1)}s
+              </strong>
             </span>
           </div>
           <div className="duration-pill">
@@ -136,11 +196,14 @@ export const ExportCompletedScreen: React.FC<ExportCompletedScreenProps> = ({
       )}
 
       {stats?.errorDetails && stats.errorDetails.length > 0 && (
-        <div className="mt-3 text-left border border-rose/20 bg-rose/5 rounded-lg p-2.5 max-h-36 overflow-y-auto space-y-1.5" id="export-error-details-list">
+        <div
+          className="mt-3 text-left border border-rose/20 bg-rose/5 rounded-lg p-2.5 max-h-36 overflow-y-auto space-y-1.5"
+          id="export-error-details-list"
+        >
           <div className="text-[11px] font-semibold text-rose uppercase tracking-wider">
             {platform === 'prom'
-              ? (language === 'uk' ? 'Деталі зауважень Prom.ua:' : 'Детали замечаний Prom.ua:')
-              : (language === 'uk' ? 'Деталі зауважень Хорошоп:' : 'Детали замечаний Хорошоп:')}
+              ? t('exportPromRemarks')
+              : t('exportHoroshopRemarks')}
           </div>
           {stats.errorDetails.map((err, i) => (
             <div key={i} className="text-[11px] text-muted leading-tight">

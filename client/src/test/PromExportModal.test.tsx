@@ -126,6 +126,55 @@ describe('PromExportModal (TASK-35)', () => {
           'export-prom-catalog',
           'job-prom-exp-123',
         );
+        expect(
+          screen.getByText('Каталог успешно экспортирован!'),
+        ).toBeInTheDocument();
+      },
+      { timeout: 4000 },
+    );
+  });
+
+  it('отображает частичный экспорт и баннер с YML-фидом при наличии pendingFeedCount', async () => {
+    vi.mocked(syncApi.getJobStatus).mockReset();
+    vi.mocked(promApi.exportCatalog).mockResolvedValue({
+      data: { success: true, jobId: 'job-prom-pending-123' },
+    } as any);
+
+    vi.mocked(syncApi.getJobStatus).mockResolvedValue({
+      data: {
+        state: 'completed',
+        progress: 100,
+        result: {
+          totalFetched: 3268,
+          totalExported: 54,
+          created: 0,
+          updated: 54,
+          skipped: 0,
+          errors: 0,
+          pendingFeedCount: 3214,
+          durationMs: 73900,
+          message: 'Обновлено: 54. Ожидают импорта через YML-фид: 3214.',
+        },
+      },
+    } as any);
+
+    renderModal({
+      ...defaultProps,
+      feedUrl: 'https://liman.terrace.pp.ua/api/v1/prom/columb/feed.xml',
+    } as any);
+
+    const startBtn = screen.getByRole('button', {
+      name: /Начать экспорт/i,
+    });
+    fireEvent.click(startBtn);
+
+    await waitFor(
+      () => {
+        expect(screen.getByText('Каталог частично экспортирован')).toBeInTheDocument();
+        expect(screen.getByText('Ожидают фид')).toBeInTheDocument();
+        expect(screen.getByText('3214')).toBeInTheDocument();
+        expect(screen.getByText('Новые товары создаются через импорт YML-фида')).toBeInTheDocument();
+        expect(screen.getByText(/feed\.xml/)).toBeInTheDocument();
       },
       { timeout: 4000 },
     );

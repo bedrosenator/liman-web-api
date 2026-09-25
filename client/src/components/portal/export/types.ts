@@ -13,6 +13,7 @@ export interface ExportStats {
   updated?: number;
   skipped?: number;
   errors?: number;
+  pendingFeedCount?: number;
   durationMs?: number;
   errorDetails?: Array<{ article: string; message: string }>;
   message?: string;

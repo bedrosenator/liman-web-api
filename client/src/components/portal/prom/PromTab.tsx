@@ -135,6 +135,7 @@ export const PromTab: React.FC<PromTabProps> = ({
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
         tenantId={tenantId}
+        feedUrl={feedUrl}
         onExportFinished={() => {
           onTenantUpdated();
           handlePing();
