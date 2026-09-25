@@ -183,13 +183,13 @@ export const RozetkaTab: React.FC<RozetkaTabProps> = ({
           </div>
           <button
             type="button"
-            className="btn btn--secondary btn--xs self-center"
+            className="btn-icon btn-icon--sm ml-auto self-center shrink-0"
             onClick={handlePing}
             disabled={pingStatus.loading || !tenant?.rozetkaClientId}
             title={t('rozetkaTestConnection')}
+            aria-label={t('checkConnection')}
           >
-            <RefreshCw size={12} className={pingStatus.loading ? 'spinner' : ''} />
-            <span>{t('checkConnection')}</span>
+            <RefreshCw size={14} className={pingStatus.loading ? 'spinner' : ''} />
           </button>
         </div>
 

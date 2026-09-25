@@ -164,8 +164,8 @@ export const PromSettingsForm: React.FC<PromSettingsFormProps> = ({
         </div>
 
         {orderWebhookEnabled && (
-          <div className="bg-elevated/50 p-2 rounded-lg border border-subtle flex items-center justify-between gap-2">
-            <span className="font-mono text-[11px] text-primary truncate" id="prom-webhook-url">
+          <div className="bg-elevated/50 p-2 rounded-lg border border-subtle flex items-center justify-between gap-2 min-w-0">
+            <span className="font-mono text-[11px] text-primary truncate min-w-0" id="prom-webhook-url" title={webhookUrl}>
               {webhookUrl}
             </span>
             <button

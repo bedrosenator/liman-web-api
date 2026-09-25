@@ -201,5 +201,12 @@
    - Успешно протестированы все healthchecks, Swagger docs, Master API Key и раздача React SPA.
 10. **Унификация обработки заказов WooCommerce (TASK-31):**
    - ⚪ Запланировано: подключение WooCommerce к единому сервису `LimanOrderService`, радиокнопка `woocommerceCreateOrderDocumentEnabled`.
+11. **Исправление UI клиентского портала (TASK-40):**
+   - ✅ Выполнено: Устранено вылезание кнопки проверки связи за пределы карточки в `PromHealthGrid`, `RozetkaTab` и `WooCommerceTab` (замена на `.btn-icon.btn-icon--sm` со спиннером и `title`).
+   - Сброшены нативные системные стили кнопки заголовка мастера `PromWizard` и отключен `border-bottom` у `.card__header:last-child` в свёрнутом состоянии.
+   - Убран лишний бордер у `.badge--subtle` для гармоничного отображения бейджа «ДОСТУПНО ДЛЯ ПОДКЛЮЧЕНИЯ» без эффекта «рамка в рамке».
+   - Удалена артефактная разделительная линия `border-b border-subtle pb-3` под табами каналов продаж в `ClientPortalPage`.
+   - Добавлен `min-w-0` к контейнерам с `truncate` (`prom-feed-url`, `prom-webhook-url`), предотвращающий распирание карточек.
+   - Актуализированы база знаний (`patterns_and_pitfalls.md`) и правила агентов (`AGENTS.md`).
 
 

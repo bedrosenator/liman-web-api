@@ -180,8 +180,8 @@ export const PromActionHub: React.FC<PromActionHubProps> = ({
               </button>
             </div>
 
-            <div className="bg-elevated p-2.5 rounded-lg border border-subtle mb-3 flex items-center justify-between gap-2">
-              <span className="font-mono text-xs text-primary truncate" id="prom-feed-url">
+            <div className="bg-elevated p-2.5 rounded-lg border border-subtle mb-3 flex items-center justify-between gap-2 min-w-0">
+              <span className="font-mono text-xs text-primary truncate min-w-0" id="prom-feed-url" title={feedUrl}>
                 {feedUrl}
               </span>
             </div>

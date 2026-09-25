@@ -73,7 +73,11 @@ export const PromHealthGrid: React.FC<PromHealthGridProps> = ({
                 <span className="status-dot status-dot--green" />
                 <span className="text-emerald font-semibold">{t('statusAuthorized')}</span>
                 {promStatus.shopTitle && (
-                  <span className="text-xs text-muted truncate max-w-[120px] font-mono">
+                  <span
+                    className="text-xs text-muted truncate font-mono min-w-0"
+                    style={{ maxWidth: '120px' }}
+                    title={promStatus.shopTitle}
+                  >
                     ({promStatus.shopTitle})
                   </span>
                 )}
@@ -81,7 +85,7 @@ export const PromHealthGrid: React.FC<PromHealthGridProps> = ({
             ) : (
               <>
                 <span className="status-dot status-dot--red" />
-                <span className="text-rose font-semibold">
+                <span className="text-rose font-semibold truncate min-w-0">
                   {hasApiKey ? t('statusUnauthorized') : t('availableForConnection')}
                 </span>
               </>
@@ -90,13 +94,13 @@ export const PromHealthGrid: React.FC<PromHealthGridProps> = ({
         </div>
         <button
           type="button"
-          className="btn btn--secondary btn--xs ml-auto self-center"
+          className="btn-icon btn-icon--sm ml-auto self-center shrink-0"
           onClick={onPingProm}
           disabled={promStatus.loading || !hasApiKey}
           title={t('promTestConnection')}
+          aria-label={t('checkConnection')}
         >
-          <RefreshCw size={12} className={promStatus.loading ? 'spinner' : ''} />
-          <span>{t('checkConnection')}</span>
+          <RefreshCw size={14} className={promStatus.loading ? 'spinner' : ''} />
         </button>
       </div>
 

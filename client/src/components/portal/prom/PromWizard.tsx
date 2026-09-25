@@ -10,7 +10,16 @@ export function PromWizard() {
     <div className="card card--subtle mb-6" id="prom-wizard">
       <button
         type="button"
-        className="card__header flex justify-between items-center cursor-pointer select-none w-full text-left"
+        className={`card__header flex justify-between items-center cursor-pointer select-none w-full text-left bg-transparent ${
+          !isOpen ? 'border-b-0' : ''
+        }`}
+        style={{
+          background: 'transparent',
+          borderTop: 'none',
+          borderLeft: 'none',
+          borderRight: 'none',
+          borderBottom: isOpen ? '1px solid var(--border-subtle)' : 'none',
+        }}
         onClick={() => setIsOpen(!isOpen)}
         aria-expanded={isOpen}
         aria-controls="prom-wizard-body"
