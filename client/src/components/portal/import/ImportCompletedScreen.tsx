@@ -20,19 +20,21 @@ export const ImportCompletedScreen: React.FC<ImportCompletedScreenProps> = ({
   const { t, language } = useLanguage();
 
   return (
-    <div className="py-2 space-y-5 text-center" id="import-completed-box">
-      <div className="success-badge-glow">
-        <CheckCircle2 size={36} className="text-emerald" />
-      </div>
-      <div className="space-y-1">
-        <h3 className="text-lg font-bold text-primary">
-          {language === 'uk' ? 'Імпорт каталогу успішно завершено!' : 'Импорт каталога успешно завершен!'}
-        </h3>
-        <p className="text-xs text-secondary max-w-md mx-auto leading-relaxed">
-          {language === 'uk'
-            ? 'Товари з магазину Хорошоп синхронізовані в MariaDB Limansoft.'
-            : 'Товары из магазина Хорошоп синхронизированы в MariaDB Limansoft.'}
-        </p>
+    <div className="py-2 space-y-6 text-center" id="import-completed-box">
+      <div className="space-y-3">
+        <div className="success-badge-glow">
+          <CheckCircle2 size={36} className="text-emerald" />
+        </div>
+        <div className="space-y-2">
+          <h3 className="text-lg font-bold text-primary">
+            {language === 'uk' ? 'Імпорт каталогу успішно завершено!' : 'Импорт каталога успешно завершен!'}
+          </h3>
+          <p className="text-sm text-secondary max-w-md mx-auto leading-relaxed">
+            {language === 'uk'
+              ? 'Товари з магазину Хорошоп синхронізовані в MariaDB Limansoft.'
+              : 'Товары из магазина Хорошоп синхронизированы в MariaDB Limansoft.'}
+          </p>
+        </div>
       </div>
 
       {stats && (
