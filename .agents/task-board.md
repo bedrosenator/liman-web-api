@@ -50,6 +50,14 @@
     - [x] Заменить `div[onClick]` на `<button>` в `PromWizard.tsx` (a11y, keyboard navigation);
     - [x] Проверить `onCancel` в `ImportProgressScreen` — проверено (экран прогресса чисто информационный во время работы BullMQ);
     - [x] Заменить `tenant: any` в `PromTabProps` на типизированный интерфейс `PromTenantSettings`.
+- [x] **[TASK-38]** Валидация нулевых цен Prom.ua и разделение ошибок экспорта (Zero-price omission & Pending Feed classification):
+  - **Статус готовности**: ✅ **Выполнено** (192/192 Jest, 69/69 Vitest);
+  - **Приоритет**: 🔴 **Высший (Production Fix)**;
+  - **Подзадачи**:
+    - [x] Не отправлять поле `price` в `PromExportProcessor` и `PromSyncService` при `product.price <= 0`, выставлять `presence: 'not_available'`;
+    - [x] В `PromFeedService` фильтровать оферы с `price <= 0` во избежание сбоя импорта YML;
+    - [x] Классифицировать `id: Продукт не найден` как ожидающие импорта фида (`pending_feed_import`) в отчётах экспорта;
+    - [x] Покрыть Jest unit-тестами.
 
 ---
 

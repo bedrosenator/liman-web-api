@@ -8,11 +8,7 @@ import {
 } from '../queue/queue.constants';
 import { LimanService } from '../liman/liman.service';
 import { TenantService } from '../tenant/tenant.service';
-import {
-  PromApiClient,
-  PromProductEditItem,
-  PromGroup,
-} from './prom-api.client';
+import { PromApiClient } from './prom-api.client';
 import { PromSyncService } from './prom-sync.service';
 import { AlertService } from '../alert/alert.service';
 import { ProductMappingService } from '../tenant/product-mapping.service';
@@ -31,6 +27,7 @@ export interface PromExportResult {
   updated: number;
   skipped: number;
   errors: number;
+  pendingFeedCount?: number;
   durationMs: number;
   errorDetails?: Array<{ article: string; message: string }>;
   message?: string;
@@ -86,63 +83,6 @@ export class PromExportProcessor extends WorkerHost {
     };
   }
 
-  /**
-   * Формирование элемента товара для Prom API
-   */
-  private buildProductItem(
-    product: LimanProductDto,
-    categoryName: string | undefined,
-    options: ExportPromCatalogJobData,
-    promGroupMap?: Map<string, number>,
-  ): PromProductEditItem {
-    const item: PromProductEditItem = {
-      external_id: String(product.tcod),
-      name: product.name,
-    };
-
-    if (options.exportPrices !== false) {
-      item.price = product.price;
-    }
-
-    if (options.exportStock !== false) {
-      item.quantity_in_stock = Math.max(0, product.stock);
-      item.presence = product.stock > 0 ? 'available' : 'not_available';
-    }
-
-    if (product.barcode) {
-      item.sku = product.barcode;
-    }
-
-    if (options.exportDescriptions !== false && product.description) {
-      item.description = product.description;
-    }
-
-    if (
-      options.exportImages !== false &&
-      product.imageUrls &&
-      product.imageUrls.length > 0
-    ) {
-      item.images = product.imageUrls;
-    }
-
-    if (options.exportCategories !== false) {
-      let targetGroupId: number | undefined = undefined;
-      if (categoryName && promGroupMap) {
-        const lowerCat = categoryName.trim().toLowerCase();
-        if (promGroupMap.has(lowerCat)) {
-          targetGroupId = promGroupMap.get(lowerCat);
-        }
-      }
-      if (!targetGroupId && options.defaultGroupId) {
-        targetGroupId = options.defaultGroupId;
-      }
-      if (targetGroupId) {
-        item.category_id = targetGroupId;
-      }
-    }
-
-    return item;
-  }
 
   async process(
     job: Job<ExportPromCatalogJobData>,
@@ -270,23 +210,11 @@ export class PromExportProcessor extends WorkerHost {
       };
     }
 
-    // 3. Загрузка групп Prom для сопоставления категорий
+    // 3. Пакетная отправка товаров в Prom.ua
     await job.updateProgress(20);
-    const promGroupMap = new Map<string, number>();
-    try {
-      const groups = await this.promClient.getGroups(tenant.promApiKey);
-      for (const g of groups) {
-        if (g.name) {
-          promGroupMap.set(g.name.trim().toLowerCase(), g.id);
-        }
-      }
-    } catch (err: any) {
-      this.logger.warn(`Не удалось загрузить группы Prom.ua: ${err.message}`);
-    }
-
-    // 4. Пакетная отправка товаров в Prom.ua
     let totalExported = 0;
     let errors = 0;
+    let notFoundErrors = 0;
     const errorDetails: Array<{ article: string; message: string }> = [];
 
     const totalToExport = targetProducts.length;
@@ -326,6 +254,11 @@ export class PromExportProcessor extends WorkerHost {
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
       const itemsToEdit = chunk.map((product) => {
+        const hasValidPrice =
+          product.price !== undefined &&
+          product.price !== null &&
+          product.price > 0;
+
         const item: {
           id: string;
           name?: string;
@@ -338,13 +271,14 @@ export class PromExportProcessor extends WorkerHost {
           name: product.name,
         };
 
-        if (job.data.exportPrices !== false) {
-          item.price = product.price;
+        if (job.data.exportPrices !== false && hasValidPrice) {
+          item.price = Number(product.price.toFixed(2));
         }
 
         if (job.data.exportStock !== false) {
           item.quantity_in_stock = Math.max(0, product.stock);
-          item.presence = product.stock > 0 ? 'available' : 'not_available';
+          item.presence =
+            product.stock > 0 && hasValidPrice ? 'available' : 'not_available';
         }
 
         if (job.data.exportDescriptions !== false && product.description) {
@@ -365,15 +299,23 @@ export class PromExportProcessor extends WorkerHost {
           const chunkErrors = Object.keys(res.errors).length;
           errors += chunkErrors;
           for (const [art, err] of Object.entries(res.errors)) {
+            let msg = '';
+            if (typeof err === 'object' && err !== null) {
+              msg = Object.entries(err)
+                .map(([field, val]) => `${field}: ${Array.isArray(val) ? val.join(', ') : val}`)
+                .join('; ');
+            } else {
+              msg = String(err);
+            }
+
+            if (
+              msg.toLowerCase().includes('не найден') ||
+              msg.toLowerCase().includes('not found')
+            ) {
+              notFoundErrors++;
+            }
+
             if (errorDetails.length < 50) {
-              let msg = '';
-              if (typeof err === 'object' && err !== null) {
-                msg = Object.entries(err)
-                  .map(([field, val]) => `${field}: ${Array.isArray(val) ? val.join(', ') : val}`)
-                  .join('; ');
-              } else {
-                msg = String(err);
-              }
               errorDetails.push({
                 article: art,
                 message: msg,
@@ -438,18 +380,12 @@ export class PromExportProcessor extends WorkerHost {
 
     const isSuccess = totalExported > 0 && errors === 0;
 
-    const hasNotFoundErrors = errorDetails.some(
-      (e) =>
-        e.message.toLowerCase().includes('не найден') ||
-        e.message.toLowerCase().includes('not found'),
-    );
-
     let userMessage: string | undefined = undefined;
     if (totalExported === 0 && totalToExport > 0) {
       const feedNotice = feedImportError
         ? ` Prom.ua отклонил импорт фида: "${feedImportError}".`
         : '';
-      if (hasNotFoundErrors || errors === 0) {
+      if (notFoundErrors > 0 || errors === 0) {
         userMessage = `Товары еще не созданы в Prom.ua.${feedNotice} Зарегистрируйте YML-фид (${feedUrl}) в кабинете продавца Prom.ua (Товары и услуги → Импорт).`;
         this.promSyncService.addActivity(tenantId, {
           type: 'sync',
@@ -471,15 +407,28 @@ export class PromExportProcessor extends WorkerHost {
         });
       }
     } else {
-      userMessage = `Успешно выгружено: ${totalExported}, пропущено: ${skippedCount}, ошибок: ${errors}`;
-      this.promSyncService.addActivity(tenantId, {
-        type: 'sync',
-        status: isSuccess ? 'success' : 'warning',
-        titleRu: `Экспорт каталога в Prom.ua: ${totalExported} товаров`,
-        titleUk: `Експорт каталогу в Prom.ua: ${totalExported} товарів`,
-        detailsRu: `Успешно выгружено: ${totalExported}, пропущено: ${skippedCount}, ошибок: ${errors}`,
-        detailsUk: `Успішно вивантажено: ${totalExported}, пропущено: ${skippedCount}, помилок: ${errors}`,
-      });
+      const dataErrors = Math.max(0, errors - notFoundErrors);
+      if (notFoundErrors > 0) {
+        userMessage = `Обновлено: ${totalExported}. Ожидают импорта через YML-фид: ${notFoundErrors}${dataErrors > 0 ? `, ошибок данных: ${dataErrors}` : ''}.`;
+        this.promSyncService.addActivity(tenantId, {
+          type: 'sync',
+          status: 'warning',
+          titleRu: `Экспорт в Prom.ua: обновлено ${totalExported}, ожидают фид ${notFoundErrors}`,
+          titleUk: `Експорт у Prom.ua: оновлено ${totalExported}, очікують фід ${notFoundErrors}`,
+          detailsRu: `Обновлено: ${totalExported} из ${totalToExport}. Новые товары (${notFoundErrors}) создаются через импорт YML-фида: ${feedUrl}`,
+          detailsUk: `Оновлено: ${totalExported} з ${totalToExport}. Нові товари (${notFoundErrors}) створюються через імпорт YML-фіда: ${feedUrl}`,
+        });
+      } else {
+        userMessage = `Успешно выгружено: ${totalExported}, пропущено: ${skippedCount}, ошибок: ${errors}`;
+        this.promSyncService.addActivity(tenantId, {
+          type: 'sync',
+          status: isSuccess ? 'success' : 'warning',
+          titleRu: `Экспорт каталога в Prom.ua: ${totalExported} товаров`,
+          titleUk: `Експорт каталогу в Prom.ua: ${totalExported} товарів`,
+          detailsRu: `Успешно выгружено: ${totalExported}, пропущено: ${skippedCount}, ошибок: ${errors}`,
+          detailsUk: `Успішно вивантажено: ${totalExported}, пропущено: ${skippedCount}, помилок: ${errors}`,
+        });
+      }
     }
 
     return {
@@ -490,6 +439,7 @@ export class PromExportProcessor extends WorkerHost {
       updated: totalExported,
       skipped: skippedCount,
       errors: totalExported === 0 && totalToExport > 0 ? totalToExport : errors,
+      pendingFeedCount: notFoundErrors > 0 ? notFoundErrors : undefined,
       durationMs: Date.now() - startTime,
       errorDetails: errorDetails.length > 0 ? errorDetails : undefined,
       message: userMessage,
