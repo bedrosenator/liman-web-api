@@ -15,6 +15,7 @@ import {
   ImportCompletedScreen,
   ImportErrorScreen,
 } from './import';
+import { SYNC_MODAL_STATUS, type SyncModalStatus } from './common';
 
 export function HoroshopImportModal({
   isOpen,
@@ -31,7 +32,7 @@ export function HoroshopImportModal({
   const [createBackup, setCreateBackup] = useState(true);
   const [riskAccepted, setRiskAccepted] = useState(false);
 
-  const [status, setStatus] = useState<'idle' | 'running' | 'completed' | 'error'>('idle');
+  const [status, setStatus] = useState<SyncModalStatus>(SYNC_MODAL_STATUS.IDLE);
   const [progress, setProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [stats, setStats] = useState<ImportStats | null>(null);
@@ -43,7 +44,7 @@ export function HoroshopImportModal({
       clearInterval(pollTimerRef.current);
       pollTimerRef.current = null;
     }
-    setStatus('idle');
+    setStatus(SYNC_MODAL_STATUS.IDLE);
     setProgress(0);
     setErrorMessage(null);
     setStats(null);
@@ -101,7 +102,7 @@ export function HoroshopImportModal({
 
           if (job.state === 'completed') {
             if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-            setStatus('completed');
+            setStatus(SYNC_MODAL_STATUS.COMPLETED);
             setProgress(100);
             if (job.result) {
               setStats(job.result);
@@ -109,7 +110,7 @@ export function HoroshopImportModal({
             onImportFinished?.();
           } else if (job.state === 'failed') {
             if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-            setStatus('error');
+            setStatus(SYNC_MODAL_STATUS.ERROR);
             setErrorMessage(job.error || 'Ошибка при выполнении фоновой задачи импорта');
           }
         } catch (pollErr: any) {
@@ -117,7 +118,7 @@ export function HoroshopImportModal({
         }
       }, 1000);
     } catch (err: any) {
-      setStatus('error');
+      setStatus(SYNC_MODAL_STATUS.ERROR);
       setErrorMessage(
         err.response?.data?.error?.message ||
           err.response?.data?.message ||
@@ -128,7 +129,7 @@ export function HoroshopImportModal({
   };
 
   const isStartDisabled =
-    status === 'running' || (mode === 'overwrite' && !riskAccepted);
+    status === SYNC_MODAL_STATUS.RUNNING || (mode === 'overwrite' && !riskAccepted);
 
   return (
     <div className="modal-overlay" id="horoshop-import-modal-overlay" role="dialog" aria-modal="true">
@@ -144,7 +145,7 @@ export function HoroshopImportModal({
               {t('importFromHoroshop')}
             </h2>
           </div>
-          {status !== 'running' && (
+          {status !== SYNC_MODAL_STATUS.RUNNING && (
             <button
               type="button"
               className="btn-icon"
@@ -158,7 +159,7 @@ export function HoroshopImportModal({
 
         {/* Modal Body */}
         <div className="modal-body">
-          {status === 'idle' && (
+          {status === SYNC_MODAL_STATUS.IDLE && (
             <div className="space-y-4">
               <ImportModeSelector
                 mode={mode}
@@ -188,15 +189,15 @@ export function HoroshopImportModal({
             </div>
           )}
 
-          {status === 'running' && <ImportProgressScreen progress={progress} />}
+          {status === SYNC_MODAL_STATUS.RUNNING && <ImportProgressScreen progress={progress} />}
 
-          {status === 'completed' && <ImportCompletedScreen stats={stats} />}
+          {status === SYNC_MODAL_STATUS.COMPLETED && <ImportCompletedScreen stats={stats} />}
 
-          {status === 'error' && <ImportErrorScreen errorMessage={errorMessage} />}
+          {status === SYNC_MODAL_STATUS.ERROR && <ImportErrorScreen errorMessage={errorMessage} />}
         </div>
 
         {/* Modal Footer */}
-        {status === 'idle' && (
+        {status === SYNC_MODAL_STATUS.IDLE && (
           <div className="modal-footer">
             <button
               type="button"
@@ -218,7 +219,7 @@ export function HoroshopImportModal({
           </div>
         )}
 
-        {status === 'completed' && (
+        {status === SYNC_MODAL_STATUS.COMPLETED && (
           <div className="modal-footer">
             <button
               type="button"
@@ -238,7 +239,7 @@ export function HoroshopImportModal({
           </div>
         )}
 
-        {status === 'error' && (
+        {status === SYNC_MODAL_STATUS.ERROR && (
           <div className="modal-footer justify-end">
             <button
               type="button"

@@ -213,7 +213,8 @@
     - В `prom-export.processor.ts` в `errors` возвращаются строго реальные ошибки валидации данных, а в `pendingFeedCount` — количество товаров, ожидающих импорта фида.
     - Исключены сообщения `id: Продукт не найден` из `errorDetails` (список замечаний больше не засоряется десятками однотипных информационных сообщений).
     - В UI (`ExportCompletedScreen.tsx`): добавлен информационный блок «Ожидают фид» (янтарный с часиками), баннер с YML-фидом и кнопкой копирования, честный статус частичного экспорта («Каталог частично экспортирован») без пугающих ложных ошибок.
-    - Обновлены и расширены тесты бэкенда (`prom-export.processor.spec.ts`) и фронтенда (`PromExportModal.test.tsx`), актуализирована база знаний (`patterns_and_pitfalls.md`, АНТИПАТТЕРН 10).
+    - Вынесены константы жизненного цикла модальных окон `SYNC_MODAL_STATUS` (`idle`, `running`, `completed`, `error`) в `client/src/components/portal/common/constants.ts`; устранён хардкод magic strings в `PromExportModal`, `PromImportModal`, `HoroshopExportModal`, `HoroshopImportModal`.
+    - Обновлены и расширены тесты бэкенда (`prom-export.processor.spec.ts`) и фронтенда (`PromExportModal.test.tsx`), актуализирована база знаний (`patterns_and_pitfalls.md`, АНТИПАТТЕРН 10 и АНТИПАТТЕРН 11).
 
 
 

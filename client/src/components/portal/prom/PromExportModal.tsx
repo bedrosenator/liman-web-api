@@ -2,11 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
 import { promApi, syncApi } from '@/api/client';
 import { X, Upload, RefreshCw } from 'lucide-react';
-import type {
-  ExportMode,
-  ExportCategory,
-  ExportStats,
-} from '../export';
+import type { ExportMode, ExportCategory, ExportStats } from '../export';
 import {
   ExportModeSelector,
   ExportFieldToggles,
@@ -15,6 +11,7 @@ import {
   ExportCompletedScreen,
   ExportErrorScreen,
 } from '../export';
+import { SYNC_MODAL_STATUS, type SyncModalStatus } from '../common';
 
 export interface PromExportModalProps {
   isOpen: boolean;
@@ -46,7 +43,7 @@ export function PromExportModal({
   const [currency, setCurrency] = useState('UAH');
   const [limit, setLimit] = useState<number | ''>('');
 
-  const [status, setStatus] = useState<'idle' | 'running' | 'completed' | 'error'>('idle');
+  const [status, setStatus] = useState<SyncModalStatus>(SYNC_MODAL_STATUS.IDLE);
   const [progress, setProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [stats, setStats] = useState<ExportStats | null>(null);
@@ -58,7 +55,7 @@ export function PromExportModal({
       clearInterval(pollTimerRef.current);
       pollTimerRef.current = null;
     }
-    setStatus('idle');
+    setStatus(SYNC_MODAL_STATUS.IDLE);
     setProgress(0);
     setErrorMessage(null);
     setStats(null);
@@ -137,7 +134,7 @@ export function PromExportModal({
 
           if (job.state === 'completed') {
             if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-            setStatus('completed');
+            setStatus(SYNC_MODAL_STATUS.COMPLETED);
             setProgress(100);
             if (job.result) {
               setStats(job.result);
@@ -145,7 +142,7 @@ export function PromExportModal({
             onExportFinished?.();
           } else if (job.state === 'failed') {
             if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-            setStatus('error');
+            setStatus(SYNC_MODAL_STATUS.ERROR);
             setErrorMessage(job.error || 'Ошибка при выполнении фоновой задачи экспорта в Prom.ua');
           }
         } catch (pollErr: any) {
@@ -153,7 +150,7 @@ export function PromExportModal({
         }
       }, 1000);
     } catch (err: any) {
-      setStatus('error');
+      setStatus(SYNC_MODAL_STATUS.ERROR);
       setErrorMessage(
         err.response?.data?.error?.message ||
           err.response?.data?.message ||
@@ -177,7 +174,7 @@ export function PromExportModal({
               {t('promExportModalTitle')}
             </h2>
           </div>
-          {status !== 'running' && (
+          {status !== SYNC_MODAL_STATUS.RUNNING && (
             <button
               type="button"
               className="btn-icon"
@@ -191,7 +188,7 @@ export function PromExportModal({
 
         {/* Modal Body */}
         <div className="modal-body">
-          {status === 'idle' && (
+          {status === SYNC_MODAL_STATUS.IDLE && (
             <div className="space-y-4">
               <ExportModeSelector mode={mode} onModeChange={setMode} />
 
@@ -218,15 +215,15 @@ export function PromExportModal({
             </div>
           )}
 
-          {status === 'running' && <ExportProgressScreen progress={progress} />}
-          {status === 'completed' && (
+          {status === SYNC_MODAL_STATUS.RUNNING && <ExportProgressScreen progress={progress} />}
+          {status === SYNC_MODAL_STATUS.COMPLETED && (
             <ExportCompletedScreen stats={stats} platform="prom" feedUrl={feedUrl} />
           )}
-          {status === 'error' && <ExportErrorScreen errorMessage={errorMessage} />}
+          {status === SYNC_MODAL_STATUS.ERROR && <ExportErrorScreen errorMessage={errorMessage} />}
         </div>
 
         {/* Modal Footer */}
-        {status === 'idle' && (
+        {status === SYNC_MODAL_STATUS.IDLE && (
           <div className="modal-footer">
             <button
               type="button"
@@ -247,7 +244,7 @@ export function PromExportModal({
           </div>
         )}
 
-        {status === 'completed' && (
+        {status === SYNC_MODAL_STATUS.COMPLETED && (
           <div className="modal-footer">
             <button
               type="button"
@@ -269,7 +266,7 @@ export function PromExportModal({
           </div>
         )}
 
-        {status === 'error' && (
+        {status === SYNC_MODAL_STATUS.ERROR && (
           <div className="modal-footer justify-end">
             <button
               type="button"

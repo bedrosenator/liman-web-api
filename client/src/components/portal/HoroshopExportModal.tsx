@@ -16,6 +16,7 @@ import {
   ExportCompletedScreen,
   ExportErrorScreen,
 } from './export';
+import { SYNC_MODAL_STATUS, type SyncModalStatus } from './common';
 
 export function HoroshopExportModal({
   isOpen,
@@ -38,7 +39,7 @@ export function HoroshopExportModal({
   const [currency, setCurrency] = useState('UAH');
   const [limit, setLimit] = useState<number | ''>('');
 
-  const [status, setStatus] = useState<'idle' | 'running' | 'completed' | 'error'>('idle');
+  const [status, setStatus] = useState<SyncModalStatus>(SYNC_MODAL_STATUS.IDLE);
   const [progress, setProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [stats, setStats] = useState<ExportStats | null>(null);
@@ -50,7 +51,7 @@ export function HoroshopExportModal({
       clearInterval(pollTimerRef.current);
       pollTimerRef.current = null;
     }
-    setStatus('idle');
+    setStatus(SYNC_MODAL_STATUS.IDLE);
     setProgress(0);
     setErrorMessage(null);
     setStats(null);
@@ -126,7 +127,7 @@ export function HoroshopExportModal({
 
           if (job.state === 'completed') {
             if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-            setStatus('completed');
+            setStatus(SYNC_MODAL_STATUS.COMPLETED);
             setProgress(100);
             if (job.result) {
               setStats(job.result);
@@ -134,7 +135,7 @@ export function HoroshopExportModal({
             onExportFinished?.();
           } else if (job.state === 'failed') {
             if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-            setStatus('error');
+            setStatus(SYNC_MODAL_STATUS.ERROR);
             setErrorMessage(job.error || 'Ошибка выполнения задачи экспорта');
           }
         } catch (pollErr: any) {
@@ -142,7 +143,7 @@ export function HoroshopExportModal({
         }
       }, 1000);
     } catch (err: any) {
-      setStatus('error');
+      setStatus(SYNC_MODAL_STATUS.ERROR);
       setErrorMessage(
         err.response?.data?.error?.message ||
           err.response?.data?.message ||
@@ -166,7 +167,7 @@ export function HoroshopExportModal({
               {language === 'uk' ? 'Прямий експорт каталогу в Хорошоп' : 'Прямой экспорт каталога в Хорошоп'}
             </h2>
           </div>
-          {status !== 'running' && (
+          {status !== SYNC_MODAL_STATUS.RUNNING && (
             <button
               type="button"
               className="btn-icon"
@@ -180,21 +181,16 @@ export function HoroshopExportModal({
 
         {/* Modal Body */}
         <div className="modal-body">
-          {status === 'idle' && (
+          {status === SYNC_MODAL_STATUS.IDLE && (
             <div className="space-y-4">
               <ExportModeSelector mode={mode} onModeChange={setMode} />
 
               <ExportFieldToggles
-                exportPrices={exportPrices}
-                setExportPrices={setExportPrices}
-                exportStock={exportStock}
-                setExportStock={setExportStock}
-                exportCategories={exportCategories}
-                setExportCategories={setExportCategories}
-                exportImages={exportImages}
-                setExportImages={setExportImages}
-                exportDescriptions={exportDescriptions}
-                setExportDescriptions={setExportDescriptions}
+                exportPrices={exportPrices} setExportPrices={setExportPrices}
+                exportStock={exportStock} setExportStock={setExportStock}
+                exportCategories={exportCategories} setExportCategories={setExportCategories}
+                exportImages={exportImages} setExportImages={setExportImages}
+                exportDescriptions={exportDescriptions} setExportDescriptions={setExportDescriptions}
               />
 
               <ExportAdvancedSettings
@@ -212,15 +208,13 @@ export function HoroshopExportModal({
             </div>
           )}
 
-          {status === 'running' && <ExportProgressScreen progress={progress} />}
-
-          {status === 'completed' && <ExportCompletedScreen stats={stats} />}
-
-          {status === 'error' && <ExportErrorScreen errorMessage={errorMessage} />}
+          {status === SYNC_MODAL_STATUS.RUNNING && <ExportProgressScreen progress={progress} />}
+          {status === SYNC_MODAL_STATUS.COMPLETED && <ExportCompletedScreen stats={stats} />}
+          {status === SYNC_MODAL_STATUS.ERROR && <ExportErrorScreen errorMessage={errorMessage} />}
         </div>
 
         {/* Modal Footer */}
-        {status === 'idle' && (
+        {status === SYNC_MODAL_STATUS.IDLE && (
           <div className="modal-footer">
             <button
               type="button"
@@ -241,7 +235,7 @@ export function HoroshopExportModal({
           </div>
         )}
 
-        {status === 'completed' && (
+        {status === SYNC_MODAL_STATUS.COMPLETED && (
           <div className="modal-footer">
             <button
               type="button"
@@ -263,7 +257,7 @@ export function HoroshopExportModal({
           </div>
         )}
 
-        {status === 'error' && (
+        {status === SYNC_MODAL_STATUS.ERROR && (
           <div className="modal-footer justify-end">
             <button
               type="button"
