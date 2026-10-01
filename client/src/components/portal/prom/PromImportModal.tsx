@@ -15,6 +15,7 @@ import {
   ImportErrorScreen,
 } from '../import';
 import { SYNC_MODAL_STATUS, type SyncModalStatus } from '../common';
+import { JOB_STATE } from '@/constants/job-states';
 
 export interface PromImportModalProps {
   isOpen: boolean;
@@ -104,7 +105,7 @@ export function PromImportModal({
             setProgress(job.progress);
           }
 
-          if (job.state === 'completed') {
+          if (job.state === JOB_STATE.COMPLETED) {
             if (pollTimerRef.current) clearInterval(pollTimerRef.current);
             setStatus(SYNC_MODAL_STATUS.COMPLETED);
             setProgress(100);
@@ -112,7 +113,7 @@ export function PromImportModal({
               setStats(job.result);
             }
             onImportFinished?.();
-          } else if (job.state === 'failed') {
+          } else if (job.state === JOB_STATE.FAILED) {
             if (pollTimerRef.current) clearInterval(pollTimerRef.current);
             setStatus(SYNC_MODAL_STATUS.ERROR);
             setErrorMessage(job.error || 'Ошибка при выполнении фоновой задачи импорта из Prom.ua');

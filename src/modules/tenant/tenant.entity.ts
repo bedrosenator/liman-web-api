@@ -6,6 +6,9 @@ import {
   UpdateDateColumn,
   OneToMany,
 } from 'typeorm';
+// Lazy imports to avoid circular dependency (both entities import Tenant)
+import type { TenantIntegration } from './tenant-integration.entity';
+import type { ProductMapping } from './product-mapping.entity';
 
 @Entity('tenants')
 export class Tenant {
@@ -139,11 +142,11 @@ export class Tenant {
   @Column({ type: 'timestamp', nullable: true })
   lastSyncAt?: Date | null;
 
-  @OneToMany('TenantIntegration', 'tenant')
-  integrations?: any[];
+  @OneToMany('TenantIntegration', (integration: TenantIntegration) => integration.tenant)
+  integrations?: TenantIntegration[];
 
-  @OneToMany('ProductMapping', 'tenant')
-  productMappings?: any[];
+  @OneToMany('ProductMapping', (mapping: ProductMapping) => mapping.tenant)
+  productMappings?: ProductMapping[];
 
   @CreateDateColumn()
   createdAt!: Date;

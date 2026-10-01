@@ -3,6 +3,7 @@ import { useParams, useLocation } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { useLanguage } from '@/context/LanguageContext';
 import { tenantsApi, horoshopApi, promApi, syncApi } from '@/api/client';
+import { JOB_STATE } from '@/constants/job-states';
 import { HoroshopWizard } from '@/components/portal/HoroshopWizard';
 import { ActivityFeed, type ActivityItem } from '@/components/portal/ActivityFeed';
 import { HoroshopImportModal } from '@/components/portal/HoroshopImportModal';
@@ -228,6 +229,7 @@ export function ClientPortalPage() {
       if (jobId) {
         setSyncStatusStep(`${t('queueActiveSync')} (#${jobId})...`);
         await new Promise<void>((resolve, reject) => {
+          let watchdogTimer: ReturnType<typeof setTimeout> | null = null;
           const pollTimer = setInterval(async () => {
             try {
               const statusRes = await syncApi.getJobStatus('sync-stock', jobId);
@@ -238,38 +240,41 @@ export function ClientPortalPage() {
                 setSyncStatusStep(`${t('queueActiveSync')}: ${job.progress}%...`);
               }
 
-              if (job.state === 'completed') {
+              if (job.state === JOB_STATE.COMPLETED) {
                 clearInterval(pollTimer);
-                const updatedCount = job.result?.processed ?? 5768;
+                if (watchdogTimer) clearTimeout(watchdogTimer);
+                const updatedCount = job.result?.processed ?? 0;
                 setSyncReport({
                   success: true,
-                  message:
-                    language === 'uk'
-                      ? `Успішно оновлено ${updatedCount} товарів у Хорошоп`
-                      : `Успешно обновлено ${updatedCount} товаров в Хорошоп`,
+                  message: t('horoshopSyncUpdated').replace('{count}', String(updatedCount)),
                   updated: updatedCount,
                   processed: updatedCount,
                 });
                 resolve();
-              } else if (job.state === 'failed') {
+              } else if (job.state === JOB_STATE.FAILED) {
                 clearInterval(pollTimer);
+                if (watchdogTimer) clearTimeout(watchdogTimer);
                 reject(new Error(job.error || 'Ошибка при синхронизации остатков'));
               }
             } catch (pollErr) {
               clearInterval(pollTimer);
+              if (watchdogTimer) clearTimeout(watchdogTimer);
               reject(pollErr);
             }
           }, 800);
+
+          // Watchdog: если задача зависнет дольше 5 минут — прерываем polling
+          watchdogTimer = setTimeout(() => {
+            clearInterval(pollTimer);
+            reject(new Error('Timeout: синхронизация не завершилась за 5 минут'));
+          }, 5 * 60 * 1000);
         });
       } else {
         const data = res.data;
-        const updatedCount = data.updated ?? 5768;
+        const updatedCount = data.updated ?? 0;
         setSyncReport({
           success: true,
-          message:
-            language === 'uk'
-              ? `Успішно оновлено ${updatedCount} товарів у Хорошоп`
-              : `Успешно обновлено ${updatedCount} товаров в Хорошоп`,
+          message: t('horoshopSyncUpdated').replace('{count}', String(updatedCount)),
           updated: data.updated,
           processed: data.processed,
         });

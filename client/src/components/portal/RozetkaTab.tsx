@@ -15,10 +15,11 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { rozetkaApi, tenantsApi } from '@/api/client';
+import type { TenantData } from '@/components/admin/TenantModal';
 
 interface RozetkaTabProps {
   tenantId: string;
-  tenant: any;
+  tenant: TenantData;
   onTenantUpdated: () => void;
 }
 
