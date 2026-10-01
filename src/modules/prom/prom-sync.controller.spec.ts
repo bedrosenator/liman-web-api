@@ -25,7 +25,8 @@ describe('PromSyncController', () => {
   beforeEach(async () => {
     const mockClient = {
       ping: jest.fn().mockResolvedValue({
-        connected: true,
+        success: true,
+        message: 'Подключение успешно',
         shopTitle: 'Columb Prom Store',
       }),
       getProducts: jest.fn().mockResolvedValue([]),
@@ -106,7 +107,7 @@ describe('PromSyncController', () => {
       promShopTitle: 'Columb Prom Store',
     });
     expect(res.shopTitle).toBe('Columb Prom Store');
-    expect(res.connected).toBe(true);
+    expect(res.success).toBe(true);
   });
 
   it('should queue export catalog job into export-prom-catalog queue', async () => {

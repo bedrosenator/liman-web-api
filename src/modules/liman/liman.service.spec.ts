@@ -1,13 +1,14 @@
 import { LimanService } from './liman.service';
 import { TenantConnectionManager } from './tenant-connection-manager.service';
 import { Tenant } from '../tenant/tenant.entity';
+import { createMockTenant } from '../../test/fixtures/tenant.fixture';
 
 describe('LimanService', () => {
   let service: LimanService;
   let connectionManager: jest.Mocked<TenantConnectionManager>;
   let mockPool: any;
 
-  const mockTenant: Tenant = {
+  const mockTenant: Tenant = createMockTenant({
     id: 'columb',
     name: 'Columb Shop',
     dbHost: '127.0.0.1',
@@ -22,16 +23,9 @@ describe('LimanService', () => {
     promExportEnabled: false,
     woocommerceSyncEnabled: false,
     woocommerceImportEnabled: false,
-    woocommerceSyncIntervalMinutes: 15,
     rozetkaExportEnabled: false,
     horoshopExportEnabled: false,
-    horoshopOrderWebhookEnabled: true,
-    horoshopProductCreationWebhookEnabled: false,
-    horoshopCreateOrderDocumentEnabled: false,
-    horoshopSyncIntervalMinutes: 15,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
+  });
 
   beforeEach(() => {
     mockPool = {
