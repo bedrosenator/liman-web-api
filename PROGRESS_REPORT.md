@@ -215,6 +215,19 @@
     - В UI (`ExportCompletedScreen.tsx`): добавлен информационный блок «Ожидают фид» (янтарный с часиками), баннер с YML-фидом и кнопкой копирования, честный статус частичного экспорта («Каталог частично экспортирован») без пугающих ложных ошибок.
     - Вынесены константы жизненного цикла модальных окон `SYNC_MODAL_STATUS` (`idle`, `running`, `completed`, `error`) в `client/src/components/portal/common/constants.ts`; устранён хардкод magic strings в `PromExportModal`, `PromImportModal`, `HoroshopExportModal`, `HoroshopImportModal`.
     - Обновлены и расширены тесты бэкенда (`prom-export.processor.spec.ts`) и фронтенда (`PromExportModal.test.tsx`), актуализирована база знаний (`patterns_and_pitfalls.md`, АНТИПАТТЕРН 10 и АНТИПАТТЕРН 11).
+13. **Ликвидация техдолга — Спринт 1: Быстрые победы (TASK-42):**
+    - 🟢 Завершено и развернуто на Hetzner: Устранен хардкод `?? 5768` в `ClientPortalPage.tsx` с заменой на честный `?? 0`.
+    - Создан модуль констант `client/src/constants/job-states.ts` с `JOB_STATE as const`, устранены все 12 magic strings `job.state` в модальных окнах и хуках.
+    - Ликвидирован `tenant: any` в `RozetkaTab`, `WooCommerceTab`, `PortalSettingsTab`, типизированы отношения в `tenant.entity.ts`.
+    - Удален метод-дубликат `syncPricesStocksAsync` в `promApi`, убран хардкод `?limit=50` в `woocommerceApi.syncProducts`.
+    - Внедрен watchdog-таймаут (5 минут) в polling-циклы фоновых задач, исключающий зависание и утечки памяти.
+    - Статусы и фазы синхронизации WooCommerce переведены в словари-константы `SYNC_STATUS` и `SYNC_PHASE` (`as const`).
+14. **Ликвидация техдолга — Спринт 2: Декомпозиция табов и тестовые фикстуры (TASK-43):**
+    - 🟢 Завершено и развернуто на Hetzner: Создана универсальная фабрика `createMockTenant` в `src/test/fixtures/tenant.fixture.ts`, устранены все расхождения контрактов в тестах бэкенда (`npx tsc --noEmit` проходит со 100% чистым результатом, 0 ошибок).
+    - Выполнено правило `AGENTS.md §4` по лимиту строк: монолитный `WooCommerceTab.tsx` (599 строк) декомпозирован на подпапку `client/src/components/portal/woocommerce/` (модули `types.ts`, `WooHealthGrid`, `WooPluginCard`, `WooActionHub`, `WooWebhooksCard`, `WooSettingsForm` и компактный оркестратор `WooCommerceTab`).
+    - Монолитный `RozetkaTab.tsx` (480 строк) декомпозирован на подпапку `client/src/components/portal/rozetka/` (модули `types.ts`, `RozetkaHealthGrid`, `RozetkaActionHub`, `RozetkaFeedCard`, `RozetkaWebhookCard`, `RozetkaSettingsForm` и компактный оркестратор `RozetkaTab`).
+    - Все 264 unit/компонентных теста (194 бэкенд Jest + 70 фронтенд Vitest) успешно проходят.
+
 
 
 
