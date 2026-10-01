@@ -16,10 +16,11 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { tenantsApi } from '@/api/client';
+import type { TenantData } from '@/components/admin/TenantModal';
 
 interface PortalSettingsTabProps {
   tenantId: string;
-  tenant: any;
+  tenant: TenantData;
   onTenantUpdated: () => void;
 }
 

@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
 import { promApi, tenantsApi, limanApi, syncApi } from '@/api/client';
+import { JOB_STATE } from '@/constants/job-states';
 import type { PromTabProps, MariaDbStatus, PromStatus, SyncReport } from './types';
 
 export function usePromTabState({
@@ -151,6 +152,7 @@ export function usePromTabState({
       if (jobId) {
         setSyncStatusStep(`${t('queueActiveSync')} (#${jobId})...`);
         await new Promise<void>((resolve, reject) => {
+          let watchdogTimer: ReturnType<typeof setTimeout> | null = null;
           const pollTimer = setInterval(async () => {
             try {
               const statusRes = await syncApi.getJobStatus('sync-stock', jobId);
@@ -161,8 +163,9 @@ export function usePromTabState({
                 setSyncStatusStep(`${t('queueActiveSync')}: ${job.progress}%...`);
               }
 
-              if (job.state === 'completed') {
+              if (job.state === JOB_STATE.COMPLETED) {
                 clearInterval(pollTimer);
+                if (watchdogTimer) clearTimeout(watchdogTimer);
                 const updatedCount = job.result?.processed ?? 0;
                 setSyncReport({
                   success: true,
@@ -174,15 +177,23 @@ export function usePromTabState({
                   processed: updatedCount,
                 });
                 resolve();
-              } else if (job.state === 'failed') {
+              } else if (job.state === JOB_STATE.FAILED) {
                 clearInterval(pollTimer);
+                if (watchdogTimer) clearTimeout(watchdogTimer);
                 reject(new Error(job.error || 'Ошибка при синхронизации остатков'));
               }
             } catch (pollErr) {
               clearInterval(pollTimer);
+              if (watchdogTimer) clearTimeout(watchdogTimer);
               reject(pollErr);
             }
           }, 800);
+
+          // Watchdog: если BullMQ-задача зависнет дольше 5 минут — прерываем polling
+          watchdogTimer = setTimeout(() => {
+            clearInterval(pollTimer);
+            reject(new Error('Timeout: синхронизация не завершилась за 5 минут'));
+          }, 5 * 60 * 1000);
         });
       } else {
         setSyncReport({

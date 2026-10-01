@@ -12,6 +12,7 @@ import {
   ExportErrorScreen,
 } from '../export';
 import { SYNC_MODAL_STATUS, type SyncModalStatus } from '../common';
+import { JOB_STATE } from '@/constants/job-states';
 
 export interface PromExportModalProps {
   isOpen: boolean;
@@ -132,7 +133,7 @@ export function PromExportModal({
             setProgress(job.progress);
           }
 
-          if (job.state === 'completed') {
+          if (job.state === JOB_STATE.COMPLETED) {
             if (pollTimerRef.current) clearInterval(pollTimerRef.current);
             setStatus(SYNC_MODAL_STATUS.COMPLETED);
             setProgress(100);
@@ -140,7 +141,7 @@ export function PromExportModal({
               setStats(job.result);
             }
             onExportFinished?.();
-          } else if (job.state === 'failed') {
+          } else if (job.state === JOB_STATE.FAILED) {
             if (pollTimerRef.current) clearInterval(pollTimerRef.current);
             setStatus(SYNC_MODAL_STATUS.ERROR);
             setErrorMessage(job.error || 'Ошибка при выполнении фоновой задачи экспорта в Prom.ua');

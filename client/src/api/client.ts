@@ -152,8 +152,7 @@ export const promApi = {
   ping: (tenantId: string) => apiClient.get(`/prom/${tenantId}/ping`),
   syncPricesStocks: (tenantId: string, limit?: number) =>
     apiClient.post(`/prom/${tenantId}/sync/prices-stocks${limit ? `?limit=${limit}` : ''}`),
-  syncPricesStocksAsync: (tenantId: string) =>
-    apiClient.post(`/prom/${tenantId}/sync/prices-stocks?async=true`),
+  /** Async variant — queues a BullMQ job, returns { jobId } */
   syncStock: (tenantId: string) =>
     apiClient.post(`/prom/${tenantId}/sync/prices-stocks?async=true`),
   syncOrders: (tenantId: string) =>
@@ -218,8 +217,8 @@ export const woocommerceApi = {
   ping: (tenantId: string) => apiClient.get(`/woocommerce/${tenantId}/ping`),
   syncStock: (tenantId: string) =>
     apiClient.post(`/woocommerce/${tenantId}/sync/stock`),
-  syncProducts: (tenantId: string) =>
-    apiClient.post(`/woocommerce/${tenantId}/sync/products?limit=50`),
+  syncProducts: (tenantId: string, limit = 50) =>
+    apiClient.post(`/woocommerce/${tenantId}/sync/products?limit=${limit}`),
   importCatalog: (tenantId: string) =>
     apiClient.post(`/woocommerce/${tenantId}/import/catalog`),
   getPluginDownloadUrl: (tenantId: string) =>

@@ -16,10 +16,11 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { woocommerceApi, tenantsApi } from '@/api/client';
+import type { TenantData } from '@/components/admin/TenantModal';
 
 interface WooCommerceTabProps {
   tenantId: string;
-  tenant: any;
+  tenant: TenantData;
   onTenantUpdated: () => void;
 }
 
