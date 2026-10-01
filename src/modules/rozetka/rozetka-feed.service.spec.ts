@@ -2,47 +2,23 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { RozetkaFeedService } from './rozetka-feed.service';
 import { LimanService } from '../liman/liman.service';
 import { Tenant } from '../tenant/tenant.entity';
+import { createMockTenant } from '../../test/fixtures/tenant.fixture';
 import type { Response } from 'express';
 
 describe('RozetkaFeedService', () => {
   let service: RozetkaFeedService;
   let limanService: jest.Mocked<Partial<LimanService>>;
 
-  const mockTenant: Tenant = {
+  const mockTenant: Tenant = createMockTenant({
     id: 'columb',
     name: 'Columb Shop',
-    dbHost: '127.0.0.1',
-    dbPort: 3306,
-    dbName: 'columbDB',
-    dbUser: 'root',
-    dbPassword: 'password',
     apiKey: 'test-key',
-    promApiKey: null,
     promExportEnabled: false,
-    woocommerceUrl: null,
-    woocommerceConsumerKey: null,
-    woocommerceConsumerSecret: null,
     woocommerceSyncEnabled: false,
     woocommerceImportEnabled: false,
-    woocommerceSyncIntervalMinutes: 30,
-    rozetkaClientId: null,
-    rozetkaClientSecret: null,
     rozetkaExportEnabled: true,
-    horoshopDomain: null,
-    horoshopLogin: null,
-    horoshopPassword: null,
     horoshopExportEnabled: false,
-    horoshopOrderWebhookEnabled: true,
-    horoshopProductCreationWebhookEnabled: false,
-    horoshopCreateOrderDocumentEnabled: false,
-    horoshopSyncIntervalMinutes: 15,
-    priceColumn: 'cena2',
-    stockColumn: 'skl_k',
-    syncIntervalMinutes: 15,
-    isActive: true,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
+  });
 
   beforeEach(async () => {
     limanService = {

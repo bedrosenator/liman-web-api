@@ -2,12 +2,13 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AdminTenantsController } from './admin-tenants.controller';
 import { TenantService } from './tenant.service';
 import { Tenant } from './tenant.entity';
+import { createMockTenant } from '../../test/fixtures/tenant.fixture';
 
 describe('AdminTenantsController', () => {
   let controller: AdminTenantsController;
   let tenantService: jest.Mocked<TenantService>;
 
-  const mockTenant: Tenant = {
+  const mockTenant: Tenant = createMockTenant({
     id: 'columb',
     name: 'Columb Shop',
     dbHost: '127.0.0.1',
@@ -23,7 +24,6 @@ describe('AdminTenantsController', () => {
     woocommerceConsumerSecret: 'cs_secret_456',
     woocommerceSyncEnabled: true,
     woocommerceImportEnabled: false,
-    woocommerceSyncIntervalMinutes: 15,
     rozetkaClientId: 'rozetka-user',
     rozetkaClientSecret: 'rozetka-secret',
     rozetkaExportEnabled: false,
@@ -31,17 +31,7 @@ describe('AdminTenantsController', () => {
     horoshopLogin: 'liman_api',
     horoshopPassword: 'horoshopPassword789',
     horoshopExportEnabled: true,
-    horoshopOrderWebhookEnabled: true,
-    horoshopProductCreationWebhookEnabled: false,
-    horoshopCreateOrderDocumentEnabled: false,
-    horoshopSyncIntervalMinutes: 15,
-    priceColumn: 'cena2',
-    stockColumn: 'skl_k',
-    syncIntervalMinutes: 15,
-    isActive: true,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
+  });
 
   beforeEach(async () => {
     const mockService = {
