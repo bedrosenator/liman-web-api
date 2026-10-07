@@ -18,6 +18,7 @@ import { RozetkaModule } from './modules/rozetka/rozetka.module';
 import { HoroshopModule } from './modules/horoshop/horoshop.module';
 import { AlertModule } from './modules/alert/alert.module';
 import { BackupModule } from './modules/backup/backup.module';
+import { AuthModule } from './modules/auth/auth.module';
 import { ApiKeyGuard } from './common/guards/api-key.guard';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 
@@ -73,6 +74,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
     HoroshopModule,
     AlertModule,
     BackupModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [

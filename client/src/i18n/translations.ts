@@ -37,13 +37,15 @@ export const translations = {
     // Auth
     login: 'Вход',
     logout: 'Выход',
-    enterApiKey: 'Введите API ключ',
-    apiKeyPlaceholder: 'liman-secret-key...',
+    enterApiKey: 'Пароль или ключ доступа',
+    apiKeyPlaceholder: '••••••••••••',
     loginButton: 'Войти',
-    loginError: 'Неверный API ключ',
+    loginError: 'Неверный пароль или ключ доступа',
     loginTitle: 'Добро пожаловать',
-    loginSubtitle: 'Введите ключ доступа для входа в панель управления',
+    loginSubtitle: 'Введите пароль или ключ доступа для входа',
     masterKeyHint: 'Для входа в панель администратора используйте Master API Key',
+    loginSessionExpired: 'Сессия истекла. Пожалуйста, войдите снова.',
+    loginAccessDenied: 'Недостаточно прав доступа.',
 
     // Navigation
     superAdmin: 'Суперадмин',
@@ -376,13 +378,15 @@ export const translations = {
     // Auth
     login: 'Вхід',
     logout: 'Вийти',
-    enterApiKey: 'Введіть API ключ',
-    apiKeyPlaceholder: 'liman-secret-key...',
+    enterApiKey: 'Пароль або ключ доступу',
+    apiKeyPlaceholder: '••••••••••••',
     loginButton: 'Увійти',
-    loginError: 'Невірний API ключ',
+    loginError: 'Невірний пароль або ключ доступу',
     loginTitle: 'Ласкаво просимо',
-    loginSubtitle: 'Введіть ключ доступу для входу до панелі управління',
+    loginSubtitle: 'Введіть пароль або ключ доступу для входу',
     masterKeyHint: 'Для входу до панелі адміністратора використовуйте Master API Key',
+    loginSessionExpired: 'Сесія закінчилася. Будь ласка, увійдіть знову.',
+    loginAccessDenied: 'Недостатньо прав доступу.',
 
     // Navigation
     superAdmin: 'Суперадмін',

@@ -1,105 +1,92 @@
-import React, { useState, useId } from 'react';
+import React, { useState, useId, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { LogIn, Eye, EyeOff, Zap, AlertCircle } from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth, type AuthRole } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { LanguageSelector } from '@/components/LanguageSelector';
-import { apiClient } from '@/api/client';
+import { authApi } from '@/api/client';
+
+const ROLE_SUPERADMIN: AuthRole = 'superadmin';
+const ROLE_TENANT: AuthRole = 'tenant';
 
 /**
  * Экран авторизации.
- * Поддерживает вход по Master Key (superadmin) или по ключу тенанта.
+ * Единая форма входа по паролю или API-ключу с автоопределением роли и редиректом.
  */
 export function LoginPage() {
-  const { t, language } = useLanguage();
-  const { login } = useAuth();
+  const { t } = useLanguage();
+  const { login, apiKey: contextKey } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  const paramRole = searchParams.get('role');
-  const paramTenant =
-    searchParams.get('tenant') ||
-    searchParams.get('tenantId') ||
-    searchParams.get('tid') ||
-    sessionStorage.getItem('liman_tenant_id') ||
-    '';
+  const initialToken =
+    searchParams.get('token') ||
+    (!sessionStorage.getItem('liman_role')
+      ? contextKey || sessionStorage.getItem('liman_api_key') || ''
+      : '');
 
-  const [apiKey, setApiKey] = useState('');
+  const [apiKey, setApiKey] = useState(initialToken);
   const [showKey, setShowKey] = useState(false);
-  const [tenantIdInput, setTenantIdInput] = useState(paramTenant);
-  const [mode, setMode] = useState<'superadmin' | 'tenant'>(() => {
-    if (paramRole === 'tenant' || paramTenant) return 'tenant';
-    if (paramRole === 'superadmin') return 'superadmin';
-    const savedRole = sessionStorage.getItem('liman_role');
-    if (savedRole === 'tenant') return 'tenant';
-    return 'superadmin';
-  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const reason = searchParams.get('reason');
-  const apiKeyId = useId();
-  const tenantId = useId();
+  const passwordInputId = useId();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!apiKey.trim()) return;
-    if (mode === 'tenant' && !tenantIdInput.trim()) {
-      setError(
-        language === 'uk'
-          ? 'Вкажіть ID магазину'
-          : 'Укажите ID магазина',
-      );
-      return;
+  // Автоматический вход при переходе по прямой ссылке с ?token=... (включая перехват из AuthProvider)
+  useEffect(() => {
+    const tokenToVerify =
+      searchParams.get('token') ||
+      (!sessionStorage.getItem('liman_role')
+        ? contextKey || sessionStorage.getItem('liman_api_key')
+        : null);
+
+    if (tokenToVerify && tokenToVerify.trim()) {
+      handleAuthenticate(tokenToVerify.trim());
     }
+  }, []);
+
+  const handleAuthenticate = async (keyToVerify: string) => {
+    if (!keyToVerify.trim()) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      // Проверяем ключ через API
-      const endpoint =
-        mode === 'superadmin'
-          ? '/admin/ping'
-          : `/liman/${tenantIdInput.trim()}/ping`;
-
-      await apiClient.get(endpoint, {
-        headers: { 'x-api-key': apiKey.trim() },
-      });
+      const response = await authApi.login(keyToVerify.trim());
 
       login(
-        apiKey.trim(),
-        mode,
-        mode === 'tenant' ? tenantIdInput.trim() : undefined,
+        keyToVerify.trim(),
+        response.role,
+        response.role === ROLE_TENANT ? response.tenantId : undefined,
       );
 
-      if (mode === 'superadmin') {
+      if (response.role === ROLE_SUPERADMIN) {
         navigate('/superadmin');
+      } else if (response.role === ROLE_TENANT && response.tenantId) {
+        navigate(`/portal/${response.tenantId}`);
       } else {
-        navigate(`/portal/${tenantIdInput.trim()}`);
+        navigate('/');
       }
-    } catch {
-      const isUuidKey =
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-          apiKey.trim(),
-        );
-      if (mode === 'superadmin' && isUuidKey) {
-        setError(
-          language === 'uk'
-            ? 'Невірний Master Key. Для входу в магазин перемкніться на вкладку «Особистий кабінет».'
-            : 'Неверный Master Key. Для входа в магазин переключитесь на вкладку «Личный кабинет».',
-        );
-      } else {
-        setError(t('loginError'));
-      }
+    } catch (err: unknown) {
+      const errorObj = err as {
+        response?: { data?: { message?: string } };
+      };
+      const apiMessage = errorObj?.response?.data?.message;
+      setError(apiMessage || t('loginError'));
     } finally {
       setLoading(false);
     }
   };
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleAuthenticate(apiKey);
+  };
+
   return (
     <div className="login-page" id="login-page">
-      {/* Animated background */}
+      {/* Animated background orbs */}
       <div className="login-bg" aria-hidden="true">
         <div className="login-bg__orb login-bg__orb--1" />
         <div className="login-bg__orb login-bg__orb--2" />
@@ -121,92 +108,54 @@ export function LoginPage() {
           <p className="login-card__subtitle">{t('loginSubtitle')}</p>
         </div>
 
-        {/* Session expired / access denied warning */}
+        {/* Reason alert (session expired / access denied) */}
         {reason && (
           <div className="alert alert--warning" role="alert">
             <AlertCircle size={16} />
             <span>
               {reason === 'session_expired'
-                ? 'Сессия истекла. Пожалуйста, войдите снова.'
-                : 'Недостаточно прав доступа.'}
+                ? t('loginSessionExpired')
+                : t('loginAccessDenied')}
             </span>
           </div>
         )}
 
+        {/* Single login form */}
         <form className="login-card__form" onSubmit={handleSubmit} noValidate>
-          {/* Mode toggle */}
-          <div className="mode-toggle" role="group" aria-label="Login mode">
-            <button
-              type="button"
-              id="mode-superadmin"
-              className={`mode-toggle__btn ${mode === 'superadmin' ? 'mode-toggle__btn--active' : ''}`}
-              onClick={() => setMode('superadmin')}
-            >
-              Super Admin
-            </button>
-            <button
-              type="button"
-              id="mode-tenant"
-              className={`mode-toggle__btn ${mode === 'tenant' ? 'mode-toggle__btn--active' : ''}`}
-              onClick={() => setMode('tenant')}
-            >
-              {t('clientPortal')}
-            </button>
-          </div>
-
-          {/* Tenant ID field (only for tenant mode) */}
-          {mode === 'tenant' && (
-            <div className="form-field">
-              <label htmlFor={tenantId} className="form-label">
-                {t('tenantId')}
-              </label>
-              <input
-                id={tenantId}
-                type="text"
-                className="form-input"
-                placeholder="columb"
-                value={tenantIdInput}
-                onChange={(e) => setTenantIdInput(e.target.value)}
-                required={mode === 'tenant'}
-                autoComplete="off"
-              />
-            </div>
-          )}
-
-          {/* API Key field */}
           <div className="form-field">
-            <label htmlFor={apiKeyId} className="form-label">
+            <label htmlFor={passwordInputId} className="form-label">
               {t('enterApiKey')}
             </label>
             <div className="form-input-wrap">
               <input
-                id={apiKeyId}
+                id={passwordInputId}
                 type={showKey ? 'text' : 'password'}
                 className="form-input form-input--with-btn"
                 placeholder={t('apiKeyPlaceholder')}
                 value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
+                onChange={(e) => {
+                  setApiKey(e.target.value);
+                  if (error) setError(null);
+                }}
                 required
                 autoComplete="current-password"
+                autoFocus
               />
               <button
                 type="button"
                 id="toggle-key-visibility"
                 className="form-input-reveal"
-                onClick={() => setShowKey((v) => !v)}
-                aria-label={showKey ? 'Hide key' : 'Show key'}
+                onClick={() => setShowKey((prev) => !prev)}
+                aria-label={showKey ? 'Hide password' : 'Show password'}
               >
                 {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
           </div>
 
-          {/* Hint */}
-          {mode === 'superadmin' && (
-            <p className="login-hint">{t('masterKeyHint')}</p>
-          )}
+          <p className="login-hint">{t('masterKeyHint')}</p>
 
-          {/* Error */}
+          {/* Error alert */}
           {error && (
             <div className="alert alert--error" role="alert" id="login-error">
               <AlertCircle size={16} />
@@ -221,9 +170,15 @@ export function LoginPage() {
             disabled={loading || !apiKey.trim()}
           >
             {loading ? (
-              <><span className="spinner" aria-hidden="true" />{t('loading')}</>
+              <>
+                <span className="spinner" aria-hidden="true" />
+                {t('loading')}
+              </>
             ) : (
-              <><LogIn size={18} />{t('loginButton')}</>
+              <>
+                <LogIn size={18} />
+                {t('loginButton')}
+              </>
             )}
           </button>
         </form>

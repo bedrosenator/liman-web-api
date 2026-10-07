@@ -233,3 +233,20 @@ export const limanApi = {
   ping: tenantsApi.ping,
 };
 
+export interface LoginResponse {
+  role: 'superadmin' | 'tenant';
+  tenantId?: string;
+  tenantName?: string;
+}
+
+export const authApi = {
+  login: async (key: string): Promise<LoginResponse> => {
+    const res = await apiClient.post<LoginResponse>('/auth/login', { key });
+    return res.data;
+  },
+  getMe: async (): Promise<LoginResponse> => {
+    const res = await apiClient.get<LoginResponse>('/auth/me');
+    return res.data;
+  },
+};
+
