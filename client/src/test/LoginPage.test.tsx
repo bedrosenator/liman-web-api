@@ -147,4 +147,20 @@ describe('LoginPage (TASK-44: Unified Login)', () => {
     fireEvent.change(input, { target: { value: 'wrong-key-2' } });
     expect(screen.queryByText('Неверный пароль или ключ доступа')).not.toBeInTheDocument();
   });
+
+  it('автоматически аутентифицирует и перенаправляет при наличии токена в session/URL', async () => {
+    vi.mocked(authApi.login).mockResolvedValueOnce({
+      role: 'superadmin',
+    });
+
+    // Моделируем перехват токена
+    sessionStorage.setItem('liman_api_key', 'magic-superadmin-token');
+
+    renderLoginPage('/login');
+
+    await waitFor(() => {
+      expect(authApi.login).toHaveBeenCalledWith('magic-superadmin-token');
+      expect(screen.getByTestId('superadmin-route')).toBeInTheDocument();
+    });
+  });
 });

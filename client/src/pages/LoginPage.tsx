@@ -15,11 +15,17 @@ const ROLE_TENANT: AuthRole = 'tenant';
  */
 export function LoginPage() {
   const { t } = useLanguage();
-  const { login } = useAuth();
+  const { login, apiKey: contextKey } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  const [apiKey, setApiKey] = useState(() => searchParams.get('token') || '');
+  const initialToken =
+    searchParams.get('token') ||
+    (!sessionStorage.getItem('liman_role')
+      ? contextKey || sessionStorage.getItem('liman_api_key') || ''
+      : '');
+
+  const [apiKey, setApiKey] = useState(initialToken);
   const [showKey, setShowKey] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,11 +33,16 @@ export function LoginPage() {
   const reason = searchParams.get('reason');
   const passwordInputId = useId();
 
-  // Автоматический вход при переходе по прямой ссылке с ?token=...
+  // Автоматический вход при переходе по прямой ссылке с ?token=... (включая перехват из AuthProvider)
   useEffect(() => {
-    const token = searchParams.get('token');
-    if (token && token.trim()) {
-      handleAuthenticate(token.trim());
+    const tokenToVerify =
+      searchParams.get('token') ||
+      (!sessionStorage.getItem('liman_role')
+        ? contextKey || sessionStorage.getItem('liman_api_key')
+        : null);
+
+    if (tokenToVerify && tokenToVerify.trim()) {
+      handleAuthenticate(tokenToVerify.trim());
     }
   }, []);
 

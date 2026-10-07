@@ -1,4 +1,5 @@
 import { Controller, Post, Get, Body, Req } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import {
   ApiTags,
   ApiOperation,
@@ -16,6 +17,7 @@ import type { AuthenticatedRequest } from '../../common/interfaces/authenticated
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('login')
   @Public()
   @ApiOperation({
